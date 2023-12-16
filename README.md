@@ -68,15 +68,15 @@ const y2s = Yaml2Solana("yaml2solana.yaml")
 // Define userWallet here
 const userWallet = "defineUserWalletHere"; // as public key of course...
 
-// Generate PDA
-const somePda = y2s.pda.somePda({ userWallet }); // we just put userWallet variable here. Everything is defined in the yaml config file.
+// Generate PDA (no need)
+// const somePda = y2s.pda.somePda({ userWallet }); // we just put userWallet variable here. Everything is defined in the yaml config file.
 
 // Generate instruction from schema
 // Notice that we only focus on values that only matter and all constant stuff are already defined in the config.
 const ix = y2s.instructions.someContractA({
   amount: u64(10_000),
   slippage: u64(10),
-  somePda,
+  // somePda, // since pda is resolvable from schema, then this became optional
   userWallet,
 });
 
