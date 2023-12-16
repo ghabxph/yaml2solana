@@ -1,6 +1,18 @@
 # yaml2solana
 
-Schematic approach to execute solana smart contracts
+**yaml2solana** takes a systematic approach to execute Solana smart contracts by simplifying the process and enhancing configurability. The central idea behind this tool is to define Solana instructions statically within a YAML configuration file (`yaml2solana.yaml`). This YAML file serves as the single source of truth for executing Solana instructions, encompassing all relevant details, including account addresses and even Program Derived Account (PDA) generation.
+
+## Key Concepts:
+
+1. **Static Instruction Definitions:** Rather than coding instructions individually, we define all the Solana instructions we want to execute within a single schema in the yaml2solana.yaml file. This allows us to consolidate and manage our instructions efficiently.
+
+2. **Comprehensive Address Management:** All addresses required for smart contract execution are defined within the schema as well. This eliminates the need to hardcode addresses in your code, ensuring that addresses stay up-to-date and consistent.
+
+3. **Program Derived Account (PDA) Handling:** The tool simplifies the process of PDA generation. PDAs are defined in the YAML file, and the tool automatically generates them as needed.
+
+By adhering to this design philosophy, yaml2solana provides a user-friendly, error-resistant, and scalable solution for executing Solana smart contracts. It empowers developers to focus on the essential aspects of their Solana interactions while abstracting away the technical intricacies.
+
+With the configuration in place, developers can efficiently create, customize, and execute Solana instructions with ease, making it an invaluable addition to the Solana development toolkit.
 
 ## Installation
 
