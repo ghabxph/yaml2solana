@@ -23,6 +23,8 @@ With the configuration in place, developers can efficiently create, customize, a
 Create a `yaml2solana.yaml` file that will serve as global configuration
 
 ```yaml
+version: "1.0"
+
 accounts:
   ACCOUNT1: 11111111111111111111111
   ACCOUNT2: 22222222222222222222222
