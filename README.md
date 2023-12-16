@@ -65,10 +65,10 @@ const ix = y2s.execute.someContractA({
   somePda,
   userWallet,
 });
-```
 
 // Then execute instruction using solana library
 // execute(ix, signer)
+```
 
 We can always access the accounts we defined in the yaml using `accounts` property.
 
