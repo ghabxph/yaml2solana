@@ -57,15 +57,18 @@ const userWallet = "defineUserWalletHere"; // as public key of course...
 // Generate PDA
 const somePda = y2s.pda.somePda({ userWallet }); // we just put userWallet variable here. Everything is defined in the yaml config file.
 
-// Execute the defined contract from config
+// Generate instruction from schema
 // Notice that we only focus on values that only matter and all constant stuff are already defined in the config.
-y2s.execute.someContractA({
+const ix = y2s.execute.someContractA({
   amount: u64(10_000),
   slippage: u64(10),
   somePda,
   userWallet,
 });
 ```
+
+// Then execute instruction using solana library
+// execute(ix, signer)
 
 We can always access the accounts we defined in the yaml using `accounts` property.
 
