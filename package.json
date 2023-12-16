@@ -1,0 +1,22 @@
+{
+  "name": "yaml2solana",
+  "version": "1.0.0",
+  "description": "Schematic approach to execute solana smart contracts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghabxph/yaml2solana.git"
+  },
+  "author": "ghabxph",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ghabxph/yaml2solana/issues"
+  },
+  "homepage": "https://github.com/ghabxph/yaml2solana#readme",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
