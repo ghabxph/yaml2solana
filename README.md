@@ -28,7 +28,7 @@ pda:
       - $ACCOUNT2
       - $userWallet
 
-execute:
+instructions:
   someContractA:
     programId: $ACCOUNT3
     data:
@@ -59,7 +59,7 @@ const somePda = y2s.pda.somePda({ userWallet }); // we just put userWallet varia
 
 // Generate instruction from schema
 // Notice that we only focus on values that only matter and all constant stuff are already defined in the config.
-const ix = y2s.execute.someContractA({
+const ix = y2s.instructions.someContractA({
   amount: u64(10_000),
   slippage: u64(10),
   somePda,
