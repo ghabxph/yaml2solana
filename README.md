@@ -43,7 +43,7 @@ pda:
       - $userWallet
 
 instructions:
-  someContractA:
+  someInstructionA:
     programId: $ACCOUNT3
     data:
       - sighash(someAnchorProgram)
@@ -56,7 +56,36 @@ instructions:
       - $somePda,mut
       - $userWallet,mut,signer
       - $TOKEN_PROGRAM
-      - $ASSOCIATED_TOKEN_PROGRAM
+      - $ASSOCIATED_TOKEN_ACCOUNT
+
+schemaDefinition:
+  TokenAccount:
+    - mint: pubkey
+    - owner: pubkey
+    - amount: u64
+    - otherBytes: base58bytes(....)
+
+localDevelopment:
+  accountsFolder: .accounts/
+  skipCache:
+    - ACCOUNT4
+  testAccounts:
+    - schema: TokenAccount
+      params:
+        mint: $ACCOUNT5
+        owner: $testWalletA
+        amount: 10000
+  testWallets:
+    testWalletA:
+      privateKey: (base58 encoded private key)
+      solAmount: 10000
+  test:
+    - instruction: someInstructionA
+      description: Deposit $amount to liquidity bla bla
+      params:
+        amount: 10000
+        slippage: 10
+        userWallet: $testWalletA
 ```
 
 Now for the juicy part:
@@ -73,7 +102,7 @@ const userWallet = "defineUserWalletHere"; // as public key of course...
 
 // Generate instruction from schema
 // Notice that we only focus on values that only matter and all constant stuff are already defined in the config.
-const ix = y2s.instructions.someContractA({
+const ix = y2s.instructions.someInstructionA({
   amount: u64(10_000),
   slippage: u64(10),
   // somePda, // since pda is resolvable from schema, then this became optional
