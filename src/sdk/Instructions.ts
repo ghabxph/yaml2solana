@@ -1,5 +1,3 @@
-import { Accounts } from "./Accounts";
-
 export class Instructions {
   constructor(
     /**
@@ -10,6 +8,6 @@ export class Instructions {
     /**
      * Accounts definition
      */
-    private accounts: Accounts,
+    private accounts: any,
   ) {}
 }

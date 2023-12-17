@@ -7,7 +7,7 @@ export class Yaml2SolanaClass {
   /**
    * Accounts definition loaded from config
    */
-  readonly accounts: Accounts;
+  readonly accounts: any;
 
   /**
    * PDA definition loaded from config
@@ -26,7 +26,7 @@ export class Yaml2SolanaClass {
     private config: string
   ) {
 
-    this.accounts = new Accounts(this.config);
+    this.accounts = Accounts(this.config);
     this.pda = new Pda(config, this.accounts);
     this.instructions = new Instructions(config, this.accounts);
   }
