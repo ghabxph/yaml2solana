@@ -1,6 +1,7 @@
 import * as web3 from '@solana/web3.js';
 import * as fs from 'fs';
 import * as yaml from 'yaml';
+import { LocalDevelopment } from './LocalDevelopment';
 
 class PdaClass {
 
@@ -19,6 +20,11 @@ class PdaClass {
      * Accounts definition
      */
     accounts: any,
+
+    /**
+     * Local development setup
+     */
+    localDevelopment: LocalDevelopment,
   ) {
     // Read the YAML file.
     const yamlContent = fs.readFileSync(config, 'utf8');
@@ -29,9 +35,9 @@ class PdaClass {
     // Create a Proxy to handle property access dynamically.
     return new Proxy(this, {
       get(target, prop) {
-        return (params: any) => {
-          const propName = prop as string;
-          const pda = target.pdaData[propName];
+        const propName = prop as string;
+        const pda = target.pdaData[propName];
+        return pda === undefined ? undefined : (params: any) => {
           const seeds: Buffer[] = [];
           for(const seed of pda.seeds) {
             if (seed.startsWith('$')) {
@@ -39,15 +45,16 @@ class PdaClass {
               if (params[key] !== undefined) {
                 seeds.push(new web3.PublicKey(params[key]).toBuffer())
               } else if (accounts[key] !== undefined) {
-                seeds.push(new web3.PublicKey(accounts[key]).toBuffer())
+                seeds.push(accounts[key].toBuffer())
+              } else if (localDevelopment.testWallets[key] !== undefined) {
+                seeds.push(localDevelopment.testWallets[key]!.publicKey.toBuffer())
               } else {
-                throw `$${key} param does not exist`;
+                throw `$${key} param does not exist in PDA definition`;
               }
             } else {
               seeds.push(Buffer.from(seed))
             }
           }
-          console.log(seeds);
           let programId = pda.programId.startsWith('$') ? accounts[pda.programId.replace('$', '')] : pda.programId;
           return web3.PublicKey.findProgramAddressSync(seeds, new web3.PublicKey(programId))[0];
         }
@@ -61,6 +68,6 @@ class PdaClass {
  * @param config yaml2solana.yaml config file
  * @returns 
  */
-export function Pda(config: string, accounts: any): any {
-  return new PdaClass(config, accounts) as any;
+export function Pda(config: string, accounts: any, localDevelopment: LocalDevelopment): any {
+  return new PdaClass(config, accounts, localDevelopment) as any;
 }

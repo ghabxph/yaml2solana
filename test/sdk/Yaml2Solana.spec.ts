@@ -1,4 +1,5 @@
 import { Yaml2SolanaClass } from "../../src/sdk/Yaml2Solana";
+import * as web3 from '@solana/web3.js';
 
 test('Create "Yaml2SolanaClass" instance. Creating instance should not produce any error', () => {
   new Yaml2SolanaClass("test/yaml2solana.yaml");
@@ -23,4 +24,21 @@ test('Should be able to fetch only the address from accounts', () => {
 test('Should be able to access _PROGRAM_PATH', () => {
   const y2s = new Yaml2SolanaClass("test/yaml2solana.yaml");
   expect(y2s.accounts.SOME_PROGRAM_PROGRAM_PATH).toBe("target/deploy/some_program.so");
+});
+
+test('Should be able to generate PDA from yaml2solana.yaml', () => {
+  const y2s = new Yaml2SolanaClass("test/yaml2solana.yaml");
+  expect(y2s.pda.somePda({
+    userWallet1: "38w9ZPy4wxNwjHSEazqAb74kJ8GhyfuvwXu8uCYqWSPr"
+  }).toString()).toBe("DJG9JsZQybnP3DWmEaMKEfeM15t9pVbGicp7tnovbmCZ");
+});
+
+test('Create `someInstructionA` instruction from yaml2solana.yaml', () => {
+  const y2s = new Yaml2SolanaClass("test/yaml2solana.yaml");
+  const ix = y2s.instructionDefinition.someInstructionA({
+    amount: 10_000,
+    slippage: 10,
+  });
+  expect(ix).toBeDefined();
+  expect(ix).toBeInstanceOf(web3.TransactionInstruction);
 });

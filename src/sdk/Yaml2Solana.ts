@@ -1,6 +1,7 @@
 import { Accounts } from "./Accounts";
 import { Pda } from "./Pda";
-import { Instructions } from "./Instructions";
+import { InstructionDefinition } from "./InstructionDefinition";
+import { LocalDevelopment } from "./LocalDevelopment";
 
 export class Yaml2SolanaClass {
 
@@ -17,7 +18,12 @@ export class Yaml2SolanaClass {
   /**
    * Instructions definition loaded from config
    */
-  readonly instructions: Instructions;
+  readonly instructionDefinition: any;
+
+  /**
+   * Local development setup
+   */
+  readonly localDevelopment: LocalDevelopment
 
   constructor(
     /**
@@ -25,9 +31,9 @@ export class Yaml2SolanaClass {
      */
     private config: string
   ) {
-
     this.accounts = Accounts(this.config);
-    this.pda = Pda(config, this.accounts);
-    this.instructions = new Instructions(config, this.accounts);
+    this.localDevelopment = new LocalDevelopment(config);
+    this.pda = Pda(config, this.accounts, this.localDevelopment);
+    this.instructionDefinition = InstructionDefinition(config, this.accounts, this.pda, this.localDevelopment);
   }
 }

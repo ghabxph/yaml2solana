@@ -17,30 +17,30 @@ pda:
     seeds:
       - some-string-seed
       - $SOME_ACCOUNT
-      - $userWallet
+      - $userWallet1
 
-instructions:
+instructionDefinition:
   someInstructionA:
-    programId: $ACCOUNT3
+    programId: $SOME_PROGRAM
     data:
       - sighash(someAnchorProgram)
       - $amount:u64
       - $slippage:u64
-      - bytes(0, 0, 0, 0, 0, 0, 0, 0)
+      - bytes(0, 1, 2, 3, 4, 5, 6, 7)
     accounts:
-      - $ACCOUNT5,mut
-      - $ACCOUNT4,mut
+      - $USDT_MINT,mut
+      - $SOME_ACCOUNT
       - $somePda,mut
-      - $userWallet,mut,signer
+      - $userWallet1,mut,signer
       - $TOKEN_PROGRAM
-      - $ASSOCIATED_TOKEN_ACCOUNT
+      - $ASSOCIATED_TOKEN_PROGRAM
 
 schemaDefinition:
   TokenAccount:
-    - mint: pubkey
-    - owner: pubkey
-    - amount: u64
-    - otherBytes: base58bytes(....)
+    - $mint:pubkey
+    - $owner:pubkey
+    - $amount:u64
+    - fromBase58(....)
 
 localDevelopment:
   accountsFolder: .accounts/
@@ -50,11 +50,11 @@ localDevelopment:
     - schema: TokenAccount
       params:
         mint: $ACCOUNT5
-        owner: $testWalletA
+        owner: $userWallet1
         amount: 10000
   testWallets:
-    testWalletA:
-      privateKey: (base58 encoded private key)
+    userWallet1:
+      privateKey: uMJqZRN8zDCAX8AoSj+JsDcUOcb7J61x1nEKHncyxJlWd+COwctV9eKLYK6NIABCqBdfPCcHgwRUJLb+lnNPYw==
       solAmount: 10000
   test:
     - instruction: someInstructionA
@@ -62,4 +62,4 @@ localDevelopment:
       params:
         amount: 10000
         slippage: 10
-        userWallet: $testWalletA
+        userWallet1: $testWalletA
