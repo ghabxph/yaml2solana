@@ -38,6 +38,7 @@ class PdaClass {
         const propName = prop as string;
         const pda = target.pdaData[propName];
         return pda === undefined ? undefined : (params: any) => {
+          const recurseInstance = new PdaClass(config, accounts, localDevelopment) as any;
           const seeds: Buffer[] = [];
           for(const seed of pda.seeds) {
             if (seed.startsWith('$')) {
@@ -48,6 +49,8 @@ class PdaClass {
                 seeds.push(accounts[key].toBuffer())
               } else if (localDevelopment.testWallets[key] !== undefined) {
                 seeds.push(localDevelopment.testWallets[key]!.publicKey.toBuffer())
+              } else if (recurseInstance[key] !== undefined) {
+                seeds.push(recurseInstance[key]({ ...params }).toBuffer())
               } else {
                 throw `$${key} param does not exist in PDA definition`;
               }

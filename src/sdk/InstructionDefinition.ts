@@ -5,11 +5,7 @@ import * as yaml from 'yaml';
 import * as util from "../util";
 
 class InstructionDefinitionClass {
-  private instructionDefinition: Record<string, {
-    programId: string,
-    data: string[]
-    accounts: string[]
-  }>;
+  private instructionDefinition: util.typeResolver.InstructionDefinitions;
 
   constructor(
     /**
@@ -43,6 +39,66 @@ class InstructionDefinitionClass {
       get(target, prop) {
         const propName = prop as string;
         const instructionDefinition = target.instructionDefinition[propName];
+
+        /**
+         * InstructionDefinitionClass.getInstruction() method
+         * 
+         * Returns instruction keys
+         */
+        if (prop === 'getInstructions') {
+          return (): string[] => {
+            const instructions: string[] = [];
+            for (const instruction in target.instructionDefinition) {
+              instructions.push(instruction);
+            }
+            return instructions;
+          }
+        }
+
+        /**
+         * InstructionDefinitionClass.getParametersOf() method
+         * 
+         * @param $targetInstruction The instruction key
+         * Returns available parameters that can be overriden for target instruction
+         */
+        if (prop === 'getParametersOf') {
+          return (instructionToExecute: string): Record<string, util.typeResolver.VariableInfo> => {
+            return util.typeResolver.getVariablesFromInstructionDefinition(
+              instructionToExecute,
+              target.instructionDefinition,
+              accounts,
+              pda,
+              localDevelopment.testWallets
+            );
+          }
+        }
+
+        /**
+         * InstructionDefinitionClass.getSigners() method
+         * 
+         * @param $targetInstruction The instruction key
+         * Returns localnet instruction signers
+         */
+        if (prop === 'getSigners') {
+          return (instructionToExecute: string): web3.Signer[] => {
+            const accountsMeta = target.instructionDefinition[instructionToExecute].accounts;
+            const signers: web3.Signer[] = [];
+            for (const accountMeta of accountsMeta) {
+              const _accountMeta = accountMeta.split(',');
+              const name = _accountMeta[0].substring(1);
+              if (_accountMeta.includes('signer')) {
+                const signer = localDevelopment.testWallets[name]
+                if (signer !== undefined) {
+                  signers.push(signer)
+                } else {
+                  throw `${name} signer is not defined in the localDevelopment.testWallets`
+                }
+              }
+            }
+            return signers;
+          }
+        }
+
         return instructionDefinition === undefined ? () => {
           throw `Cannot find \`${propName}\` instruction definition from ${config}.`
         } : (params: any) => {

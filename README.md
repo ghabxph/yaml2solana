@@ -18,7 +18,24 @@ By adhering to these core principles, yaml2solana provides a user-friendly, erro
 
 ## Installation
 
+**TODO:**
 `yarn add yaml2solana`
+
+**Notice:**
+The project hasn't been published yet on npm. Download the source code for now usin git:
+
+`git clone https://github.com/ghabxph/yaml2solana.git`
+
+And then install dependencies using yarn
+
+`yarn`
+
+Then install the package globally using
+
+`npm link`
+
+You can modify and debug the source code this way. No official release at the moment. Everything is at the edge. Will release a stable release soon.
+
 
 ## Usage
 
