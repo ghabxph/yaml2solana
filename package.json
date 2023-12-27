@@ -2,9 +2,14 @@
   "name": "yaml2solana",
   "version": "1.0.0",
   "description": "Schematic approach to execute solana smart contracts",
-  "main": "index.js",
+  "main": "src/cli/index.js",
+  "bin": {
+    "yaml2solana": "src/cli/index.js"
+  },
   "scripts": {
-    "test": "npx jest"
+    "test": "npx jest",
+    "cli": "npx ts-node src/cli/index.ts",
+    "watch:build": "npx tsc --watch"
   },
   "repository": {
     "type": "git",
@@ -17,6 +22,7 @@
   },
   "homepage": "https://github.com/ghabxph/yaml2solana#readme",
   "devDependencies": {
+    "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.5.11",
     "@types/lodash": "^4.14.202",
     "jest": "^29.7.0",
@@ -25,6 +31,8 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.87.6",
+    "axios": "^1.6.2",
+    "inquirer": "^8.0.0",
     "js-sha256": "^0.10.1",
     "lodash": "^4.17.21",
     "yaml": "^2.3.4"

@@ -2,6 +2,260 @@ import { snakeCase } from 'lodash';
 import { sha256 } from "js-sha256";
 import * as web3 from '@solana/web3.js';
 
+const INVALID_KEY = new web3.PublicKey('123456789abcdefghijkLmnopqrstuvwxyz123456789');
+
+export type InstructionDefinitions = Record<
+  string,
+  {
+    programId: string,
+    data: string[]
+    accounts: string[]
+  }
+>;
+
+export type VariableType = 
+  "sighash" |
+  "u8" |
+  "u16" |
+  "u32" |
+  "u64" |
+  "usize" |
+  "i8" |
+  "i16" |
+  "i32" |
+  "i64" |
+  "bool" |
+  "pubkey" |
+  "bytes" |
+  "fromBase64";
+
+export type VariableInfo = {
+  isVariable: boolean,
+  name: string,
+  type: VariableType,
+  defaultValue?: any,
+}
+
+export function extractVariableInfo(
+  pattern: string,
+  accounts: Record<string, web3.PublicKey>,
+  pda: Record<string, any>,
+  testWallets: Record<string, web3.Keypair | undefined>,
+): VariableInfo {
+  const _sighash = /sighash\([a-zA-Z0-9_]+\)/;
+  const _u8 = /\$[a-zA-Z0-9_]+:u8/;
+  const _u16 = /\$[a-zA-Z0-9_]+:u16/;
+  const _u32 = /\$[a-zA-Z0-9_]+:u32/;
+  const _u64 = /\$[a-zA-Z0-9_]+:u64/;
+  const _usize = /\$[a-zA-Z0-9_]+:usize/
+  const _i8 = /\$[a-zA-Z0-9_]+:i8/;
+  const _i16 = /\$[a-zA-Z0-9_]+:i16/;
+  const _i32 = /\$[a-zA-Z0-9_]+:i32/;
+  const _i64 = /\$[a-zA-Z0-9_]+:i64/;
+  const _bool = /\$[a-zA-Z0-9_]+:bool/;
+  const _bytes = /bytes\((\s*\d+\s*,\s*)*\s*\d+\s*\)/;
+  const _fromBase64 = /fromBase64\([^)]*\)/g;
+  const _pubkey = /\$[a-zA-Z0-9_]+:pubkey/;
+  const _pubkey2 = /\$[a-zA-Z0-9_]+/;
+
+  // Resolve sighash
+  if (_sighash.test(pattern)) {
+    const result = resolveSighash(pattern);
+    return {
+      isVariable: false,
+      name: "",
+      type: "sighash",
+      defaultValue: result,
+    }
+  }
+
+  // Resolve u8 type
+  else if (_u8.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):u8/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "u8",
+    }
+  }
+
+  // Resolve u16 type
+  else if (_u16.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):u16/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "u16",
+    }
+  }
+
+  // Resolve u32 type
+  else if (_u32.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):u32/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "u32",
+    }
+  }
+
+  // Resolve u64 type
+  else if (_u64.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):u64/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "u64",
+    }
+  }
+
+  // Resolve usize type
+  else if (_usize.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):usize/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "usize",
+    }
+  }
+
+  // Resolve i8 type
+  else if (_i8.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):i8/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "i8",
+    }
+  }
+
+  // Resolve i16 type
+  else if (_i16.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):i16/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "i16",
+    }
+  }
+
+  // Resolve i32 type
+  else if (_i32.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):i32/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "i32",
+    }
+  }
+
+  // Resolve i64 type
+  else if (_i64.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):i64/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "i64",
+    }
+  }
+
+  // Resolve bool type
+  else if (_bool.test(pattern)) {
+    let name: string = pattern.replace(/\$([^:]+):bool/, "$1");
+    return {
+      isVariable: true,
+      name,
+      type: "bool",
+    }
+  }
+
+  // Resolve bytes type
+  else if (_bytes.test(pattern)) {
+    return {
+      isVariable: false,
+      name: "",
+      type: "bytes",
+      defaultValue: resolveRawBytes(pattern)
+    }
+  }
+
+  else if (_fromBase64.test(pattern)) {
+    return {
+      isVariable: false,
+      name: "",
+      type: "fromBase64",
+      defaultValue: resolveBase64(pattern)
+    }
+  }
+
+  // Resolve pubkey type
+  else if (_pubkey.test(pattern)) {
+    const name = pattern.replace(/\$([^:]+):pubkey/, "$1");
+    const params: any = {};
+    params[name] = INVALID_KEY;
+    const defaultValue = resolvePubkey(pattern, params, accounts, pda, testWallets, false);
+    return {
+      isVariable: true,
+      name,
+      type: "pubkey",
+      defaultValue: defaultValue.equals(INVALID_KEY.toBytes()) ? undefined : new web3.PublicKey(defaultValue)
+    }
+  }
+
+  // Resolve pubkey type
+  else if (_pubkey2.test(pattern)) {
+    const name = pattern.replace(/\$([^:]+)/, "$1");
+    const params: any = {};
+    params[name] = INVALID_KEY;
+    const defaultValue = resolvePubkey2(pattern, params, accounts, pda, testWallets, false);
+    return {
+      isVariable: true,
+      name,
+      type: "pubkey",
+      defaultValue: defaultValue.equals(INVALID_KEY.toBytes()) ? undefined : new web3.PublicKey(defaultValue)
+    }
+  }
+
+  // Variables syntax is not correct.
+  else {
+    throw `$${pattern} is not a valid variable syntax.`;
+  }
+}
+
+export function getVariablesFromInstructionDefinition(
+  instructionToExecute: string,
+  instructionDefinitions: InstructionDefinitions,
+  accounts: any,
+  pda: any,
+  testWallets: Record<string, web3.Keypair | undefined>,
+): Record<string, VariableInfo> {
+  const ixSchema = instructionDefinitions[instructionToExecute];
+  const params: Record<string, VariableInfo> = {};
+  const info = extractVariableInfo(
+    ixSchema.programId,
+    accounts,
+    pda,
+    testWallets,
+  );
+  if (info.isVariable) {
+    params[info.name] = info;
+  }
+  for (const pattern of ixSchema.data) {
+    const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+    if (info.isVariable) {
+      params[info.name] = info;
+    }
+  }
+  for (const account of ixSchema.accounts) {
+    const pattern = account.split(',')[0];
+    const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+    if (info.isVariable) {
+      params[info.name] = info;
+    }
+  }
+  return params;
+}
+
 /**
  * Resolve type
  *
@@ -18,7 +272,7 @@ export function resolveType(
   pda: Record<string, any>,
   testWallets: Record<string, web3.Keypair | undefined>,
 ): Buffer {
-  const _sighash = /sighash\([a-zA-Z0-9]+\)/;
+  const _sighash = /sighash\([a-zA-Z0-9_]+\)/;
   const _u8 = /\$[a-zA-Z0-9_]+:u8/;
   const _u16 = /\$[a-zA-Z0-9_]+:u16/;
   const _u32 = /\$[a-zA-Z0-9_]+:u32/;
@@ -102,9 +356,9 @@ export function resolveType(
     return resolveBase64(data);
   }
 
-  // Pattern is not correct.
+  // Variable syntax is not correct.
   else {
-    throw `$${data} is not a valid pattern.`;
+    throw `$${data} is not a valid variable syntax.`;
   }
 }
 
@@ -445,17 +699,53 @@ function resolvePubkey(
   params: Record<string, any>,
   accounts: Record<string, web3.PublicKey>,
   pda: Record<string, any>,
-  testWallets: Record<string, web3.Keypair | undefined>
+  testWallets: Record<string, web3.Keypair | undefined>,
+  prioritizeParams: boolean = true,
 ): Buffer {
   const key = data.replace(/\$([^:]+):pubkey/, "$1");
-  if (params[key] !== undefined) {
+  if (params[key] !== undefined && prioritizeParams) {
     return new web3.PublicKey(params[key]).toBuffer();
   } else if (accounts[key] !== undefined) {
     return accounts[key].toBuffer();
   } else if (pda[key] !== undefined) {
-    return pda[key]({ ...params });
+    return pda[key]({ ...params }).toBuffer();
   } else if (testWallets[key] !== undefined) {
     return testWallets[key]!.publicKey.toBuffer();
+  } else if (params[key] !== undefined) {
+    return new web3.PublicKey(params[key]).toBuffer();
+  } else {
+    throw `Cannot find $${key} on accounts in schema, or in parameter.`;
+  }
+}
+
+/**
+ * Resolve public key from account definition or given parameters
+ *
+ * @param data
+ * @param params
+ * @param accounts
+ * @param pda
+ * @returns
+ */
+function resolvePubkey2(
+  data: string,
+  params: Record<string, any>,
+  accounts: Record<string, web3.PublicKey>,
+  pda: Record<string, any>,
+  testWallets: Record<string, web3.Keypair | undefined>,
+  prioritizeParams: boolean = true,
+): Buffer {
+  const key = data.replace(/\$([^:]+)/, "$1");
+  if (params[key] !== undefined && prioritizeParams) {
+    return new web3.PublicKey(params[key]).toBuffer();
+  } else if (accounts[key] !== undefined) {
+    return accounts[key].toBuffer();
+  } else if (pda[key] !== undefined) {
+    return pda[key]({ ...params }).toBuffer();
+  } else if (testWallets[key] !== undefined) {
+    return testWallets[key]!.publicKey.toBuffer();
+  } else if (params[key] !== undefined) {
+    return new web3.PublicKey(params[key]).toBuffer();
   } else {
     throw `Cannot find $${key} on accounts in schema, or in parameter.`;
   }

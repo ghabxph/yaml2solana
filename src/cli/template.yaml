@@ -1,5 +1,19 @@
 version: "1.0"
 
+addressLookupTables: # not yet implemented
+  - AC3t5k5PUTJirxGEHgGGQStafu1vXkvddPyqVNDrRQDt
+  - F2gRaSdfWYucAMAKv3CHReKMHvPkE3sNWrQPPPPR6UMV
+  - FQHdXaRjfKxEfqDXMs6L1gfx2wwa6idDVB8hdQuf6eSD
+  - 4vMQAkkjhxrgJmqbRd4Z9YP9K7WFVAhHZn4jTJoN45Qj
+  - 6KhzJ2cs85hKdLeUXS6QjQnygUY9rFUnJADJwrYp9mjM
+  - 4UgEL5PQVu9MSarh8yb7U22GEZQoSkmNM3w7mZFx47aL
+  - 5FrgBCVUtwD1cFw39PZxnUsBaAecZVxmaYEcvv6y7b1h
+
+computeLimitSettings: # not yet implemented
+  setting1:
+    units: 140000
+    microLamports: 5000
+
 accounts:
   TOKEN_PROGRAM: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
   ASSOCIATED_TOKEN_PROGRAM: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
@@ -11,7 +25,7 @@ accounts:
   SOME_PROGRAM: "DM6UM8DELAKBH2VcypUoNMjuR9yJ5FfhSzhD5GLav22n,target/deploy/some_program.so"
   SOME_ACCOUNT: "455QuvQPGEHWQNHaMW4x83huidS64TnsiSuxXfRTT7Tj"
 
-accounts_no_label:
+accountsNoLabel:
   - USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX
   - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 
