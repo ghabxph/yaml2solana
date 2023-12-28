@@ -74,8 +74,8 @@ localDevelopment:
     userWallet1:
       privateKey: uMJqZRN8zDCAX8AoSj+JsDcUOcb7J61x1nEKHncyxJlWd+COwctV9eKLYK6NIABCqBdfPCcHgwRUJLb+lnNPYw==
       solAmount: 10000
-  test:
-    - instruction: someInstructionA
+  tests:
+    - instruction: $someInstructionA
       description: Deposit $amount to liquidity bla bla
       params:
         amount: 10000

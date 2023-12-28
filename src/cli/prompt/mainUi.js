@@ -190,9 +190,24 @@ function mainUi(schemaFile) {
             // Confirm messae that localnet is running
             console.log('Localnet seems running. http://127.0.0.1:8899/health returns \'ok\' state');
             // 2. Select what test to execute
-            // 3. Check if there are missing parameters
-            // 4. Run test validator
-            // 5. Run instruction from test
+            const choices = schema.localDevelopment.getTestDescriptions();
+            const { testToExecute } = yield inquirer_1.default
+                .prompt([
+                {
+                    type: 'list',
+                    name: 'testToExecute',
+                    message: 'Choose test to execute:',
+                    choices,
+                    filter: (choice) => {
+                        return choices.findIndex((value) => {
+                            return value === choice;
+                        });
+                    }
+                },
+            ]);
+            console.log(`test to execute: ${testToExecute}`);
+            // Run test
+            schema.localDevelopment.runTest(testToExecute);
             return;
         }
     });
