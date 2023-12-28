@@ -3,11 +3,13 @@ import * as util from "../../util";
 import { spawn } from 'child_process';
 import * as web3 from '@solana/web3.js';
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
+import { utilUi } from "./utilUi";
 
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
 const CHOICE_RUN_TEST = 'Run a test';
+const CHOICE_UTILS = 'Utility / Debugging Tools';
 
 export async function mainUi(schemaFile: string) {
   const { choice } = await inquirer
@@ -15,12 +17,13 @@ export async function mainUi(schemaFile: string) {
       {
         type: 'list',
         name: 'choice',
-        message: 'Choose Action',
+        message: '-=Yaml2Solana Main UI=-\n\n [Choose Action]',
         choices: [
           DOWNLOAD_SOLANA_ACCOUNTS,
           CHOICE_RUN_TEST_VALIDATOR,
           CHOICE_RUN_INSTRUCTION,
           CHOICE_RUN_TEST,
+          CHOICE_UTILS,
         ],
       },
     ]
@@ -110,7 +113,11 @@ export async function mainUi(schemaFile: string) {
           default: defaultValue,
           filter: (input: string) => {
             if (variables[key].type === 'pubkey') {
-              return new web3.PublicKey(input);
+              if (typeof input === 'string') {
+                return new web3.PublicKey(input);
+              } else {
+                return input;
+              }
             }
             const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
             if (numberTypes.includes(variables[key].type)) {
@@ -178,6 +185,12 @@ export async function mainUi(schemaFile: string) {
     // 4. Run test validator
     // 5. Run instruction from test
 
+    return;
+  }
+
+  // Debugging Tools
+  if (choice === CHOICE_UTILS) {
+    await utilUi();
     return;
   }
 }
