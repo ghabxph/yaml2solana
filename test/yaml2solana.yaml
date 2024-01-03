@@ -11,7 +11,7 @@ accounts:
   SOME_PROGRAM: "DM6UM8DELAKBH2VcypUoNMjuR9yJ5FfhSzhD5GLav22n,target/deploy/some_program.so"
   SOME_ACCOUNT: "455QuvQPGEHWQNHaMW4x83huidS64TnsiSuxXfRTT7Tj"
 
-accounts_no_label:
+accountsNoLabel:
   - USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX
   - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 

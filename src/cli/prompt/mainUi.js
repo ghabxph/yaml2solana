@@ -40,10 +40,12 @@ const inquirer_1 = __importDefault(require("inquirer"));
 const util = __importStar(require("../../util"));
 const child_process_1 = require("child_process");
 const web3 = __importStar(require("@solana/web3.js"));
+const utilUi_1 = require("./utilUi");
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
 const CHOICE_RUN_TEST = 'Run a test';
+const CHOICE_UTILS = 'Utility / Debugging Tools';
 function mainUi(schemaFile) {
     return __awaiter(this, void 0, void 0, function* () {
         const { choice } = yield inquirer_1.default
@@ -51,12 +53,13 @@ function mainUi(schemaFile) {
             {
                 type: 'list',
                 name: 'choice',
-                message: 'Choose Action',
+                message: '-=Yaml2Solana Main UI=-\n\n [Choose Action]',
                 choices: [
                     DOWNLOAD_SOLANA_ACCOUNTS,
                     CHOICE_RUN_TEST_VALIDATOR,
                     CHOICE_RUN_INSTRUCTION,
                     CHOICE_RUN_TEST,
+                    CHOICE_UTILS,
                 ],
             },
         ]);
@@ -136,7 +139,12 @@ function mainUi(schemaFile) {
                         default: defaultValue,
                         filter: (input) => {
                             if (variables[key].type === 'pubkey') {
-                                return new web3.PublicKey(input);
+                                if (typeof input === 'string') {
+                                    return new web3.PublicKey(input);
+                                }
+                                else {
+                                    return input;
+                                }
                             }
                             const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
                             if (numberTypes.includes(variables[key].type)) {
@@ -193,6 +201,11 @@ function mainUi(schemaFile) {
             // 3. Check if there are missing parameters
             // 4. Run test validator
             // 5. Run instruction from test
+            return;
+        }
+        // Debugging Tools
+        if (choice === CHOICE_UTILS) {
+            yield (0, utilUi_1.utilUi)();
             return;
         }
     });
