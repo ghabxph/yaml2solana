@@ -6,5 +6,5 @@ import { Yaml2SolanaClass } from "./sdk/Yaml2Solana";
  * @param config yaml2solana.yaml file
  */
 export function Yaml2Solana(config: string) {
-    return new Yaml2SolanaClass(config);
+  return new Yaml2SolanaClass(config);
 }
