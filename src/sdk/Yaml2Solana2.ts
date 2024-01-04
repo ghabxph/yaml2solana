@@ -1,5 +1,6 @@
 import * as web3 from '@solana/web3.js';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as yaml from 'yaml';
 import * as util from '../util';
 import { spawn } from 'child_process';
@@ -22,6 +23,11 @@ export class Yaml2SolanaClass2 {
    */
   public readonly localnetConnection: web3.Connection;
 
+  /**
+   * Project directory is where yaml2solana.yaml file is found.
+   */
+  public readonly projectDir: string
+
   constructor(
     /**
      * yaml config path
@@ -32,6 +38,7 @@ export class Yaml2SolanaClass2 {
 
     // Read the YAML file.
     const yamlFile = fs.readFileSync(config, 'utf8');
+    this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
     this.parsedYaml = yaml.parse(yamlFile);
 
     // Set named accounts to global variable

@@ -17,6 +17,10 @@ export declare class Yaml2SolanaClass2 {
      * Localnet connection instance
      */
     readonly localnetConnection: web3.Connection;
+    /**
+     * Project directory is where yaml2solana.yaml file is found.
+     */
+    readonly projectDir: string;
     constructor(
     /**
      * yaml config path

@@ -35,6 +35,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
 const web3 = __importStar(require("@solana/web3.js"));
 const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const yaml = __importStar(require("yaml"));
 const util = __importStar(require("../util"));
 const child_process_1 = require("child_process");
@@ -52,6 +53,7 @@ class Yaml2SolanaClass2 {
         this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
         // Read the YAML file.
         const yamlFile = fs.readFileSync(config, 'utf8');
+        this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
         this.parsedYaml = yaml.parse(yamlFile);
         // Set named accounts to global variable
         this.setNamedAccountsToGlobal(this.parsedYaml);
