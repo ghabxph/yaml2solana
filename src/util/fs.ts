@@ -195,7 +195,7 @@ export function skipDownloadedAccounts(schema: Yaml2SolanaClass, accounts: web3.
  * Read solana test validator template
  */
 export function readTestValidatorTemplate(): string {
-  return fs.readFileSync(`${__dirname}/../cli/solana-test-validator.template.sh`).toString('utf-8');
+  return fs.readFileSync(`${__dirname}/../../../templates/solana-test-validator.template.sh`).toString('utf-8');
 }
 
 /**

@@ -76,7 +76,6 @@ class Yaml2SolanaClass2 {
     resolveTestWallets(parsedYaml) {
         const testWallets = parsedYaml.localDevelopment.testWallets;
         for (const key in testWallets) {
-            console.log(key);
             this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
         }
     }
@@ -205,14 +204,9 @@ class Yaml2SolanaClass2 {
      */
     executeTransactionsLocally(txns, skipRedownload = [], keepRunning = true, cluster = 'http://127.0.0.1:8899') {
         return __awaiter(this, void 0, void 0, function* () {
-            // Step 1: Force download accounts from instructions on mainnet
-            let accountsToDownload = [];
-            txns.map(tx => accountsToDownload.push(...tx.getAccountsFromInstructions()));
-            accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
-            const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
-            // Step 2: Run test validator
-            const testValidator = yield this.runTestValidator(mapping, util.fs.readSchema(this.config));
-            // Step 3: Execute transactions
+            // Step 1: Run test validator
+            const testValidator = yield this.runTestValidator(txns, skipRedownload);
+            // Step 2: Execute transactions
             for (const key in txns) {
                 // Compile tx to versioned transaction
                 const tx = yield txns[key].compileToVersionedTransaction();
@@ -239,7 +233,25 @@ class Yaml2SolanaClass2 {
             }
         });
     }
-    runTestValidator(mapping, schema) {
+    /**
+     * Run test validator
+     *
+     * @param txns
+     * @param skipRedownload
+     * @returns
+     */
+    runTestValidator(txns = [], skipRedownload = []) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // Step 1: Force download accounts from instructions on mainnet
+            let accountsToDownload = [];
+            txns.map(tx => accountsToDownload.push(...tx.getAccountsFromInstructions()));
+            accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
+            const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
+            // Step 2: Run test validator
+            return yield this.runTestValidator2(mapping, util.fs.readSchema(this.config));
+        });
+    }
+    runTestValidator2(mapping, schema) {
         return __awaiter(this, void 0, void 0, function* () {
             // 1. Read solana-test-validator.template.sh to project base folder
             let template = util.fs.readTestValidatorTemplate();
@@ -301,6 +313,15 @@ class Yaml2SolanaClass2 {
                     console.log(`Solana test validator is now running!`);
                 }
             });
+            const waitToBeDone = new Promise(resolve => {
+                const interval = setInterval(() => {
+                    if (state === 'done') {
+                        clearInterval(interval);
+                        resolve(0);
+                    }
+                }, 500);
+            });
+            yield waitToBeDone;
             return test_validator;
         });
     }

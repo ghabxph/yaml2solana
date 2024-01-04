@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import * as web3 from '@solana/web3.js';
-import { Yaml2SolanaClass } from './Yaml2Solana';
 export declare class Yaml2SolanaClass2 {
     /**
      * yaml config path
@@ -71,7 +70,15 @@ export declare class Yaml2SolanaClass2 {
      * @param keepRunning Whether to keep test validator running
      */
     executeTransactionsLocally(txns: Transaction[], skipRedownload?: web3.PublicKey[], keepRunning?: boolean, cluster?: string): Promise<void>;
-    runTestValidator(mapping: Record<string, string | null>, schema: Yaml2SolanaClass): Promise<import("child_process").ChildProcessWithoutNullStreams>;
+    /**
+     * Run test validator
+     *
+     * @param txns
+     * @param skipRedownload
+     * @returns
+     */
+    runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<import("child_process").ChildProcessWithoutNullStreams>;
+    private runTestValidator2;
     /**
      * Gets resolved instruction
      *

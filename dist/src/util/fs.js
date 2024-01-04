@@ -199,7 +199,7 @@ exports.skipDownloadedAccounts = skipDownloadedAccounts;
  * Read solana test validator template
  */
 function readTestValidatorTemplate() {
-    return fs.readFileSync(`${__dirname}/../cli/solana-test-validator.template.sh`).toString('utf-8');
+    return fs.readFileSync(`${__dirname}/../../../templates/solana-test-validator.template.sh`).toString('utf-8');
 }
 exports.readTestValidatorTemplate = readTestValidatorTemplate;
 /**
