@@ -62,7 +62,7 @@ function getMultipleAccountsInfo(accounts) {
         console.log('Downloading solana accounts:');
         console.log('--------------------------------------------------------------');
         // Create a promise for each chunk to fetch its accounts info
-        const promises = accountChunks.map((chunk, index) => __awaiter(this, void 0, void 0, function* () {
+        const promises = accountChunks.map((chunk) => __awaiter(this, void 0, void 0, function* () {
             const accountInfos = yield connection.getMultipleAccountsInfo(chunk);
             return accountInfos.map((info, idx) => {
                 if (info === null) {
