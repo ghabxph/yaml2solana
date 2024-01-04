@@ -33,7 +33,7 @@ export async function getMultipleAccountsInfo(accounts: web3.PublicKey[]): Promi
   console.log('--------------------------------------------------------------');
 
   // Create a promise for each chunk to fetch its accounts info
-  const promises = accountChunks.map(async (chunk, index) => {
+  const promises = accountChunks.map(async (chunk) => {
     const accountInfos = await connection.getMultipleAccountsInfo(chunk);
     return accountInfos.map((info, idx) => {
       if (info === null) {
