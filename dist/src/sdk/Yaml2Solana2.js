@@ -49,21 +49,56 @@ class Yaml2SolanaClass2 {
          * Global variable
          */
         this.global = {};
+        this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
         // Read the YAML file.
         const yamlFile = fs.readFileSync(config, 'utf8');
         this.parsedYaml = yaml.parse(yamlFile);
+        // Set named accounts to global variable
+        this.setNamedAccountsToGlobal(this.parsedYaml);
     }
     /**
      * Resolve variables
      * @param params
      */
     resolve(params) {
-        // Set named accounts to global variable
-        this.setNamedAccountsToGlobal(this.parsedYaml);
+        // Resolve test wallets
+        this.resolveTestWallets(this.parsedYaml);
         // Resolve PDAs
         this.resolvePda(this.parsedYaml, params.onlyResolve.thesePdas);
         // Resolve instructions
         this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions);
+    }
+    /**
+     * Resolve test wallets
+     *
+     * @param parsedYaml
+     */
+    resolveTestWallets(parsedYaml) {
+        const testWallets = parsedYaml.localDevelopment.testWallets;
+        for (const key in testWallets) {
+            console.log(key);
+            this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
+        }
+    }
+    /**
+     * Prints lamports out of thin air in given test wallet key from yaml
+     *
+     * @param key
+     */
+    fundLocalnetWalletFromYaml(key) {
+        const SOL = 1000000000;
+        const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+        const keypair = this.getVar(key);
+        const y = util.fs.readSchema(this.config);
+        const account = {};
+        account[keypair.publicKey.toString()] = {
+            lamports: Math.floor(solAmount * SOL),
+            data: Buffer.alloc(0),
+            owner: new web3.PublicKey('11111111111111111111111111111111'),
+            executable: false,
+            rentEpoch: 0
+        };
+        util.fs.writeAccountsToCacheFolder(y, account);
     }
     /**
      * Get accounts from solana instructions
@@ -135,8 +170,7 @@ class Yaml2SolanaClass2 {
                 throw `Invalid solana signer instance`;
             }
         });
-        const connection = new web3.Connection("http://127.0.0.1:8899");
-        return new Transaction(description, connection, _ixns, alts, _payer, _signers);
+        return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
     }
     /**
      * Batch download accounts from mainnet
@@ -169,7 +203,7 @@ class Yaml2SolanaClass2 {
      * @param skipRedownload Skip these accounts for re-download
      * @param keepRunning Whether to keep test validator running
      */
-    executeTransactionsLocally(txns, skipRedownload, keepRunning = true) {
+    executeTransactionsLocally(txns, skipRedownload = [], keepRunning = true, cluster = 'http://127.0.0.1:8899') {
         return __awaiter(this, void 0, void 0, function* () {
             // Step 1: Force download accounts from instructions on mainnet
             let accountsToDownload = [];
@@ -182,9 +216,10 @@ class Yaml2SolanaClass2 {
             for (const key in txns) {
                 // Compile tx to versioned transaction
                 const tx = yield txns[key].compileToVersionedTransaction();
+                const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
                 // If we like to have test validator running, then we want to have skipPreflight enabled
                 if (keepRunning) {
-                    const sig = yield txns[key].connection.sendTransaction(tx, { skipPreflight: true });
+                    const sig = yield connection.sendTransaction(tx, { skipPreflight: true });
                     console.log(`TX: ${txns[key].description}`);
                     console.log(`-------------------------------------------------------------------`);
                     console.log(`tx sig ${sig}`);
@@ -192,7 +227,7 @@ class Yaml2SolanaClass2 {
                     console.log(``);
                 }
                 else {
-                    const sig = yield txns[key].connection.sendTransaction(tx);
+                    const sig = yield connection.sendTransaction(tx);
                     console.log(`TX: ${txns[key].description}`);
                     console.log(`-------------------------------------------------------------------`);
                     console.log(`tx sig ${sig}`);
@@ -288,7 +323,7 @@ class Yaml2SolanaClass2 {
         // Loop through instructions
         for (const key in parsedYaml.instructionDefinition) {
             // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
-            if (onlyResolve.length > 0 && !onlyResolve.includes(key))
+            if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
             const ixDef = parsedYaml.instructionDefinition[key];
             let programId;
@@ -351,6 +386,15 @@ class Yaml2SolanaClass2 {
         return accountMetas;
     }
     /**
+     * Set parameter value (alias to setVar method)
+     *
+     * @param name
+     * @param value
+     */
+    setParam(name, value) {
+        this.setVar(name, value);
+    }
+    /**
      * Store value to global variable
      *
      * @param name
@@ -358,6 +402,14 @@ class Yaml2SolanaClass2 {
      */
     setVar(name, value) {
         this.global[name] = value;
+    }
+    /**
+     * Alias to getVar
+     *
+     * @param name
+     */
+    getParam(name) {
+        return this.getVar(name);
     }
     /**
      * Retrieve value from global variable
@@ -402,7 +454,7 @@ class Yaml2SolanaClass2 {
         // Loop through PDA
         for (const key in parsedYaml.pda) {
             // If onlyResolve is defined, skip PDAs that aren't defined in onlyResolve
-            if (onlyResolve.length > 0 && !onlyResolve.includes(key))
+            if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
             const pda = parsedYaml.pda[key];
             let programId;
@@ -427,11 +479,17 @@ class Yaml2SolanaClass2 {
                     if (typeof p === 'undefined') {
                         throw `The public key ${seed} variable is not defined`;
                     }
-                    else if (!(p instanceof web3.PublicKey)) {
-                        throw `The variable ${seed} is not a valid public key`;
+                    else if (typeof p.publicKey !== 'undefined') {
+                        seeds.push(p.publicKey.toBuffer());
                     }
                     else {
-                        seeds.push(p.toBuffer());
+                        try {
+                            new web3.PublicKey(p);
+                            seeds.push(p.toBuffer());
+                        }
+                        catch (_b) {
+                            throw `The variable ${seed} is not a valid public key`;
+                        }
                     }
                 }
                 else {

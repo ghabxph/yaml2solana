@@ -2,7 +2,7 @@
   "name": "yaml2solana",
   "version": "1.0.0",
   "description": "Schematic approach to execute solana smart contracts",
-  "main": "./dist/src/cli/index.js",
+  "main": "./dist/src/index.js",
   "bin": {
     "yaml2solana": "./dist/src/cli/index.js"
   },

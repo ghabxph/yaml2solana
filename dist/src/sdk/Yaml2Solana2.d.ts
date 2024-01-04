@@ -14,6 +14,10 @@ export declare class Yaml2SolanaClass2 {
      * Parsed yaml
      */
     private parsedYaml;
+    /**
+     * Localnet connection instance
+     */
+    readonly localnetConnection: web3.Connection;
     constructor(
     /**
      * yaml config path
@@ -24,6 +28,18 @@ export declare class Yaml2SolanaClass2 {
      * @param params
      */
     resolve(params: ResolveParams): void;
+    /**
+     * Resolve test wallets
+     *
+     * @param parsedYaml
+     */
+    private resolveTestWallets;
+    /**
+     * Prints lamports out of thin air in given test wallet key from yaml
+     *
+     * @param key
+     */
+    private fundLocalnetWalletFromYaml;
     /**
      * Get accounts from solana instructions
      *
@@ -54,7 +70,7 @@ export declare class Yaml2SolanaClass2 {
      * @param skipRedownload Skip these accounts for re-download
      * @param keepRunning Whether to keep test validator running
      */
-    executeTransactionsLocally(txns: Transaction[], skipRedownload: web3.PublicKey[], keepRunning?: boolean): Promise<void>;
+    executeTransactionsLocally(txns: Transaction[], skipRedownload?: web3.PublicKey[], keepRunning?: boolean, cluster?: string): Promise<void>;
     runTestValidator(mapping: Record<string, string | null>, schema: Yaml2SolanaClass): Promise<import("child_process").ChildProcessWithoutNullStreams>;
     /**
      * Gets resolved instruction
@@ -78,12 +94,25 @@ export declare class Yaml2SolanaClass2 {
     private resolveInstructionData;
     private resolveInstructionAccounts;
     /**
+     * Set parameter value (alias to setVar method)
+     *
+     * @param name
+     * @param value
+     */
+    setParam<T>(name: string, value: T): void;
+    /**
      * Store value to global variable
      *
      * @param name
      * @param value
      */
     setVar<T>(name: string, value: T): void;
+    /**
+     * Alias to getVar
+     *
+     * @param name
+     */
+    getParam<T>(name: string): T;
     /**
      * Retrieve value from global variable
      *
@@ -121,8 +150,8 @@ export declare class Transaction {
 }
 export type ResolveParams = {
     onlyResolve: {
-        thesePdas: string[];
-        theseInstructions: string[];
+        thesePdas?: string[];
+        theseInstructions?: string[];
     };
 };
 export type Account = {
