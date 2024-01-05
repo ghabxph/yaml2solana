@@ -5,4 +5,5 @@ solana-test-validator \
 ==PROGRAMS==
 ==JSON_ACCOUNTS==
 	--warp-slot ==WARP_SLOT== \
+	--compute-unit-limit 10000000 \
 	--url ==CLUSTER==
