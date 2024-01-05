@@ -1,8 +1,15 @@
 import { PublicKey } from '@solana/web3.js';
 import * as fs from 'fs';
 import * as yaml from 'yaml';
+import * as path from 'path';
 
 class AccountsClass {
+
+  /**
+   * Project directory is where yaml2solana.yaml file is found.
+   */
+  public readonly projectDir: string
+
   private accountData: Record<
     string,
     {
@@ -19,6 +26,9 @@ class AccountsClass {
   }[] = [];
 
   constructor(config: string) {
+    // Get project dir
+    this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
+
     // Read the YAML file.
     const yamlContent = fs.readFileSync(config, 'utf8');
 
@@ -117,12 +127,12 @@ class AccountsClass {
             for (let key in target.accountData) {
               const account = target.accountData[key];
               if (account.programPath !== undefined) {
-                accounts.push({ key: account.publicKey, path: account.programPath });
+                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.programPath) });
               }
             }
             for (const account of target.accountsNoLabel) {
               if (account.programPath !== undefined) {
-                accounts.push({ key: account.publicKey, path: account.programPath });
+                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.programPath) });
               }
             }
             return accounts;
@@ -135,12 +145,12 @@ class AccountsClass {
             for (let key in target.accountData) {
               const account = target.accountData[key];
               if (account.jsonPath !== undefined) {
-                accounts.push({ key: account.publicKey, path: account.jsonPath });
+                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.jsonPath) });
               }
             }
             for (const account of target.accountsNoLabel) {
               if (account.jsonPath !== undefined) {
-                accounts.push({ key: account.publicKey, path: account.jsonPath });
+                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.jsonPath) });
               }
             }
             return accounts;

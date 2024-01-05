@@ -27,9 +27,12 @@ exports.Accounts = void 0;
 const web3_js_1 = require("@solana/web3.js");
 const fs = __importStar(require("fs"));
 const yaml = __importStar(require("yaml"));
+const path = __importStar(require("path"));
 class AccountsClass {
     constructor(config) {
         this.accountsNoLabel = [];
+        // Get project dir
+        this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
         // Read the YAML file.
         const yamlContent = fs.readFileSync(config, 'utf8');
         // Parse the YAML content into a JavaScript object.
@@ -127,12 +130,12 @@ class AccountsClass {
                         for (let key in target.accountData) {
                             const account = target.accountData[key];
                             if (account.programPath !== undefined) {
-                                accounts.push({ key: account.publicKey, path: account.programPath });
+                                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.programPath) });
                             }
                         }
                         for (const account of target.accountsNoLabel) {
                             if (account.programPath !== undefined) {
-                                accounts.push({ key: account.publicKey, path: account.programPath });
+                                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.programPath) });
                             }
                         }
                         return accounts;
@@ -144,12 +147,12 @@ class AccountsClass {
                         for (let key in target.accountData) {
                             const account = target.accountData[key];
                             if (account.jsonPath !== undefined) {
-                                accounts.push({ key: account.publicKey, path: account.jsonPath });
+                                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.jsonPath) });
                             }
                         }
                         for (const account of target.accountsNoLabel) {
                             if (account.jsonPath !== undefined) {
-                                accounts.push({ key: account.publicKey, path: account.jsonPath });
+                                accounts.push({ key: account.publicKey, path: path.resolve(target.projectDir, account.jsonPath) });
                             }
                         }
                         return accounts;

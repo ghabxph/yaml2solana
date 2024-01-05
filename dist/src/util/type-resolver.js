@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveSighash = exports.resolveAccountMeta = exports.resolveType = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo = void 0;
+exports.resolveSighash = exports.resolveAccountMeta = exports.resolveType2 = exports.resolveType = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo = void 0;
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
@@ -301,6 +301,91 @@ function resolveType(data, params, accounts, pda, testWallets) {
     }
 }
 exports.resolveType = resolveType;
+/**
+ * Resolve type
+ *
+ * @param data
+ * @param params
+ * @param accounts
+ * @param pda
+ * @returns
+ */
+function resolveType2(data, params) {
+    const _sighash = /sighash\([a-zA-Z0-9_]+\)/;
+    const _u8 = /\$[a-zA-Z0-9_]+:u8/;
+    const _u16 = /\$[a-zA-Z0-9_]+:u16/;
+    const _u32 = /\$[a-zA-Z0-9_]+:u32/;
+    const _u64 = /\$[a-zA-Z0-9_]+:u64/;
+    const _usize = /\$[a-zA-Z0-9_]+:usize/;
+    const _i8 = /\$[a-zA-Z0-9_]+:i8/;
+    const _i16 = /\$[a-zA-Z0-9_]+:i16/;
+    const _i32 = /\$[a-zA-Z0-9_]+:i32/;
+    const _i64 = /\$[a-zA-Z0-9_]+:i64/;
+    const _bool = /\$[a-zA-Z0-9_]+:bool/;
+    const _pubkey = /\$[a-zA-Z0-9_]+:pubkey/;
+    const _bytes = /bytes\((\s*\d+\s*,\s*)*\s*\d+\s*\)/;
+    const _fromBase64 = /fromBase64\([^)]*\)/g;
+    // Resolve sighash
+    if (_sighash.test(data)) {
+        return resolveSighash(data);
+    }
+    // Resolve u8 type
+    else if (_u8.test(data)) {
+        return resolveU8(data, params);
+    }
+    // Resolve u16 type
+    else if (_u16.test(data)) {
+        return resolveU16(data, params);
+    }
+    // Resolve u32 type
+    else if (_u32.test(data)) {
+        return resolveU32(data, params);
+    }
+    // Resolve u64 type
+    else if (_u64.test(data)) {
+        return resolveU64(data, params);
+    }
+    // Resolve usize type
+    else if (_usize.test(data)) {
+        return resolveUsize(data, params);
+    }
+    // Resolve i8 type
+    else if (_i8.test(data)) {
+        return resolveI8(data, params);
+    }
+    // Resolve i16 type
+    else if (_i16.test(data)) {
+        return resolveI16(data, params);
+    }
+    // Resolve i32 type
+    else if (_i32.test(data)) {
+        return resolveI32(data, params);
+    }
+    // Resolve i64 type
+    else if (_i64.test(data)) {
+        return resolveI64(data, params);
+    }
+    // Resolve bool type
+    else if (_bool.test(data)) {
+        return resolveBool(data, params);
+    }
+    // Resolve pubkey type
+    else if (_pubkey.test(data)) {
+        return resolvePubkey3(data, params);
+    }
+    // Resolve bytes type
+    else if (_bytes.test(data)) {
+        return resolveRawBytes(data);
+    }
+    else if (_fromBase64.test(data)) {
+        return resolveBase64(data);
+    }
+    // Variable syntax is not correct.
+    else {
+        throw `$${data} is not a valid variable syntax.`;
+    }
+}
+exports.resolveType2 = resolveType2;
 /**
  * Resolve account meta
  *
@@ -697,6 +782,22 @@ function resolvePubkey2(data, params, accounts, pda, testWallets, prioritizePara
     }
     else {
         throw `Cannot find $${key} on accounts in schema, or in parameter.`;
+    }
+}
+/**
+ * Resolve public key from account definition or given parameters
+ *
+ * @param data
+ * @param params
+ * @returns
+ */
+function resolvePubkey3(data, params) {
+    const key = data.replace(/\$([^:]+):pubkey/, "$1");
+    if (params[key] !== undefined && params[key] instanceof web3.PublicKey) {
+        return new web3.PublicKey(params[key]).toBuffer();
+    }
+    else {
+        throw `Cannot find $${key} variable`;
     }
 }
 /**
