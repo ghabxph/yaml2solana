@@ -21,6 +21,10 @@ export declare class Yaml2SolanaClass {
      * Local development setup
      */
     readonly localDevelopment: LocalDevelopment;
+    /**
+     * Project directory is where yaml2solana.yaml file is found.
+     */
+    readonly projectDir: string;
     constructor(
     /**
      * yaml2solana.yaml config file

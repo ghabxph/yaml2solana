@@ -67,5 +67,5 @@ export declare function readTestValidatorTemplate(): string;
 /**
  * Map cached accounts to accounts list
  */
-export declare function mapAccountsFromCache(schema: Yaml2SolanaClass): Record<string, string | null>;
+export declare function mapAccountsFromCache(schema: Yaml2SolanaClass, downloadedAccounts: FullAccountInfo): Record<string, string | null>;
 //# sourceMappingURL=fs.d.ts.map

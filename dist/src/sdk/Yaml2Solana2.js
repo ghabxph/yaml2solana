@@ -31,6 +31,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
 const web3 = __importStar(require("@solana/web3.js"));
@@ -38,7 +41,9 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const yaml = __importStar(require("yaml"));
 const util = __importStar(require("../util"));
+const find_process_1 = __importDefault(require("find-process"));
 const child_process_1 = require("child_process");
+const child_process_2 = require("child_process");
 class Yaml2SolanaClass2 {
     constructor(
     /**
@@ -132,12 +137,12 @@ class Yaml2SolanaClass2 {
      */
     createLocalnetTransaction(description, ixns, alts, payer, signers) {
         const _ixns = ixns.map(ix => {
-            if (ix instanceof web3.TransactionInstruction) {
+            if (typeof ix === 'object' && typeof ix.data !== 'undefined' && typeof ix.keys !== 'undefined' && typeof ix.programId !== 'undefined') {
                 return ix;
             }
             else if (typeof ix === 'string') {
                 const _ix = this.getVar(ix);
-                if (!(_ix instanceof web3.TransactionInstruction)) {
+                if (!(typeof _ix === 'object' && typeof _ix.data !== 'undefined' && typeof _ix.keys !== 'undefined' && typeof _ix.programId !== 'undefined')) {
                     throw `Variable ${ix} is not a valid transaction instruction`;
                 }
                 return _ix;
@@ -148,8 +153,18 @@ class Yaml2SolanaClass2 {
         });
         let _payer;
         if (typeof payer === 'string') {
-            _payer = this.getVar(payer);
-            if (!(_payer instanceof web3.PublicKey)) {
+            const __payer = this.getVar(payer);
+            const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
+            const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
+            if (isPublicKey || isKeypair) {
+                if (isPublicKey) {
+                    _payer = __payer;
+                }
+                else {
+                    _payer = __payer.publicKey;
+                }
+            }
+            else {
                 throw `Variable ${payer} is not a valid public key`;
             }
         }
@@ -180,21 +195,61 @@ class Yaml2SolanaClass2 {
      */
     downloadAccountsFromMainnet(forceDownload) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log();
+            console.log('Downloading solana accounts:');
+            console.log('--------------------------------------------------------------');
             // 1. (old code) Read schema
             const schema = util.fs.readSchema(this.config);
             // 2. (old code) Get accounts from schema
-            const accounts = schema.accounts.getAccounts();
+            let accounts = schema.accounts.getAccounts();
             // 3. Skip accounts that are already downloaded
-            const accounts1 = util.fs.skipDownloadedAccounts(schema, accounts);
+            accounts = util.fs.skipDownloadedAccounts(schema, accounts);
             // 4. Force include accounts that are in forceDownloaded
-            accounts1.push(...forceDownload);
-            const accounts2 = accounts1.filter((v, i, s) => s.indexOf(v) === i);
-            // 5. Fetch multiple accounts from mainnet at batches of 100
-            const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts2);
-            // 6. Write downloaded account infos from mainnet in designated cache folder
+            accounts.push(...forceDownload);
+            accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
+            // 5. Skip accounts that are defined in localDevelopment.skipCache
+            accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
+            // 6. Fetch multiple accounts from mainnet at batches of 100
+            const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts);
+            // 7. Find programs that are executable within account infos
+            const executables = [];
+            for (const key in accountInfos) {
+                const accountInfo = accountInfos[key];
+                if (accountInfo === null)
+                    continue;
+                if (accountInfo.executable) {
+                    console.log(`${key}: ${accountInfo.data.length}`);
+                    const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
+                    try {
+                        fs.accessSync(path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
+                    }
+                    catch (_a) {
+                        executables.push(executable);
+                    }
+                }
+            }
+            const executableData = yield util.solana.getMultipleAccountsInfo(executables);
+            for (const key in executableData) {
+                accountInfos[key] = executableData[key];
+            }
+            // 7. Write downloaded account infos from mainnet in designated cache folder
             util.fs.writeAccountsToCacheFolder(schema, accountInfos);
-            // 7. Map accounts to downloaded to .accounts
-            return util.fs.mapAccountsFromCache(schema);
+            // 8. Map accounts to downloaded to .accounts
+            return util.fs.mapAccountsFromCache(schema, accountInfos);
+        });
+    }
+    /**
+     * Find running instance of solana-test-validator and get its PID
+     */
+    findTestValidatorProcess() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const list = yield (0, find_process_1.default)('name', 'solana-test-validator');
+            for (const item of list) {
+                if (item.name === 'solana-test-validator') {
+                    return item.pid;
+                }
+            }
+            throw `Cannot find process named \'solana-test-validator\'`;
         });
     }
     /**
@@ -204,10 +259,15 @@ class Yaml2SolanaClass2 {
      * @param skipRedownload Skip these accounts for re-download
      * @param keepRunning Whether to keep test validator running
      */
-    executeTransactionsLocally(txns, skipRedownload = [], keepRunning = true, cluster = 'http://127.0.0.1:8899') {
+    executeTransactionsLocally(params) {
         return __awaiter(this, void 0, void 0, function* () {
+            let { txns, skipRedownload, keepRunning, cluster } = params;
+            skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
+            keepRunning = keepRunning === undefined ? true : keepRunning;
+            cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
             // Step 1: Run test validator
-            const testValidator = yield this.runTestValidator(txns, skipRedownload);
+            yield this.runTestValidator(txns, skipRedownload);
+            yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
             // Step 2: Execute transactions
             for (const key in txns) {
                 // Compile tx to versioned transaction
@@ -231,7 +291,7 @@ class Yaml2SolanaClass2 {
             }
             // Terminate test validator if specified to die after running transactions
             if (!keepRunning) {
-                testValidator.kill();
+                this.killTestValidator();
             }
         });
     }
@@ -246,7 +306,10 @@ class Yaml2SolanaClass2 {
         return __awaiter(this, void 0, void 0, function* () {
             // Step 1: Force download accounts from instructions on mainnet
             let accountsToDownload = [];
-            txns.map(tx => accountsToDownload.push(...tx.getAccountsFromInstructions()));
+            txns.map(tx => {
+                accountsToDownload.push(...tx.getAccountsFromInstructions());
+                accountsToDownload.push(...tx.alts.map(alt => new web3.PublicKey(alt)));
+            });
             accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
             const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
             // Step 2: Run test validator
@@ -299,11 +362,11 @@ class Yaml2SolanaClass2 {
             // 5. Update ==CLUSTER==
             template = template.replace('==CLUSTER==', 'https://api.mainnet-beta.solana.com');
             // 6. Create solana-test-validator.ingnore.sh file
-            util.fs.createScript('solana-test-validator.ignore.sh', template);
+            util.fs.createScript(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), template);
             // 7. Remove test-ledger folder first
-            util.fs.deleteFolderRecursive('test-ledger');
+            util.fs.deleteFolderRecursive(path.resolve(this.projectDir, 'test-ledger'));
             // 8. Run solana-test-validator.ignore.sh
-            const test_validator = (0, child_process_1.spawn)('./solana-test-validator.ignore.sh', [], { shell: true });
+            const test_validator = (0, child_process_2.spawn)(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), [], { shell: true, cwd: this.projectDir });
             test_validator.stderr.on('data', data => console.log(`${data}`));
             let state = 'init';
             test_validator.stdout.on('data', data => {
@@ -324,7 +387,22 @@ class Yaml2SolanaClass2 {
                 }, 500);
             });
             yield waitToBeDone;
-            return test_validator;
+            this.testValidatorPid = yield this.findTestValidatorProcess();
+        });
+    }
+    killTestValidator() {
+        const command = `kill -9 ${this.testValidatorPid}`;
+        (0, child_process_1.exec)(command, (error, _stdout, stderr) => {
+            if (error) {
+                // console.error(`Error: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                // console.error(`Stderr: ${stderr}`);
+                return;
+            }
+            console.log(`Process with PID ${this.testValidatorPid} has been killed.`);
+            this.testValidatorPid = undefined;
         });
     }
     /**
@@ -548,6 +626,7 @@ class Transaction {
             for (const alt of this.alts) {
                 alts.push((yield this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value);
             }
+            console.log(alts);
             const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
                 payerKey: this.payer,
                 instructions: this.ixns,

@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import * as web3 from '@solana/web3.js';
 export declare class Yaml2SolanaClass2 {
     /**
@@ -21,6 +20,10 @@ export declare class Yaml2SolanaClass2 {
      * Project directory is where yaml2solana.yaml file is found.
      */
     readonly projectDir: string;
+    /**
+     * Test validator runnin PID
+     */
+    private testValidatorPid?;
     constructor(
     /**
      * yaml config path
@@ -67,13 +70,22 @@ export declare class Yaml2SolanaClass2 {
      */
     downloadAccountsFromMainnet(forceDownload: web3.PublicKey[]): Promise<Record<string, string | null>>;
     /**
+     * Find running instance of solana-test-validator and get its PID
+     */
+    findTestValidatorProcess(): Promise<number>;
+    /**
      * Execute transactions locally
      *
      * @param txns Transactions to execute
      * @param skipRedownload Skip these accounts for re-download
      * @param keepRunning Whether to keep test validator running
      */
-    executeTransactionsLocally(txns: Transaction[], skipRedownload?: web3.PublicKey[], keepRunning?: boolean, cluster?: string): Promise<void>;
+    executeTransactionsLocally(params: {
+        txns: Transaction[];
+        skipRedownload?: web3.PublicKey[];
+        keepRunning?: boolean;
+        cluster?: string;
+    }): Promise<void>;
     /**
      * Run test validator
      *
@@ -81,8 +93,9 @@ export declare class Yaml2SolanaClass2 {
      * @param skipRedownload
      * @returns
      */
-    runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<import("child_process").ChildProcessWithoutNullStreams>;
+    runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<void>;
     private runTestValidator2;
+    killTestValidator(): void;
     /**
      * Gets resolved instruction
      *
@@ -203,6 +216,7 @@ export type ParsedYaml = {
     instructionDefinition: Record<string, InstructionDefinition>;
     localDevelopment: {
         accountsFolder: string;
+        skipCache: string[];
         testAccounts: TestWallet[];
         testWallets: Record<string, TestWallet>;
         tests: Test[];

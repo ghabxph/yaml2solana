@@ -28,10 +28,6 @@ export async function getMultipleAccountsInfo(accounts: web3.PublicKey[]): Promi
   // Split the accounts array into chunks of 100
   const accountChunks = chunkArray(accounts, 100);
 
-  console.log();
-  console.log('Downloading solana accounts:');
-  console.log('--------------------------------------------------------------');
-
   // Create a promise for each chunk to fetch its accounts info
   const promises = accountChunks.map(async (chunk) => {
     const accountInfos = await connection.getMultipleAccountsInfo(chunk);

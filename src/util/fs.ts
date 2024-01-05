@@ -147,7 +147,7 @@ function cacheFolderMustExist(cacheFolder: string) {
  * @param accountInfos
  */
 export function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, accountInfos: FullAccountInfo) {
-  const cacheFolder = schema.localDevelopment.accountsFolder;
+  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
   cacheFolderMustExist(cacheFolder);
   for (let key in accountInfos) {
     const accountInfo = accountInfos[key];
@@ -178,7 +178,7 @@ export function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, accountInfo
  * @returns
  */
 export function skipDownloadedAccounts(schema: Yaml2SolanaClass, accounts: web3.PublicKey[]) {
-  const cacheFolder = schema.localDevelopment.accountsFolder;
+  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
   cacheFolderMustExist(cacheFolder);
   const files = fs.readdirSync(cacheFolder);
   const fileNames = files.map(v => v.split('.')[0]);
@@ -201,8 +201,8 @@ export function readTestValidatorTemplate(): string {
 /**
  * Map cached accounts to accounts list
  */
-export function mapAccountsFromCache(schema: Yaml2SolanaClass): Record<string, string | null> {
-  const cacheFolder = schema.localDevelopment.accountsFolder;
+export function mapAccountsFromCache(schema: Yaml2SolanaClass, downloadedAccounts: FullAccountInfo): Record<string, string | null> {
+  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
   cacheFolderMustExist(cacheFolder);
   const accounts = schema.accounts.getAccounts();
   const files = fs.readdirSync(cacheFolder);
@@ -210,10 +210,15 @@ export function mapAccountsFromCache(schema: Yaml2SolanaClass): Record<string, s
   const mapping: Record<string, string | null> = {}
   for (const account of accounts) {
     if (fileNames.includes(account.toString())) {
-      // TODO: Make sure that there would be no `//` in path.
       mapping[account.toString()] = `${cacheFolder}/${account.toString()}.json`
     } else {
       mapping[account.toString()] = null;
+    }
+  }
+  for (const file of files) {
+    const [key, ext] = file.split('.');
+    if (ext === 'json') {
+      mapping[key] = `${cacheFolder}/${file}`;
     }
   }
   return mapping;

@@ -151,7 +151,7 @@ function cacheFolderMustExist(cacheFolder) {
  * @param accountInfos
  */
 function writeAccountsToCacheFolder(schema, accountInfos) {
-    const cacheFolder = schema.localDevelopment.accountsFolder;
+    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
     cacheFolderMustExist(cacheFolder);
     for (let key in accountInfos) {
         const accountInfo = accountInfos[key];
@@ -182,7 +182,7 @@ exports.writeAccountsToCacheFolder = writeAccountsToCacheFolder;
  * @returns
  */
 function skipDownloadedAccounts(schema, accounts) {
-    const cacheFolder = schema.localDevelopment.accountsFolder;
+    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
     cacheFolderMustExist(cacheFolder);
     const files = fs.readdirSync(cacheFolder);
     const fileNames = files.map(v => v.split('.')[0]);
@@ -205,8 +205,8 @@ exports.readTestValidatorTemplate = readTestValidatorTemplate;
 /**
  * Map cached accounts to accounts list
  */
-function mapAccountsFromCache(schema) {
-    const cacheFolder = schema.localDevelopment.accountsFolder;
+function mapAccountsFromCache(schema, downloadedAccounts) {
+    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
     cacheFolderMustExist(cacheFolder);
     const accounts = schema.accounts.getAccounts();
     const files = fs.readdirSync(cacheFolder);
@@ -214,11 +214,16 @@ function mapAccountsFromCache(schema) {
     const mapping = {};
     for (const account of accounts) {
         if (fileNames.includes(account.toString())) {
-            // TODO: Make sure that there would be no `//` in path.
             mapping[account.toString()] = `${cacheFolder}/${account.toString()}.json`;
         }
         else {
             mapping[account.toString()] = null;
+        }
+    }
+    for (const file of files) {
+        const [key, ext] = file.split('.');
+        if (ext === 'json') {
+            mapping[key] = `${cacheFolder}/${file}`;
         }
     }
     return mapping;
