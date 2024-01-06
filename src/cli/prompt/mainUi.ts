@@ -1,10 +1,9 @@
 import inquirer from "inquirer";
 import * as util from "../../util";
-import { spawn } from 'child_process';
 import * as web3 from '@solana/web3.js';
-import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 import { utilUi } from "./utilUi";
 import { Yaml2Solana2 } from "../..";
+import { Transaction } from "../../sdk/Yaml2Solana2";
 
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
@@ -96,20 +95,17 @@ async function runTestValidator(schemaFile: string) {
 }
 
 async function runInstruction(schemaFile: string) {
+
+  // Create yaml2solana v2 instance
+  const yaml2solana = Yaml2Solana2(schemaFile);
+
   // Read schema
   const schema = util.fs.readSchema(schemaFile);
 
-  // 1. Confirm first if localnet is running
-  if (!await util.test.checkIfLocalnetIsRunning()) {
-    console.log('Localnet seems not running. http://127.0.0.1:8899/health doesn\'t return a healthy status.');
+  // Whether to run from existing running localnet instance
+  let runFromExistingLocalnet = await util.test.checkIfLocalnetIsRunning();
 
-    return;
-  }
-
-  // Confirm messae that localnet is running
-  console.log('Localnet seems running. http://127.0.0.1:8899/health returns \'ok\' state');
-
-  // 2. Select what instruction to execute
+  // 1. Select what instruction to execute
   const choices = schema.instructionDefinition.getInstructions();
   const { instructionToExecute } = await inquirer
     .prompt([
@@ -122,7 +118,7 @@ async function runInstruction(schemaFile: string) {
     ]
   );
 
-  // 3. Resolve variables
+  // 2. Resolve variables
   const variables = schema.instructionDefinition.getParametersOf(instructionToExecute);
   const prompt = [];
   for (const key in variables) {
@@ -185,36 +181,21 @@ async function runInstruction(schemaFile: string) {
   }
   const params = await inquirer.prompt(prompt);
 
-  // 4. Create instruction instance based on given parameters
-  const ix = schema.instructionDefinition[instructionToExecute](params);
+  // 3. Create instruction instance based on given parameters
+  const ix: web3.TransactionInstruction = schema.instructionDefinition[instructionToExecute](params);
 
-  // 5. Choose whether to use transaction legacy or v0
-  const { txVersion } = await inquirer.prompt([{
-    type: 'list',
-    name: 'txVersion',
-    message: 'What transaction format version to use?',
-    choices: [
-      'Legacy',
-      'v0',
-    ]
-  }]);
-  if (txVersion === 'v0') {
-    console.log('v0 not yet supported. Will be supported soon.');
-    return;
-  }
-
-  // 5. Create transaction and execute instruction
-  const connection = new web3.Connection("http://127.0.0.1:8899");
-  const { blockhash: recentBlockhash } = await connection.getLatestBlockhash();
-  const tx = new web3.Transaction().add(ix);
-  tx.recentBlockhash = recentBlockhash;
   const signers = schema.instructionDefinition.getSigners(instructionToExecute);
-  tx.sign(...signers);
-  const signature = await web3.sendAndConfirmTransaction(
-    connection,
-    tx,
-    signers
-  );
-
-  console.log(`tx signature: ${signature}`);
+  await yaml2solana.executeTransactionsLocally({
+    txns: [
+      new Transaction(
+        instructionToExecute,
+        yaml2solana.localnetConnection,
+        [ix],
+        [], // Alt accounts
+        payer, // TODO: Define payer in yaml
+        signers,
+      )
+    ],
+    runFromExistingLocalnet,
+  });
 }

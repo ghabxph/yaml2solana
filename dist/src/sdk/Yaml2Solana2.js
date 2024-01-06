@@ -230,13 +230,16 @@ class Yaml2SolanaClass2 {
      */
     executeTransactionsLocally(params) {
         return __awaiter(this, void 0, void 0, function* () {
-            let { txns, skipRedownload, keepRunning, cluster } = params;
+            let { txns, skipRedownload, keepRunning, cluster, runFromExistingLocalnet, } = params;
             skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
             keepRunning = keepRunning === undefined ? true : keepRunning;
             cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
-            // Step 1: Run test validator
-            yield this.runTestValidator(txns, skipRedownload);
-            yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+            runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
+            if (!runFromExistingLocalnet) {
+                // Step 1: Run test validator
+                yield this.runTestValidator(txns, skipRedownload);
+                yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+            }
             // Step 2: Execute transactions
             for (const key in txns) {
                 // Compile tx to versioned transaction

@@ -73,6 +73,7 @@ export declare class Yaml2SolanaClass2 {
         skipRedownload?: web3.PublicKey[];
         keepRunning?: boolean;
         cluster?: string;
+        runFromExistingLocalnet?: boolean;
     }): Promise<void>;
     /**
      * Run test validator

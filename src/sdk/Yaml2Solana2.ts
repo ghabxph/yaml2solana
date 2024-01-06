@@ -242,25 +242,29 @@ export class Yaml2SolanaClass2 {
       skipRedownload?: web3.PublicKey[],
       keepRunning?: boolean,
       cluster?: string,
+      runFromExistingLocalnet?: boolean
     }
   ) {
     let {
       txns,
       skipRedownload,
       keepRunning,
-      cluster
+      cluster,
+      runFromExistingLocalnet,
     } = params;
     skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
     keepRunning = keepRunning === undefined ? true : keepRunning;
     cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
+    runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
 
-    // Step 1: Run test validator
-    await this.runTestValidator(txns, skipRedownload);
-    await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+    if (!runFromExistingLocalnet) {
+      // Step 1: Run test validator
+      await this.runTestValidator(txns, skipRedownload);
+      await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+    }
 
     // Step 2: Execute transactions
     for (const key in txns) {
-      
       // Compile tx to versioned transaction
       const tx = await txns[key].compileToVersionedTransaction();
       const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
