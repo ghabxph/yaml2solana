@@ -38,7 +38,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mainUi = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const util = __importStar(require("../../util"));
-const child_process_1 = require("child_process");
 const web3 = __importStar(require("@solana/web3.js"));
 const utilUi_1 = require("./utilUi");
 const __1 = require("../..");
@@ -71,10 +70,7 @@ function mainUi(schemaFile) {
         // Read schema
         const schema = util.fs.readSchema(schemaFile);
         if (choice === CHOICE_RUN_TEST_VALIDATOR) {
-            // 1. Update cache (download solana accounts)
-            const mapping = yield downloadSolanaAccounts(schemaFile);
-            // 2. Run test validator with accounts
-            yield runTestValidator(mapping, schema);
+            yield runTestValidator(schemaFile);
             return;
         }
         // Assuming here that test validator is already running.
@@ -226,67 +222,11 @@ function downloadSolanaAccounts(schemaFile) {
 /**
  * Run solana test validator
  */
-function runTestValidator(mapping, schema) {
+function runTestValidator(schemaFile) {
     return __awaiter(this, void 0, void 0, function* () {
-        // 1. Read solana-test-validator.template.sh to project base folder
-        let template = util.fs.readTestValidatorTemplate();
-        // 2. Update accounts and replace ==ACCOUNTS==
-        const accounts = [];
-        for (const account in mapping) {
-            accounts.push(mapping[account] ?
-                // If has mapping, then use cached account
-                `\t--account ${account} ${mapping[account]} \\` :
-                // Otherwise, clone account from target cluster
-                `\t--maybe-clone ${account} \\`);
-        }
-        if (accounts.length === 0) {
-            template = template.replace('==ACCOUNTS==\n', '');
-        }
-        else {
-            template = template.replace('==ACCOUNTS==', accounts.join('\n')) + '\n';
-        }
-        // 3. Update programs and replace ==PROGRAMS==
-        const programAccounts = [];
-        for (let account of schema.accounts.getProgramAccounts()) {
-            programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
-        }
-        if (programAccounts.length === 0) {
-            template = template.replace('==PROGRAMS==\n', '');
-        }
-        else {
-            template = template.replace('==PROGRAMS==', programAccounts.join('\n')) + '\n';
-        }
-        // 3. Update json accounts and replace ==JSON_ACCOUNTS==
-        const jsonAccounts = [];
-        for (let account of schema.accounts.getJsonAccounts()) {
-            jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
-        }
-        if (jsonAccounts.length === 0) {
-            template = template.replace('==JSON_ACCOUNTS==\n', '');
-        }
-        else {
-            template = template.replace('==JSON_ACCOUNTS==', programAccounts.join('\n')) + '\n';
-        }
-        // 4. Update ==WARP_SLOT==
-        template = template.replace('==WARP_SLOT==', `${yield util.solana.getSlot()}`);
-        // 5. Update ==CLUSTER==
-        template = template.replace('==CLUSTER==', 'https://api.mainnet-beta.solana.com');
-        // 6. Create solana-test-validator.ingnore.sh file
-        util.fs.createScript('solana-test-validator.ignore.sh', template);
-        // 7. Remove test-ledger folder first
-        util.fs.deleteFolderRecursive('test-ledger');
-        // 8. Run solana-test-validator.ignore.sh
-        const test_validator = (0, child_process_1.spawn)('./solana-test-validator.ignore.sh', [], { shell: true });
-        test_validator.stderr.on('data', data => console.log(`${data}`));
-        let state = 'init';
-        test_validator.stdout.on('data', data => {
-            if (state === 'init') {
-                console.log(`${data}`);
-            }
-            if (data.includes('Genesis Hash') && state === 'init') {
-                state = 'done';
-                console.log(`Solana test validator is now running!`);
-            }
-        });
+        // Create yaml2solana v2 instance
+        const yaml2solana = (0, __1.Yaml2Solana2)(schemaFile);
+        // Run test validator using v2
+        return yield yaml2solana.runTestValidator();
     });
 }

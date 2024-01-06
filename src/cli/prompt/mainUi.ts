@@ -39,11 +39,7 @@ export async function mainUi(schemaFile: string) {
   const schema = util.fs.readSchema(schemaFile);
 
   if (choice === CHOICE_RUN_TEST_VALIDATOR) {
-    // 1. Update cache (download solana accounts)
-    const mapping = await downloadSolanaAccounts(schemaFile);
-    // 2. Run test validator with accounts
-    await runTestValidator(mapping, schema);
-
+    await runTestValidator(schemaFile);
     return;
   }
 
@@ -211,74 +207,11 @@ async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string
 /**
  * Run solana test validator
  */
-async function runTestValidator(mapping: Record<string, string | null>, schema: Yaml2SolanaClass) {
-  // 1. Read solana-test-validator.template.sh to project base folder
-  let template = util.fs.readTestValidatorTemplate();
+async function runTestValidator(schemaFile: string) {
 
-  // 2. Update accounts and replace ==ACCOUNTS==
-  const accounts = [];
-  for (const account in mapping) {
-    accounts.push(
-      mapping[account] ?
+  // Create yaml2solana v2 instance
+  const yaml2solana = Yaml2Solana2(schemaFile);
 
-        // If has mapping, then use cached account
-        `\t--account ${account} ${mapping[account]} \\` :
-
-        // Otherwise, clone account from target cluster
-        `\t--maybe-clone ${account} \\`
-    )
-  }
-  if (accounts.length === 0) {
-    template = template.replace('==ACCOUNTS==\n', '')
-  } else {
-    template = template.replace('==ACCOUNTS==', accounts.join('\n')) + '\n';
-  }
-
-  // 3. Update programs and replace ==PROGRAMS==
-  const programAccounts = [];
-  for (let account of schema.accounts.getProgramAccounts()) {
-    programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
-  }
-  if (programAccounts.length === 0) {
-    template = template.replace('==PROGRAMS==\n', '')
-  } else {
-    template = template.replace('==PROGRAMS==', programAccounts.join('\n')) + '\n';
-  }
-
-  // 3. Update json accounts and replace ==JSON_ACCOUNTS==
-  const jsonAccounts = [];
-  for (let account of schema.accounts.getJsonAccounts()) {
-    jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
-  }
-  if (jsonAccounts.length === 0) {
-    template = template.replace('==JSON_ACCOUNTS==\n', '')
-  } else {
-    template = template.replace('==JSON_ACCOUNTS==', programAccounts.join('\n')) + '\n';
-  }
-
-  // 4. Update ==WARP_SLOT==
-  template = template.replace('==WARP_SLOT==', `${await util.solana.getSlot()}`);
-
-  // 5. Update ==CLUSTER==
-  template = template.replace('==CLUSTER==', 'https://api.mainnet-beta.solana.com');
-
-  // 6. Create solana-test-validator.ingnore.sh file
-  util.fs.createScript('solana-test-validator.ignore.sh', template);
-
-  // 7. Remove test-ledger folder first
-  util.fs.deleteFolderRecursive('test-ledger');
-
-  // 8. Run solana-test-validator.ignore.sh
-  const test_validator = spawn('./solana-test-validator.ignore.sh', [], { shell: true });
-  test_validator.stderr.on('data', data => console.log(`${data}`));
-  let state = 'init';
-  test_validator.stdout.on('data', data => {
-      if (state === 'init') {
-          console.log(`${data}`);
-      }
-      if (data.includes('Genesis Hash') && state === 'init') {
-          state = 'done';
-          console.log(`Solana test validator is now running!`);
-      }
-  });
+  // Run test validator using v2
+  return await yaml2solana.runTestValidator();
 }
