@@ -40,11 +40,13 @@ const inquirer_1 = __importDefault(require("inquirer"));
 const bip39 = __importStar(require("bip39"));
 const web3 = __importStar(require("@solana/web3.js"));
 const ed25519_hd_key_1 = require("ed25519-hd-key");
+const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Show keypair from given bip39 seedphrase';
 function utilUi() {
     return __awaiter(this, void 0, void 0, function* () {
+        (0, ts_clear_screen_1.default)();
         const { choice } = yield inquirer_1.default
             .prompt([
             {

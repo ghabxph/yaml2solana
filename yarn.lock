@@ -2780,6 +2780,11 @@ tr46@~0.0.3:
   resolved "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz"
   integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
 
+ts-clear-screen@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/ts-clear-screen/-/ts-clear-screen-0.1.0.tgz#a8bf63abd1ae41c12457f44d362701a89714945f"
+  integrity sha512-lPPZO7cKWOsxZGFCSfxyOUPz2WrEHNjiL5TZ5m+Vmkdu4h56SLP1x5UHSFZi/OLeYXvBCIVHEkGoPFeMlVYLlg==
+
 ts-jest@^29.1.1:
   version "29.1.1"
   resolved "https://registry.npmjs.org/ts-jest/-/ts-jest-29.1.1.tgz"

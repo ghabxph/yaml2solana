@@ -2,12 +2,14 @@ import inquirer from "inquirer";
 import * as bip39 from 'bip39';
 import * as web3 from "@solana/web3.js";
 import { derivePath } from 'ed25519-hd-key';
+import clear from "ts-clear-screen";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Show keypair from given bip39 seedphrase';
 
 export async function utilUi() {
+  clear();
   const { choice } = await inquirer
     .prompt([
       {
