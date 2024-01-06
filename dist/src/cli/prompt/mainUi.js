@@ -41,6 +41,7 @@ const util = __importStar(require("../../util"));
 const child_process_1 = require("child_process");
 const web3 = __importStar(require("@solana/web3.js"));
 const utilUi_1 = require("./utilUi");
+const __1 = require("../..");
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
@@ -216,18 +217,10 @@ exports.mainUi = mainUi;
  */
 function downloadSolanaAccounts(schemaFile) {
     return __awaiter(this, void 0, void 0, function* () {
-        // 1. Read schema
-        const schema = util.fs.readSchema(schemaFile);
-        // 2. Get accounts from schema
-        const accounts = schema.accounts.getAccounts();
-        // 3. Skip accounts that are already downloaded
-        const accounts1 = util.fs.skipDownloadedAccounts(schema, accounts);
-        // 3. Fetch multiple accounts from mainnet at batches of 100
-        const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts1);
-        // 4. Write downloaded account infos from mainnet in designated cache folder
-        util.fs.writeAccountsToCacheFolder(schema, accountInfos);
-        // 5. Map accounts to downloaded to .accounts
-        return util.fs.mapAccountsFromCache(schema, accountInfos);
+        // Create yaml2solana v2 instance
+        const yaml2solana = (0, __1.Yaml2Solana2)(schemaFile);
+        // Download accounts from mainnet
+        return yield yaml2solana.downloadAccountsFromMainnet([]);
     });
 }
 /**

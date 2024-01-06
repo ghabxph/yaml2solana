@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import * as web3 from '@solana/web3.js';
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 import { utilUi } from "./utilUi";
+import { Yaml2Solana2 } from "../..";
 
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
@@ -199,23 +200,12 @@ export async function mainUi(schemaFile: string) {
  * Download solana accounts and update cache
  */
 async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string, string | null>> {
-  // 1. Read schema
-  const schema = util.fs.readSchema(schemaFile);
 
-  // 2. Get accounts from schema
-  const accounts = schema.accounts.getAccounts();
+  // Create yaml2solana v2 instance
+  const yaml2solana = Yaml2Solana2(schemaFile);
 
-  // 3. Skip accounts that are already downloaded
-  const accounts1 = util.fs.skipDownloadedAccounts(schema, accounts);
-
-  // 3. Fetch multiple accounts from mainnet at batches of 100
-  const accountInfos = await util.solana.getMultipleAccountsInfo(accounts1);
-
-  // 4. Write downloaded account infos from mainnet in designated cache folder
-  util.fs.writeAccountsToCacheFolder(schema, accountInfos);
-
-  // 5. Map accounts to downloaded to .accounts
-  return util.fs.mapAccountsFromCache(schema, accountInfos);
+  // Download accounts from mainnet
+  return await yaml2solana.downloadAccountsFromMainnet([]);
 }
 
 /**
