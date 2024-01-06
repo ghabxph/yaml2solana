@@ -4,6 +4,7 @@ export type InstructionDefinitions = Record<string, {
     programId: string;
     data: string[];
     accounts: string[];
+    payer: string;
 }>;
 export type VariableType = "sighash" | "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "bool" | "pubkey" | "bytes" | "fromBase64";
 export type VariableInfo = {

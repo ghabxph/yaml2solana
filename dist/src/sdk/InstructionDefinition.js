@@ -106,6 +106,24 @@ class InstructionDefinitionClass {
                         return signers;
                     };
                 }
+                /**
+                 * InstructionDefinitionClass.getPayer() method
+                 *
+                 * @param $targetInstruction The instruction key
+                 * Returns transaction payer
+                 */
+                if (prop === 'getPayer') {
+                    return (instructionToExecute) => {
+                        const payerVar = target.instructionDefinition[instructionToExecute].payer;
+                        if (payerVar.startsWith('$')) {
+                            const payerKp = localDevelopment.testWallets[payerVar.substring(1)];
+                            return payerKp.publicKey;
+                        }
+                        else {
+                            throw 'Payer must start with \'$\' and it should exist in test wallet.';
+                        }
+                    };
+                }
                 return instructionDefinition === undefined ? () => {
                     throw `Cannot find \`${propName}\` instruction definition from ${config}.`;
                 } : (params) => {

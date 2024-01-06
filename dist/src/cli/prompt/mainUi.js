@@ -206,13 +206,13 @@ function runInstruction(schemaFile) {
         }
         const params = yield inquirer_1.default.prompt(prompt);
         // 3. Create instruction instance based on given parameters
+        console.log(``);
         const ix = schema.instructionDefinition[instructionToExecute](params);
         const signers = schema.instructionDefinition.getSigners(instructionToExecute);
         yield yaml2solana.executeTransactionsLocally({
             txns: [
                 new Yaml2Solana2_1.Transaction(instructionToExecute, yaml2solana.localnetConnection, [ix], [], // Alt accounts
-                payer, // TODO: Define payer in yaml
-                signers)
+                schema.instructionDefinition.getPayer(instructionToExecute), signers)
             ],
             runFromExistingLocalnet,
         });

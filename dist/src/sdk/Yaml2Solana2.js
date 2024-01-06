@@ -629,7 +629,6 @@ class Transaction {
             for (const alt of this.alts) {
                 alts.push((yield this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value);
             }
-            console.log(alts);
             const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
                 payerKey: this.payer,
                 instructions: this.ixns,

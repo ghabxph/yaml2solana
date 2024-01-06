@@ -52,6 +52,7 @@ instructionDefinition:
       - $userWallet1,mut,signer
       - $TOKEN_PROGRAM
       - $ASSOCIATED_TOKEN_PROGRAM
+    payer: $userWallet1
 
 schemaDefinition:
   TokenAccount:

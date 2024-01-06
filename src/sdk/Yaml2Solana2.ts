@@ -680,7 +680,6 @@ export class Transaction {
         (await this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value as web3.AddressLookupTableAccount
       )
     }
-    console.log(alts);
     const tx = new web3.VersionedTransaction(
       new web3.TransactionMessage({
         payerKey: this.payer,

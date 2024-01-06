@@ -182,8 +182,8 @@ async function runInstruction(schemaFile: string) {
   const params = await inquirer.prompt(prompt);
 
   // 3. Create instruction instance based on given parameters
+  console.log(``);
   const ix: web3.TransactionInstruction = schema.instructionDefinition[instructionToExecute](params);
-
   const signers = schema.instructionDefinition.getSigners(instructionToExecute);
   await yaml2solana.executeTransactionsLocally({
     txns: [
@@ -192,7 +192,7 @@ async function runInstruction(schemaFile: string) {
         yaml2solana.localnetConnection,
         [ix],
         [], // Alt accounts
-        payer, // TODO: Define payer in yaml
+        schema.instructionDefinition.getPayer(instructionToExecute),
         signers,
       )
     ],
