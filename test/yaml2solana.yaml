@@ -1,4 +1,4 @@
-version: "1.0"
+version: "0.1"
 
 accounts:
   TOKEN_PROGRAM: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
