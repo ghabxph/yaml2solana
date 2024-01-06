@@ -158,6 +158,21 @@ class Yaml2SolanaClass2 {
         return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
     }
     /**
+     * @returns accounts from schema
+     */
+    getAccounts() {
+        const accounts = [];
+        for (const key in this.parsedYaml.accounts) {
+            const [pk] = this.parsedYaml.accounts[key].split(',');
+            accounts.push(new web3.PublicKey(pk));
+        }
+        this.parsedYaml.accountsNoLabel.map(v => {
+            const [pk] = this.parsedYaml.accounts[v].split(',');
+            accounts.push(new web3.PublicKey(pk));
+        });
+        return accounts;
+    }
+    /**
      * Batch download accounts from mainnet
      *
      * @param forceDownload
@@ -167,20 +182,19 @@ class Yaml2SolanaClass2 {
             console.log();
             console.log('Downloading solana accounts:');
             console.log('--------------------------------------------------------------');
-            // 1. (old code) Read schema
-            const schema = util.fs.readSchema(this.config);
-            // 2. (old code) Get accounts from schema
-            let accounts = schema.accounts.getAccounts();
-            // 3. Skip accounts that are already downloaded
-            accounts = util.fs.skipDownloadedAccounts(schema, accounts);
-            // 4. Force include accounts that are in forceDownloaded
+            const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
+            // 1. Get accounts from schema
+            let accounts = this.getAccounts();
+            // 2. Skip accounts that are already downloaded
+            accounts = util.fs.skipDownloadedAccounts(cacheFolder, accounts);
+            // 3. Force include accounts that are in forceDownloaded
             accounts.push(...forceDownload);
             accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
-            // 5. Skip accounts that are defined in localDevelopment.skipCache
+            // 4. Skip accounts that are defined in localDevelopment.skipCache
             accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
-            // 6. Fetch multiple accounts from mainnet at batches of 100
+            // 5. Fetch multiple accounts from mainnet at batches of 100
             const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts);
-            // 7. Find programs that are executable within account infos
+            // 6. Find programs that are executable within account infos
             const executables = [];
             for (const key in accountInfos) {
                 const accountInfo = accountInfos[key];
@@ -202,9 +216,9 @@ class Yaml2SolanaClass2 {
                 accountInfos[key] = executableData[key];
             }
             // 7. Write downloaded account infos from mainnet in designated cache folder
-            util.fs.writeAccountsToCacheFolder(schema, accountInfos);
+            util.fs.writeAccountsToCacheFolder(cacheFolder, accountInfos);
             // 8. Map accounts to downloaded to .accounts
-            return util.fs.mapAccountsFromCache(schema, accountInfos);
+            return util.fs.mapAccountsFromCache(cacheFolder, this.getAccounts());
         });
     }
     /**
@@ -300,6 +314,9 @@ class Yaml2SolanaClass2 {
             return yield this.runTestValidator2(mapping, util.fs.readSchema(this.config));
         });
     }
+    /**
+     * Kill test validator
+     */
     killTestValidator() {
         const command = `kill -9 ${this.testValidatorPid}`;
         (0, child_process_1.exec)(command, (error, _stdout, stderr) => {
@@ -384,8 +401,8 @@ class Yaml2SolanaClass2 {
         const SOL = 1000000000;
         const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
         const keypair = this.getVar(key);
-        const y = util.fs.readSchema(this.config);
         const account = {};
+        const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
         account[keypair.publicKey.toString()] = {
             lamports: Math.floor(solAmount * SOL),
             data: Buffer.alloc(0),
@@ -393,7 +410,7 @@ class Yaml2SolanaClass2 {
             executable: false,
             rentEpoch: 0
         };
-        util.fs.writeAccountsToCacheFolder(y, account);
+        util.fs.writeAccountsToCacheFolder(cacheFolder, account);
     }
     runTestValidator2(mapping, schema) {
         return __awaiter(this, void 0, void 0, function* () {

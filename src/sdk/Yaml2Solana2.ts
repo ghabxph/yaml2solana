@@ -159,6 +159,22 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * @returns accounts from schema
+   */
+  getAccounts(): web3.PublicKey[] {
+    const accounts: web3.PublicKey[] = [];
+    for (const key in this.parsedYaml.accounts) {
+      const [pk] = this.parsedYaml.accounts[key].split(',');
+      accounts.push(new web3.PublicKey(pk));
+    }
+    this.parsedYaml.accountsNoLabel.map(v => {
+      const [pk] = this.parsedYaml.accounts[v].split(',');
+      accounts.push(new web3.PublicKey(pk));
+    });
+    return accounts;
+  }
+
+  /**
    * Batch download accounts from mainnet
    *
    * @param forceDownload
@@ -168,26 +184,25 @@ export class Yaml2SolanaClass2 {
     console.log('Downloading solana accounts:');
     console.log('--------------------------------------------------------------');
 
-    // 1. (old code) Read schema
-    const schema = util.fs.readSchema(this.config);
+    const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
 
-    // 2. (old code) Get accounts from schema
-    let accounts: web3.PublicKey[] = schema.accounts.getAccounts();
+    // 1. Get accounts from schema
+    let accounts: web3.PublicKey[] = this.getAccounts();
 
-    // 3. Skip accounts that are already downloaded
-    accounts = util.fs.skipDownloadedAccounts(schema, accounts);
+    // 2. Skip accounts that are already downloaded
+    accounts = util.fs.skipDownloadedAccounts(cacheFolder, accounts);
 
-    // 4. Force include accounts that are in forceDownloaded
+    // 3. Force include accounts that are in forceDownloaded
     accounts.push(...forceDownload);
     accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
 
-    // 5. Skip accounts that are defined in localDevelopment.skipCache
+    // 4. Skip accounts that are defined in localDevelopment.skipCache
     accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
 
-    // 6. Fetch multiple accounts from mainnet at batches of 100
+    // 5. Fetch multiple accounts from mainnet at batches of 100
     const accountInfos = await util.solana.getMultipleAccountsInfo(accounts);
 
-    // 7. Find programs that are executable within account infos
+    // 6. Find programs that are executable within account infos
     const executables: web3.PublicKey[] = [];
     for (const key in accountInfos) {
       const accountInfo = accountInfos[key];
@@ -208,10 +223,10 @@ export class Yaml2SolanaClass2 {
     }
 
     // 7. Write downloaded account infos from mainnet in designated cache folder
-    util.fs.writeAccountsToCacheFolder(schema, accountInfos);
+    util.fs.writeAccountsToCacheFolder(cacheFolder, accountInfos);
 
     // 8. Map accounts to downloaded to .accounts
-    return util.fs.mapAccountsFromCache(schema, accountInfos);
+    return util.fs.mapAccountsFromCache(cacheFolder, this.getAccounts());
   }
 
   /**
@@ -333,6 +348,9 @@ export class Yaml2SolanaClass2 {
     return await this.runTestValidator2(mapping, util.fs.readSchema(this.config));
   }
 
+  /**
+   * Kill test validator
+   */
   killTestValidator() {
     const command = `kill -9 ${this.testValidatorPid}`;
 
@@ -426,8 +444,8 @@ export class Yaml2SolanaClass2 {
     const SOL = 1_000_000_000;
     const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
     const keypair = this.getVar<web3.Signer>(key);
-    const y = util.fs.readSchema(this.config);
     const account: Record<string, web3.AccountInfo<Buffer>> = {};
+    const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
     account[keypair.publicKey.toString()] = {
       lamports: Math.floor(solAmount * SOL),
       data: Buffer.alloc(0),
@@ -435,7 +453,7 @@ export class Yaml2SolanaClass2 {
       executable: false,
       rentEpoch: 0
     }
-    util.fs.writeAccountsToCacheFolder(y, account);
+    util.fs.writeAccountsToCacheFolder(cacheFolder, account);
   }
 
   private async runTestValidator2(mapping: Record<string, string | null>, schema: Yaml2SolanaClass) {
@@ -753,6 +771,7 @@ export type InstructionDefinition = {
   programId: string,
   data: string[],
   accounts: string[],
+  payer: string,
 }
 
 export type TestAccount = {

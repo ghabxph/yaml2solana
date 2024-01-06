@@ -51,7 +51,7 @@ export declare function readSchema(schemaFile: string): Yaml2SolanaClass;
  * @param schema
  * @param accountInfos
  */
-export declare function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, accountInfos: FullAccountInfo): void;
+export declare function writeAccountsToCacheFolder(cacheFolder: string, accountInfos: FullAccountInfo): void;
 /**
  * Skip accounts that are already downloaded
  *
@@ -59,7 +59,7 @@ export declare function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, acc
  * @param accounts
  * @returns
  */
-export declare function skipDownloadedAccounts(schema: Yaml2SolanaClass, accounts: web3.PublicKey[]): web3.PublicKey[];
+export declare function skipDownloadedAccounts(cacheFolder: string, accounts: web3.PublicKey[]): web3.PublicKey[];
 /**
  * Read solana test validator template
  */
@@ -67,5 +67,5 @@ export declare function readTestValidatorTemplate(): string;
 /**
  * Map cached accounts to accounts list
  */
-export declare function mapAccountsFromCache(schema: Yaml2SolanaClass, downloadedAccounts: FullAccountInfo): Record<string, string | null>;
+export declare function mapAccountsFromCache(cacheFolder: string, accounts: web3.PublicKey[]): Record<string, string | null>;
 //# sourceMappingURL=fs.d.ts.map

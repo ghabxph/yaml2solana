@@ -52,6 +52,10 @@ export declare class Yaml2SolanaClass2 {
      */
     createLocalnetTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Transaction;
     /**
+     * @returns accounts from schema
+     */
+    getAccounts(): web3.PublicKey[];
+    /**
      * Batch download accounts from mainnet
      *
      * @param forceDownload
@@ -86,6 +90,9 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<void>;
+    /**
+     * Kill test validator
+     */
     killTestValidator(): void;
     /**
      * Gets resolved instruction
@@ -197,6 +204,7 @@ export type InstructionDefinition = {
     programId: string;
     data: string[];
     accounts: string[];
+    payer: string;
 };
 export type TestAccount = {
     schema: string;
