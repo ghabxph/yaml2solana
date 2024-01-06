@@ -12,16 +12,6 @@ import { FullAccountInfo } from '../util/solana';
 export class Yaml2SolanaClass2 {
 
   /**
-   * Global variable
-   */
-  private global: Record<string, any> = {};
-
-  /**
-   * Parsed yaml
-   */
-  private parsedYaml: ParsedYaml;
-
-  /**
    * Localnet connection instance
    */
   public readonly localnetConnection: web3.Connection;
@@ -30,6 +20,16 @@ export class Yaml2SolanaClass2 {
    * Project directory is where yaml2solana.yaml file is found.
    */
   public readonly projectDir: string;
+
+  /**
+   * Global variable
+   */
+  private global: Record<string, any> = {};
+
+  /**
+   * Parsed yaml
+   */
+  private parsedYaml: ParsedYaml;
 
   /**
    * Test validator runnin PID
@@ -66,41 +66,6 @@ export class Yaml2SolanaClass2 {
 
     // Resolve instructions
     this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions)
-  }
-
-  /**
-   * Resolve test wallets
-   *
-   * @param parsedYaml
-   */
-  private resolveTestWallets(parsedYaml: ParsedYaml) {
-    const testWallets = parsedYaml.localDevelopment.testWallets;
-    for (const key in testWallets) {
-      this.setVar<web3.Signer>(key, web3.Keypair.fromSecretKey(Buffer.from(
-        testWallets[key].privateKey, 'base64'
-      )));
-    }
-  }
-
-  /**
-   * Prints lamports out of thin air in given test wallet key from yaml
-   *
-   * @param key
-   */
-  private fundLocalnetWalletFromYaml(key: string) {
-    const SOL = 1_000_000_000;
-    const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
-    const keypair = this.getVar<web3.Signer>(key);
-    const y = util.fs.readSchema(this.config);
-    const account: Record<string, web3.AccountInfo<Buffer>> = {};
-    account[keypair.publicKey.toString()] = {
-      lamports: Math.floor(solAmount * SOL),
-      data: Buffer.alloc(0),
-      owner: new web3.PublicKey('11111111111111111111111111111111'),
-      executable: false,
-      rentEpoch: 0
-    }
-    util.fs.writeAccountsToCacheFolder(y, account);
   }
 
   /**
@@ -346,6 +311,111 @@ export class Yaml2SolanaClass2 {
     return await this.runTestValidator2(mapping, util.fs.readSchema(this.config));
   }
 
+  killTestValidator() {
+    const command = `kill -9 ${this.testValidatorPid}`;
+
+    exec(command, (error, _stdout, stderr) => {
+        if (error) {
+            // console.error(`Error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            // console.error(`Stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Process with PID ${this.testValidatorPid} has been killed.`);
+        this.testValidatorPid = undefined;
+    });
+}
+
+  /**
+   * Gets resolved instruction
+   *
+   * @param name
+   * @returns
+   */
+  getInstruction(name: string): web3.TransactionInstruction {
+    return this.getVar<web3.TransactionInstruction>(name);
+  }
+
+  /**
+   * Set parameter value (alias to setVar method)
+   *
+   * @param name
+   * @param value
+   */
+  setParam<T>(name: string, value: T) {
+    this.setVar(name, value);
+  }
+
+  /**
+   * Store value to global variable
+   *
+   * @param name 
+   * @param value 
+   */
+  setVar<T>(name: string, value: T) {
+    this.global[name] = value;
+  }
+
+  /**
+   * Alias to getVar
+   *
+   * @param name 
+   */
+  getParam<T>(name: string): T {
+    return this.getVar<T>(name);
+  }
+
+  /**
+   * Retrieve value from global variable
+   *
+   * @param name
+   * @returns
+   */
+  getVar<T>(name: string): T {
+    if (name.startsWith('$')) {
+      return this.global[name.substring(1)];
+    } else {
+      throw 'Variable should begin with dollar symbol `$`';
+    }
+  }
+
+  /**
+   * Resolve test wallets
+   *
+   * @param parsedYaml
+   */
+  private resolveTestWallets(parsedYaml: ParsedYaml) {
+    const testWallets = parsedYaml.localDevelopment.testWallets;
+    for (const key in testWallets) {
+      this.setVar<web3.Signer>(key, web3.Keypair.fromSecretKey(Buffer.from(
+        testWallets[key].privateKey, 'base64'
+      )));
+    }
+  }
+
+  /**
+   * Prints lamports out of thin air in given test wallet key from yaml
+   *
+   * @param key
+   */
+  private fundLocalnetWalletFromYaml(key: string) {
+    const SOL = 1_000_000_000;
+    const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+    const keypair = this.getVar<web3.Signer>(key);
+    const y = util.fs.readSchema(this.config);
+    const account: Record<string, web3.AccountInfo<Buffer>> = {};
+    account[keypair.publicKey.toString()] = {
+      lamports: Math.floor(solAmount * SOL),
+      data: Buffer.alloc(0),
+      owner: new web3.PublicKey('11111111111111111111111111111111'),
+      executable: false,
+      rentEpoch: 0
+    }
+    util.fs.writeAccountsToCacheFolder(y, account);
+  }
+
   private async runTestValidator2(mapping: Record<string, string | null>, schema: Yaml2SolanaClass) {
     // 1. Read solana-test-validator.template.sh to project base folder
     let template = util.fs.readTestValidatorTemplate();
@@ -429,33 +499,6 @@ export class Yaml2SolanaClass2 {
     this.testValidatorPid = await this.findTestValidatorProcess();
   }
 
-  killTestValidator() {
-    const command = `kill -9 ${this.testValidatorPid}`;
-
-    exec(command, (error, _stdout, stderr) => {
-        if (error) {
-            // console.error(`Error: ${error.message}`);
-            return;
-        }
-        if (stderr) {
-            // console.error(`Stderr: ${stderr}`);
-            return;
-        }
-        console.log(`Process with PID ${this.testValidatorPid} has been killed.`);
-        this.testValidatorPid = undefined;
-    });
-}
-
-  /**
-   * Gets resolved instruction
-   *
-   * @param name
-   * @returns
-   */
-  getInstruction(name: string): web3.TransactionInstruction {
-    return this.getVar<web3.TransactionInstruction>(name);
-  }
-
   /**
    * Resolve transaction instructions
    *
@@ -530,49 +573,6 @@ export class Yaml2SolanaClass2 {
       accountMetas.push({ pubkey, isSigner, isWritable });
     }
     return accountMetas;
-  }
-
-  /**
-   * Set parameter value (alias to setVar method)
-   *
-   * @param name
-   * @param value
-   */
-  setParam<T>(name: string, value: T) {
-    this.setVar(name, value);
-  }
-
-  /**
-   * Store value to global variable
-   *
-   * @param name 
-   * @param value 
-   */
-  setVar<T>(name: string, value: T) {
-    this.global[name] = value;
-  }
-
-  /**
-   * Alias to getVar
-   *
-   * @param name 
-   */
-  getParam<T>(name: string): T {
-    return this.getVar<T>(name);
-  }
-
-  /**
-   * Retrieve value from global variable
-   *
-   * @param name
-   * @returns
-   */
-  getVar<T>(name: string): T {
-    if (name.startsWith('$')) {
-      return this.global[name.substring(1)];
-    } else {
-      throw 'Variable should begin with dollar symbol `$`';
-    }
   }
 
   /**
