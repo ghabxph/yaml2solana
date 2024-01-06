@@ -173,6 +173,18 @@ class Yaml2SolanaClass2 {
         return accounts;
     }
     /**
+     * @returns program accounts from schema
+     */
+    getProgramAccounts() {
+        return this.getFileAccount('so');
+    }
+    /**
+     * @returns json accounts from schema
+     */
+    getJsonAccounts() {
+        return this.getFileAccount('json');
+    }
+    /**
      * Batch download accounts from mainnet
      *
      * @param forceDownload
@@ -311,7 +323,7 @@ class Yaml2SolanaClass2 {
             accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
             const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
             // Step 2: Run test validator
-            return yield this.runTestValidator2(mapping, util.fs.readSchema(this.config));
+            return yield this.runTestValidator2(mapping);
         });
     }
     /**
@@ -382,6 +394,30 @@ class Yaml2SolanaClass2 {
         }
     }
     /**
+     * @param extension File extension to check
+     * @returns
+     */
+    getFileAccount(extension) {
+        const accounts = [];
+        for (const key in this.parsedYaml.accounts) {
+            const [pk, filePath] = this.parsedYaml.accounts[key].split(',');
+            const filePathSplit = filePath.split('.');
+            const _extension = filePathSplit[filePathSplit.length - 1];
+            if (_extension === extension) {
+                accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath) });
+            }
+        }
+        this.parsedYaml.accountsNoLabel.map(v => {
+            const [pk, filePath] = this.parsedYaml.accounts[v].split(',');
+            const filePathSplit = filePath.split('.');
+            const _extension = filePathSplit[filePathSplit.length - 1];
+            if (_extension === extension) {
+                accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath) });
+            }
+        });
+        return accounts;
+    }
+    /**
      * Resolve test wallets
      *
      * @param parsedYaml
@@ -412,7 +448,7 @@ class Yaml2SolanaClass2 {
         };
         util.fs.writeAccountsToCacheFolder(cacheFolder, account);
     }
-    runTestValidator2(mapping, schema) {
+    runTestValidator2(mapping) {
         return __awaiter(this, void 0, void 0, function* () {
             // 1. Read solana-test-validator.template.sh to project base folder
             let template = util.fs.readTestValidatorTemplate();
@@ -433,7 +469,7 @@ class Yaml2SolanaClass2 {
             }
             // 3. Update programs and replace ==PROGRAMS==
             const programAccounts = [];
-            for (let account of schema.accounts.getProgramAccounts()) {
+            for (let account of this.getProgramAccounts()) {
                 programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
             }
             if (programAccounts.length === 0) {
@@ -444,7 +480,7 @@ class Yaml2SolanaClass2 {
             }
             // 3. Update json accounts and replace ==JSON_ACCOUNTS==
             const jsonAccounts = [];
-            for (let account of schema.accounts.getJsonAccounts()) {
+            for (let account of this.getJsonAccounts()) {
                 jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
             }
             if (jsonAccounts.length === 0) {

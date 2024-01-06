@@ -56,6 +56,14 @@ export declare class Yaml2SolanaClass2 {
      */
     getAccounts(): web3.PublicKey[];
     /**
+     * @returns program accounts from schema
+     */
+    getProgramAccounts(): AccountFile[];
+    /**
+     * @returns json accounts from schema
+     */
+    getJsonAccounts(): AccountFile[];
+    /**
      * Batch download accounts from mainnet
      *
      * @param forceDownload
@@ -128,6 +136,11 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     getVar<T>(name: string): T;
+    /**
+     * @param extension File extension to check
+     * @returns
+     */
+    private getFileAccount;
     /**
      * Resolve test wallets
      *
@@ -233,5 +246,9 @@ export type ParsedYaml = {
         testWallets: Record<string, TestWallet>;
         tests: Test[];
     };
+};
+export type AccountFile = {
+    key: web3.PublicKey;
+    path: string;
 };
 //# sourceMappingURL=Yaml2Solana2.d.ts.map

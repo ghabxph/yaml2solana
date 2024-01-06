@@ -175,6 +175,20 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * @returns program accounts from schema
+   */
+  getProgramAccounts(): AccountFile[] {
+    return this.getFileAccount('so');
+  }
+
+  /**
+   * @returns json accounts from schema
+   */
+  getJsonAccounts(): AccountFile[] {
+    return this.getFileAccount('json');
+  }
+
+  /**
    * Batch download accounts from mainnet
    *
    * @param forceDownload
@@ -345,7 +359,7 @@ export class Yaml2SolanaClass2 {
     const mapping = await this.downloadAccountsFromMainnet(accountsToDownload);
 
     // Step 2: Run test validator
-    return await this.runTestValidator2(mapping, util.fs.readSchema(this.config));
+    return await this.runTestValidator2(mapping);
   }
 
   /**
@@ -422,6 +436,31 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * @param extension File extension to check
+   * @returns
+   */
+  private getFileAccount(extension: string) {
+    const accounts: AccountFile[] = [];
+    for (const key in this.parsedYaml.accounts) {
+      const [pk, filePath] = this.parsedYaml.accounts[key].split(',');
+      const filePathSplit = filePath.split('.');
+      const _extension = filePathSplit[filePathSplit.length - 1];
+      if (_extension === extension) {
+        accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath)});
+      }
+    }
+    this.parsedYaml.accountsNoLabel.map(v => {
+      const [pk, filePath] = this.parsedYaml.accounts[v].split(',');
+      const filePathSplit = filePath.split('.');
+      const _extension = filePathSplit[filePathSplit.length - 1];
+      if (_extension === extension) {
+        accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath)});
+      }
+    });
+    return accounts;
+  }
+
+  /**
    * Resolve test wallets
    *
    * @param parsedYaml
@@ -456,7 +495,7 @@ export class Yaml2SolanaClass2 {
     util.fs.writeAccountsToCacheFolder(cacheFolder, account);
   }
 
-  private async runTestValidator2(mapping: Record<string, string | null>, schema: Yaml2SolanaClass) {
+  private async runTestValidator2(mapping: Record<string, string | null>) {
     // 1. Read solana-test-validator.template.sh to project base folder
     let template = util.fs.readTestValidatorTemplate();
 
@@ -481,7 +520,7 @@ export class Yaml2SolanaClass2 {
 
     // 3. Update programs and replace ==PROGRAMS==
     const programAccounts = [];
-    for (let account of schema.accounts.getProgramAccounts()) {
+    for (let account of this.getProgramAccounts()) {
       programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
     }
     if (programAccounts.length === 0) {
@@ -492,7 +531,7 @@ export class Yaml2SolanaClass2 {
 
     // 3. Update json accounts and replace ==JSON_ACCOUNTS==
     const jsonAccounts = [];
-    for (let account of schema.accounts.getJsonAccounts()) {
+    for (let account of this.getJsonAccounts()) {
       jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
     }
     if (jsonAccounts.length === 0) {
@@ -804,4 +843,9 @@ export type ParsedYaml = {
     testWallets: Record<string, TestWallet>,
     tests: Test[]
   }
+}
+
+export type AccountFile = {
+  key: web3.PublicKey,
+  path: string,
 }
