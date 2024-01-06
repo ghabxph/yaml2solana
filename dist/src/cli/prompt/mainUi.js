@@ -227,7 +227,7 @@ function downloadSolanaAccounts(schemaFile) {
         // 4. Write downloaded account infos from mainnet in designated cache folder
         util.fs.writeAccountsToCacheFolder(schema, accountInfos);
         // 5. Map accounts to downloaded to .accounts
-        return util.fs.mapAccountsFromCache(schema);
+        return util.fs.mapAccountsFromCache(schema, accountInfos);
     });
 }
 /**

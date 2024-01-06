@@ -215,7 +215,7 @@ async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string
   util.fs.writeAccountsToCacheFolder(schema, accountInfos);
 
   // 5. Map accounts to downloaded to .accounts
-  return util.fs.mapAccountsFromCache(schema);
+  return util.fs.mapAccountsFromCache(schema, accountInfos);
 }
 
 /**
