@@ -35,9 +35,6 @@ export async function mainUi(schemaFile: string) {
     return;
   }
 
-  // Read schema
-  const schema = util.fs.readSchema(schemaFile);
-
   if (choice === CHOICE_RUN_TEST_VALIDATOR) {
     await runTestValidator(schemaFile);
     return;
@@ -45,125 +42,7 @@ export async function mainUi(schemaFile: string) {
 
   // Assuming here that test validator is already running.
   if (choice === CHOICE_RUN_INSTRUCTION) {
-    // 1. Confirm first if localnet is running
-    if (!await util.test.checkIfLocalnetIsRunning()) {
-      console.log('Localnet seems not running. http://127.0.0.1:8899/health doesn\'t return a healthy status.');
-
-      return;
-    }
-
-    // Confirm messae that localnet is running
-    console.log('Localnet seems running. http://127.0.0.1:8899/health returns \'ok\' state');
-
-    // 2. Select what instruction to execute
-    const choices = schema.instructionDefinition.getInstructions();
-    const { instructionToExecute } = await inquirer
-      .prompt([
-        {
-          type: 'list',
-          name: 'instructionToExecute',
-          message: 'Choose instruction to execute:',
-          choices,
-        },
-      ]
-    );
-    
-    // 3. Resolve variables
-    const variables = schema.instructionDefinition.getParametersOf(instructionToExecute);
-    const prompt = [];
-    for (const key in variables) {
-      if (variables[key].type === 'bool') {
-        prompt.push({
-          type: 'list',
-          name: key,
-          message: `Value for ${key}`,
-          choices: ['true', 'false'],
-          filter: (input: string) => {
-            return input === 'true';
-          }
-        })
-      } else {
-        let defaultValue = variables[key].defaultValue;
-        if (variables[key].type === 'pubkey') {
-          switch (key) {
-            case 'RENT_SYSVAR':
-              defaultValue = 'SysvarRent111111111111111111111111111111111';
-              break;
-            case 'CLOCK_SYSVAR':
-              defaultValue = 'SysvarC1ock11111111111111111111111111111111';
-              break;
-            case 'TOKEN_PROGRAM':
-              defaultValue = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-              break;
-            case 'ASSOCIATED_TOKEN_PROGRAM':
-              defaultValue = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
-              break;
-            case 'SYSTEM_PROGRAM':
-              defaultValue = '11111111111111111111111111111111';
-              break;
-          }
-        }
-        prompt.push({
-          type: 'input',
-          name: key,
-          message: `Value for ${key}:`,
-          default: defaultValue,
-          filter: (input: string) => {
-            if (variables[key].type === 'pubkey') {
-              if (typeof input === 'string') {
-                return new web3.PublicKey(input);
-              } else {
-                return input;
-              }
-            }
-            const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
-            if (numberTypes.includes(variables[key].type)) {
-              if (Math.round(Number(input)) === Number(input)) {
-                return Number(input)
-              } else {
-                throw `${key} is not a valid integer value.`
-              }
-            }
-            return input;
-          }
-        });
-      }
-    }
-    const params = await inquirer.prompt(prompt);
-
-    // 4. Create instruction instance based on given parameters
-    const ix = schema.instructionDefinition[instructionToExecute](params);
-
-    // 5. Choose whether to use transaction legacy or v0
-    const { txVersion } = await inquirer.prompt([{
-      type: 'list',
-      name: 'txVersion',
-      message: 'What transaction format version to use?',
-      choices: [
-        'Legacy',
-        'v0',
-      ]
-    }]);
-    if (txVersion === 'v0') {
-      console.log('v0 not yet supported. Will be supported soon.');
-      return;
-    }
-
-    // 5. Create transaction and execute instruction
-    const connection = new web3.Connection("http://127.0.0.1:8899");
-    const { blockhash: recentBlockhash } = await connection.getLatestBlockhash();
-    const tx = new web3.Transaction().add(ix);
-    tx.recentBlockhash = recentBlockhash;
-    const signers = schema.instructionDefinition.getSigners(instructionToExecute);
-    tx.sign(...signers);
-    const signature = await web3.sendAndConfirmTransaction(
-      connection,
-      tx,
-      signers
-    );
-
-    console.log(`tx signature: ${signature}`);
-    return;
+    return await runInstruction(schemaFile);
   }
 
   // Assuming here that test validator is already running.
@@ -214,4 +93,128 @@ async function runTestValidator(schemaFile: string) {
 
   // Run test validator using v2
   return await yaml2solana.runTestValidator();
+}
+
+async function runInstruction(schemaFile: string) {
+  // Read schema
+  const schema = util.fs.readSchema(schemaFile);
+
+  // 1. Confirm first if localnet is running
+  if (!await util.test.checkIfLocalnetIsRunning()) {
+    console.log('Localnet seems not running. http://127.0.0.1:8899/health doesn\'t return a healthy status.');
+
+    return;
+  }
+
+  // Confirm messae that localnet is running
+  console.log('Localnet seems running. http://127.0.0.1:8899/health returns \'ok\' state');
+
+  // 2. Select what instruction to execute
+  const choices = schema.instructionDefinition.getInstructions();
+  const { instructionToExecute } = await inquirer
+    .prompt([
+      {
+        type: 'list',
+        name: 'instructionToExecute',
+        message: 'Choose instruction to execute:',
+        choices,
+      },
+    ]
+  );
+
+  // 3. Resolve variables
+  const variables = schema.instructionDefinition.getParametersOf(instructionToExecute);
+  const prompt = [];
+  for (const key in variables) {
+    if (variables[key].type === 'bool') {
+      prompt.push({
+        type: 'list',
+        name: key,
+        message: `Value for ${key}`,
+        choices: ['true', 'false'],
+        filter: (input: string) => {
+          return input === 'true';
+        }
+      })
+    } else {
+      let defaultValue = variables[key].defaultValue;
+      if (variables[key].type === 'pubkey') {
+        switch (key) {
+          case 'RENT_SYSVAR':
+            defaultValue = 'SysvarRent111111111111111111111111111111111';
+            break;
+          case 'CLOCK_SYSVAR':
+            defaultValue = 'SysvarC1ock11111111111111111111111111111111';
+            break;
+          case 'TOKEN_PROGRAM':
+            defaultValue = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+            break;
+          case 'ASSOCIATED_TOKEN_PROGRAM':
+            defaultValue = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+            break;
+          case 'SYSTEM_PROGRAM':
+            defaultValue = '11111111111111111111111111111111';
+            break;
+        }
+      }
+      prompt.push({
+        type: 'input',
+        name: key,
+        message: `Value for ${key}:`,
+        default: defaultValue,
+        filter: (input: string) => {
+          if (variables[key].type === 'pubkey') {
+            if (typeof input === 'string') {
+              return new web3.PublicKey(input);
+            } else {
+              return input;
+            }
+          }
+          const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
+          if (numberTypes.includes(variables[key].type)) {
+            if (Math.round(Number(input)) === Number(input)) {
+              return Number(input)
+            } else {
+              throw `${key} is not a valid integer value.`
+            }
+          }
+          return input;
+        }
+      });
+    }
+  }
+  const params = await inquirer.prompt(prompt);
+
+  // 4. Create instruction instance based on given parameters
+  const ix = schema.instructionDefinition[instructionToExecute](params);
+
+  // 5. Choose whether to use transaction legacy or v0
+  const { txVersion } = await inquirer.prompt([{
+    type: 'list',
+    name: 'txVersion',
+    message: 'What transaction format version to use?',
+    choices: [
+      'Legacy',
+      'v0',
+    ]
+  }]);
+  if (txVersion === 'v0') {
+    console.log('v0 not yet supported. Will be supported soon.');
+    return;
+  }
+
+  // 5. Create transaction and execute instruction
+  const connection = new web3.Connection("http://127.0.0.1:8899");
+  const { blockhash: recentBlockhash } = await connection.getLatestBlockhash();
+  const tx = new web3.Transaction().add(ix);
+  tx.recentBlockhash = recentBlockhash;
+  const signers = schema.instructionDefinition.getSigners(instructionToExecute);
+  tx.sign(...signers);
+  const signature = await web3.sendAndConfirmTransaction(
+    connection,
+    tx,
+    signers
+  );
+
+  console.log(`tx signature: ${signature}`);
 }
