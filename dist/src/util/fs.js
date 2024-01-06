@@ -150,8 +150,7 @@ function cacheFolderMustExist(cacheFolder) {
  * @param schema
  * @param accountInfos
  */
-function writeAccountsToCacheFolder(schema, accountInfos) {
-    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+function writeAccountsToCacheFolder(cacheFolder, accountInfos) {
     cacheFolderMustExist(cacheFolder);
     for (let key in accountInfos) {
         const accountInfo = accountInfos[key];
@@ -181,8 +180,7 @@ exports.writeAccountsToCacheFolder = writeAccountsToCacheFolder;
  * @param accounts
  * @returns
  */
-function skipDownloadedAccounts(schema, accounts) {
-    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+function skipDownloadedAccounts(cacheFolder, accounts) {
     cacheFolderMustExist(cacheFolder);
     const files = fs.readdirSync(cacheFolder);
     const fileNames = files.map(v => v.split('.')[0]);
@@ -205,10 +203,8 @@ exports.readTestValidatorTemplate = readTestValidatorTemplate;
 /**
  * Map cached accounts to accounts list
  */
-function mapAccountsFromCache(schema, downloadedAccounts) {
-    const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+function mapAccountsFromCache(cacheFolder, accounts) {
     cacheFolderMustExist(cacheFolder);
-    const accounts = schema.accounts.getAccounts();
     const files = fs.readdirSync(cacheFolder);
     const fileNames = files.map(v => v.split('.')[0]);
     const mapping = {};
