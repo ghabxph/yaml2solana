@@ -5,14 +5,6 @@ export declare class Yaml2SolanaClass2 {
      */
     private config;
     /**
-     * Global variable
-     */
-    private global;
-    /**
-     * Parsed yaml
-     */
-    private parsedYaml;
-    /**
      * Localnet connection instance
      */
     readonly localnetConnection: web3.Connection;
@@ -20,6 +12,14 @@ export declare class Yaml2SolanaClass2 {
      * Project directory is where yaml2solana.yaml file is found.
      */
     readonly projectDir: string;
+    /**
+     * Global variable
+     */
+    private global;
+    /**
+     * Parsed yaml
+     */
+    private parsedYaml;
     /**
      * Test validator runnin PID
      */
@@ -34,18 +34,6 @@ export declare class Yaml2SolanaClass2 {
      * @param params
      */
     resolve(params: ResolveParams): void;
-    /**
-     * Resolve test wallets
-     *
-     * @param parsedYaml
-     */
-    private resolveTestWallets;
-    /**
-     * Prints lamports out of thin air in given test wallet key from yaml
-     *
-     * @param key
-     */
-    private fundLocalnetWalletFromYaml;
     /**
      * Get accounts from solana instructions
      *
@@ -85,6 +73,7 @@ export declare class Yaml2SolanaClass2 {
         skipRedownload?: web3.PublicKey[];
         keepRunning?: boolean;
         cluster?: string;
+        runFromExistingLocalnet?: boolean;
     }): Promise<void>;
     /**
      * Run test validator
@@ -94,7 +83,6 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<void>;
-    private runTestValidator2;
     killTestValidator(): void;
     /**
      * Gets resolved instruction
@@ -103,20 +91,6 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     getInstruction(name: string): web3.TransactionInstruction;
-    /**
-     * Resolve transaction instructions
-     *
-     * @param parsedYaml
-     * @param onlyResolve
-     */
-    private resolveInstructions;
-    /**
-     * Resolve instruction data
-     *
-     * @param data
-     */
-    private resolveInstructionData;
-    private resolveInstructionAccounts;
     /**
      * Set parameter value (alias to setVar method)
      *
@@ -144,6 +118,33 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     getVar<T>(name: string): T;
+    /**
+     * Resolve test wallets
+     *
+     * @param parsedYaml
+     */
+    private resolveTestWallets;
+    /**
+     * Prints lamports out of thin air in given test wallet key from yaml
+     *
+     * @param key
+     */
+    private fundLocalnetWalletFromYaml;
+    private runTestValidator2;
+    /**
+     * Resolve transaction instructions
+     *
+     * @param parsedYaml
+     * @param onlyResolve
+     */
+    private resolveInstructions;
+    /**
+     * Resolve instruction data
+     *
+     * @param data
+     */
+    private resolveInstructionData;
+    private resolveInstructionAccounts;
     /**
      * Set named accounts to global variable
      *

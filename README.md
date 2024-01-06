@@ -1,5 +1,9 @@
 # yaml2solana
 
+**NOTE:** This readme is outdated. Will be updating soon. So many design principles have changed based on creator's use case. Like for example: its ability to download accounts from transaction prior to execution, thus accomodates a use case for dynamic transactions such as Jupiter swap where you need to request for quote, and that quote generates a route. This kind of use case violates the initial design principle of this project to be zero code.
+
+Stay tuned!
+
 **yaml2solana** takes a systematic approach to execute Solana smart contracts by simplifying the process and enhancing configurability. The central idea behind this tool is to define Solana instructions statically within a YAML configuration file (`yaml2solana.yaml`). This YAML file serves as the single source of truth for executing Solana instructions, encompassing all relevant details, including account addresses and even Program Derived Account (PDA) generation.
 
 ## Key Concepts:
@@ -15,6 +19,10 @@
 5. **Testing Smart Contracts from YAML:** yaml2solana includes a CLI tool that enables developers to quickly test smart contracts based on instruction definitions and the test field in the configuration. This simplifies the process of testing and validating Solana smart contracts during development.
 
 By adhering to these core principles, yaml2solana provides a user-friendly, error-resistant, and scalable solution for executing Solana smart contracts. It empowers developers to focus on the essential aspects of their Solana interactions while abstracting away technical complexities.
+
+## Dev Notes
+
+* Solana version to use: v1.14.18
 
 ## Installation
 

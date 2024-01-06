@@ -76,37 +76,6 @@ class Yaml2SolanaClass2 {
         this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions);
     }
     /**
-     * Resolve test wallets
-     *
-     * @param parsedYaml
-     */
-    resolveTestWallets(parsedYaml) {
-        const testWallets = parsedYaml.localDevelopment.testWallets;
-        for (const key in testWallets) {
-            this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
-        }
-    }
-    /**
-     * Prints lamports out of thin air in given test wallet key from yaml
-     *
-     * @param key
-     */
-    fundLocalnetWalletFromYaml(key) {
-        const SOL = 1000000000;
-        const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
-        const keypair = this.getVar(key);
-        const y = util.fs.readSchema(this.config);
-        const account = {};
-        account[keypair.publicKey.toString()] = {
-            lamports: Math.floor(solAmount * SOL),
-            data: Buffer.alloc(0),
-            owner: new web3.PublicKey('11111111111111111111111111111111'),
-            executable: false,
-            rentEpoch: 0
-        };
-        util.fs.writeAccountsToCacheFolder(y, account);
-    }
-    /**
      * Get accounts from solana instructions
      *
      * @param ix
@@ -261,13 +230,16 @@ class Yaml2SolanaClass2 {
      */
     executeTransactionsLocally(params) {
         return __awaiter(this, void 0, void 0, function* () {
-            let { txns, skipRedownload, keepRunning, cluster } = params;
+            let { txns, skipRedownload, keepRunning, cluster, runFromExistingLocalnet, } = params;
             skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
             keepRunning = keepRunning === undefined ? true : keepRunning;
             cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
-            // Step 1: Run test validator
-            yield this.runTestValidator(txns, skipRedownload);
-            yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+            runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
+            if (!runFromExistingLocalnet) {
+                // Step 1: Run test validator
+                yield this.runTestValidator(txns, skipRedownload);
+                yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+            }
             // Step 2: Execute transactions
             for (const key in txns) {
                 // Compile tx to versioned transaction
@@ -315,6 +287,101 @@ class Yaml2SolanaClass2 {
             // Step 2: Run test validator
             return yield this.runTestValidator2(mapping, util.fs.readSchema(this.config));
         });
+    }
+    killTestValidator() {
+        const command = `kill -9 ${this.testValidatorPid}`;
+        (0, child_process_1.exec)(command, (error, _stdout, stderr) => {
+            if (error) {
+                // console.error(`Error: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                // console.error(`Stderr: ${stderr}`);
+                return;
+            }
+            console.log(`Process with PID ${this.testValidatorPid} has been killed.`);
+            this.testValidatorPid = undefined;
+        });
+    }
+    /**
+     * Gets resolved instruction
+     *
+     * @param name
+     * @returns
+     */
+    getInstruction(name) {
+        return this.getVar(name);
+    }
+    /**
+     * Set parameter value (alias to setVar method)
+     *
+     * @param name
+     * @param value
+     */
+    setParam(name, value) {
+        this.setVar(name, value);
+    }
+    /**
+     * Store value to global variable
+     *
+     * @param name
+     * @param value
+     */
+    setVar(name, value) {
+        this.global[name] = value;
+    }
+    /**
+     * Alias to getVar
+     *
+     * @param name
+     */
+    getParam(name) {
+        return this.getVar(name);
+    }
+    /**
+     * Retrieve value from global variable
+     *
+     * @param name
+     * @returns
+     */
+    getVar(name) {
+        if (name.startsWith('$')) {
+            return this.global[name.substring(1)];
+        }
+        else {
+            throw 'Variable should begin with dollar symbol `$`';
+        }
+    }
+    /**
+     * Resolve test wallets
+     *
+     * @param parsedYaml
+     */
+    resolveTestWallets(parsedYaml) {
+        const testWallets = parsedYaml.localDevelopment.testWallets;
+        for (const key in testWallets) {
+            this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
+        }
+    }
+    /**
+     * Prints lamports out of thin air in given test wallet key from yaml
+     *
+     * @param key
+     */
+    fundLocalnetWalletFromYaml(key) {
+        const SOL = 1000000000;
+        const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+        const keypair = this.getVar(key);
+        const y = util.fs.readSchema(this.config);
+        const account = {};
+        account[keypair.publicKey.toString()] = {
+            lamports: Math.floor(solAmount * SOL),
+            data: Buffer.alloc(0),
+            owner: new web3.PublicKey('11111111111111111111111111111111'),
+            executable: false,
+            rentEpoch: 0
+        };
+        util.fs.writeAccountsToCacheFolder(y, account);
     }
     runTestValidator2(mapping, schema) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -390,30 +457,6 @@ class Yaml2SolanaClass2 {
             this.testValidatorPid = yield this.findTestValidatorProcess();
         });
     }
-    killTestValidator() {
-        const command = `kill -9 ${this.testValidatorPid}`;
-        (0, child_process_1.exec)(command, (error, _stdout, stderr) => {
-            if (error) {
-                // console.error(`Error: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                // console.error(`Stderr: ${stderr}`);
-                return;
-            }
-            console.log(`Process with PID ${this.testValidatorPid} has been killed.`);
-            this.testValidatorPid = undefined;
-        });
-    }
-    /**
-     * Gets resolved instruction
-     *
-     * @param name
-     * @returns
-     */
-    getInstruction(name) {
-        return this.getVar(name);
-    }
     /**
      * Resolve transaction instructions
      *
@@ -485,46 +528,6 @@ class Yaml2SolanaClass2 {
             accountMetas.push({ pubkey, isSigner, isWritable });
         }
         return accountMetas;
-    }
-    /**
-     * Set parameter value (alias to setVar method)
-     *
-     * @param name
-     * @param value
-     */
-    setParam(name, value) {
-        this.setVar(name, value);
-    }
-    /**
-     * Store value to global variable
-     *
-     * @param name
-     * @param value
-     */
-    setVar(name, value) {
-        this.global[name] = value;
-    }
-    /**
-     * Alias to getVar
-     *
-     * @param name
-     */
-    getParam(name) {
-        return this.getVar(name);
-    }
-    /**
-     * Retrieve value from global variable
-     *
-     * @param name
-     * @returns
-     */
-    getVar(name) {
-        if (name.startsWith('$')) {
-            return this.global[name.substring(1)];
-        }
-        else {
-            throw 'Variable should begin with dollar symbol `$`';
-        }
     }
     /**
      * Set named accounts to global variable
@@ -626,7 +629,6 @@ class Transaction {
             for (const alt of this.alts) {
                 alts.push((yield this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value);
             }
-            console.log(alts);
             const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
                 payerKey: this.payer,
                 instructions: this.ixns,

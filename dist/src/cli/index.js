@@ -32,13 +32,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const util = __importStar(require("../util"));
 const prompt = __importStar(require("./prompt"));
+const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const BASE_DIR = __dirname;
 const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
+(0, ts_clear_screen_1.default)();
 (() => __awaiter(void 0, void 0, void 0, function* () {
     let schemaFile = '';
     let schemaFiles = find();

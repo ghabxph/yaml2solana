@@ -9,7 +9,8 @@ export type InstructionDefinitions = Record<
   {
     programId: string,
     data: string[]
-    accounts: string[]
+    accounts: string[],
+    payer: string,
   }
 >;
 

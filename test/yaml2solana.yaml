@@ -8,7 +8,7 @@ accounts:
   USDC_MINT: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
   USDH_MINT: "USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX"
   WSOL_MINT: "So11111111111111111111111111111111111111112"
-  SOME_PROGRAM: "DM6UM8DELAKBH2VcypUoNMjuR9yJ5FfhSzhD5GLav22n,target/deploy/some_program.so"
+  SOME_PROGRAM: "DM6UM8DELAKBH2VcypUoNMjuR9yJ5FfhSzhD5GLav22n"
   SOME_ACCOUNT: "455QuvQPGEHWQNHaMW4x83huidS64TnsiSuxXfRTT7Tj"
 
 accountsNoLabel:
@@ -38,6 +38,7 @@ instructionDefinition:
       - $userWallet1,mut,signer
       - $TOKEN_PROGRAM
       - $ASSOCIATED_TOKEN_PROGRAM
+    payer: $userWallet1
 
 schemaDefinition:
   TokenAccount:
