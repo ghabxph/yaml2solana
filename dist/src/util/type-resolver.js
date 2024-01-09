@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveSighash = exports.resolveAccountMeta = exports.resolveType2 = exports.resolveType = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo = void 0;
+exports.resolveSighash = exports.resolveAccountMeta = exports.resolveType2 = exports.resolveType = exports.getVariablesFromInstructionDefinition2 = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo = void 0;
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
@@ -216,6 +216,41 @@ function getVariablesFromInstructionDefinition(instructionToExecute, instruction
     return params;
 }
 exports.getVariablesFromInstructionDefinition = getVariablesFromInstructionDefinition;
+function getVariablesFromInstructionDefinition2(
+// instructionToExecute: string,
+// instructionDefinitions: InstructionDefinitions,
+// accounts: any,
+// pda: any,
+// testWallets: Record<string, web3.Keypair | undefined>,
+) {
+    // const ixSchema = instructionDefinitions[instructionToExecute];
+    // const params: Record<string, VariableInfo> = {};
+    // const info = extractVariableInfo(
+    //   ixSchema.programId,
+    //   accounts,
+    //   pda,
+    //   testWallets,
+    // );
+    // if (info.isVariable) {
+    //   params[info.name] = info;
+    // }
+    // for (const pattern of ixSchema.data) {
+    //   const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+    //   if (info.isVariable) {
+    //     params[info.name] = info;
+    //   }
+    // }
+    // for (const account of ixSchema.accounts) {
+    //   const pattern = account.split(',')[0];
+    //   const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+    //   if (info.isVariable) {
+    //     params[info.name] = info;
+    //   }
+    // }
+    // return params;
+    return {};
+}
+exports.getVariablesFromInstructionDefinition2 = getVariablesFromInstructionDefinition2;
 /**
  * Resolve type
  *

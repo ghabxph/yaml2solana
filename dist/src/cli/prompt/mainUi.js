@@ -38,10 +38,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mainUi = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const util = __importStar(require("../../util"));
-const web3 = __importStar(require("@solana/web3.js"));
 const utilUi_1 = require("./utilUi");
 const __1 = require("../..");
-const Yaml2Solana2_1 = require("../../sdk/Yaml2Solana2");
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
@@ -130,7 +128,7 @@ function runInstruction(schemaFile) {
         // Whether to run from existing running localnet instance
         let runFromExistingLocalnet = yield util.test.checkIfLocalnetIsRunning();
         // 1. Select what instruction to execute
-        const choices = schema.instructionDefinition.getInstructions();
+        const choices = yaml2solana.getInstructions();
         const { instructionToExecute } = yield inquirer_1.default
             .prompt([
             {
@@ -141,80 +139,83 @@ function runInstruction(schemaFile) {
             },
         ]);
         // 2. Resolve variables
-        const variables = schema.instructionDefinition.getParametersOf(instructionToExecute);
-        const prompt = [];
-        for (const key in variables) {
-            if (variables[key].type === 'bool') {
-                prompt.push({
-                    type: 'list',
-                    name: key,
-                    message: `Value for ${key}`,
-                    choices: ['true', 'false'],
-                    filter: (input) => {
-                        return input === 'true';
-                    }
-                });
-            }
-            else {
-                let defaultValue = variables[key].defaultValue;
-                if (variables[key].type === 'pubkey') {
-                    switch (key) {
-                        case 'RENT_SYSVAR':
-                            defaultValue = 'SysvarRent111111111111111111111111111111111';
-                            break;
-                        case 'CLOCK_SYSVAR':
-                            defaultValue = 'SysvarC1ock11111111111111111111111111111111';
-                            break;
-                        case 'TOKEN_PROGRAM':
-                            defaultValue = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-                            break;
-                        case 'ASSOCIATED_TOKEN_PROGRAM':
-                            defaultValue = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
-                            break;
-                        case 'SYSTEM_PROGRAM':
-                            defaultValue = '11111111111111111111111111111111';
-                            break;
-                    }
-                }
-                prompt.push({
-                    type: 'input',
-                    name: key,
-                    message: `Value for ${key}:`,
-                    default: defaultValue,
-                    filter: (input) => {
-                        if (variables[key].type === 'pubkey') {
-                            if (typeof input === 'string') {
-                                return new web3.PublicKey(input);
-                            }
-                            else {
-                                return input;
-                            }
-                        }
-                        const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
-                        if (numberTypes.includes(variables[key].type)) {
-                            if (Math.round(Number(input)) === Number(input)) {
-                                return Number(input);
-                            }
-                            else {
-                                throw `${key} is not a valid integer value.`;
-                            }
-                        }
-                        return input;
-                    }
-                });
-            }
-        }
-        const params = yield inquirer_1.default.prompt(prompt);
-        // 3. Create instruction instance based on given parameters
-        console.log(``);
-        const ix = schema.instructionDefinition[instructionToExecute](params);
-        const signers = schema.instructionDefinition.getSigners(instructionToExecute);
-        yield yaml2solana.executeTransactionsLocally({
-            txns: [
-                new Yaml2Solana2_1.Transaction(instructionToExecute, yaml2solana.localnetConnection, [ix], [], // Alt accounts
-                schema.instructionDefinition.getPayer(instructionToExecute), signers)
-            ],
-            runFromExistingLocalnet,
-        });
+        const variables = yaml2solana.getParametersFromInstructions(instructionToExecute);
+        // const prompt = [];
+        // for (const key in variables) {
+        //   if (variables[key].type === 'bool') {
+        //     prompt.push({
+        //       type: 'list',
+        //       name: key,
+        //       message: `Value for ${key}`,
+        //       choices: ['true', 'false'],
+        //       filter: (input: string) => {
+        //         return input === 'true';
+        //       }
+        //     })
+        //   } else {
+        //     let defaultValue = variables[key].defaultValue;
+        //     if (variables[key].type === 'pubkey') {
+        //       switch (key) {
+        //         case 'RENT_SYSVAR':
+        //           defaultValue = 'SysvarRent111111111111111111111111111111111';
+        //           break;
+        //         case 'CLOCK_SYSVAR':
+        //           defaultValue = 'SysvarC1ock11111111111111111111111111111111';
+        //           break;
+        //         case 'TOKEN_PROGRAM':
+        //           defaultValue = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+        //           break;
+        //         case 'ASSOCIATED_TOKEN_PROGRAM':
+        //           defaultValue = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+        //           break;
+        //         case 'SYSTEM_PROGRAM':
+        //           defaultValue = '11111111111111111111111111111111';
+        //           break;
+        //       }
+        //     }
+        //     prompt.push({
+        //       type: 'input',
+        //       name: key,
+        //       message: `Value for ${key}:`,
+        //       default: defaultValue,
+        //       filter: (input: string) => {
+        //         if (variables[key].type === 'pubkey') {
+        //           if (typeof input === 'string') {
+        //             return new web3.PublicKey(input);
+        //           } else {
+        //             return input;
+        //           }
+        //         }
+        //         const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
+        //         if (numberTypes.includes(variables[key].type)) {
+        //           if (Math.round(Number(input)) === Number(input)) {
+        //             return Number(input)
+        //           } else {
+        //             throw `${key} is not a valid integer value.`
+        //           }
+        //         }
+        //         return input;
+        //       }
+        //     });
+        //   }
+        // }
+        // const params = await inquirer.prompt(prompt);
+        // // 3. Create instruction instance based on given parameters
+        // console.log(``);
+        // const ix: web3.TransactionInstruction = schema.instructionDefinition[instructionToExecute](params);
+        // const signers = schema.instructionDefinition.getSigners(instructionToExecute);
+        // await yaml2solana.executeTransactionsLocally({
+        //   txns: [
+        //     new Transaction(
+        //       instructionToExecute,
+        //       yaml2solana.localnetConnection,
+        //       [ix],
+        //       [], // Alt accounts
+        //       schema.instructionDefinition.getPayer(instructionToExecute),
+        //       signers,
+        //     )
+        //   ],
+        //   runFromExistingLocalnet,
+        // });
     });
 }

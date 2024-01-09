@@ -257,6 +257,42 @@ export function getVariablesFromInstructionDefinition(
   return params;
 }
 
+export function getVariablesFromInstructionDefinition2(
+  // instructionToExecute: string,
+  // instructionDefinitions: InstructionDefinitions,
+  // accounts: any,
+  // pda: any,
+  // testWallets: Record<string, web3.Keypair | undefined>,
+): Record<string, VariableInfo> {
+  // const ixSchema = instructionDefinitions[instructionToExecute];
+  // const params: Record<string, VariableInfo> = {};
+  // const info = extractVariableInfo(
+  //   ixSchema.programId,
+  //   accounts,
+  //   pda,
+  //   testWallets,
+  // );
+  // if (info.isVariable) {
+  //   params[info.name] = info;
+  // }
+  // for (const pattern of ixSchema.data) {
+  //   const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+  //   if (info.isVariable) {
+  //     params[info.name] = info;
+  //   }
+  // }
+  // for (const account of ixSchema.accounts) {
+  //   const pattern = account.split(',')[0];
+  //   const info = extractVariableInfo(pattern, accounts, pda, testWallets);
+  //   if (info.isVariable) {
+  //     params[info.name] = info;
+  //   }
+  // }
+  // return params;
+  return {};
+}
+
+
 /**
  * Resolve type
  *
