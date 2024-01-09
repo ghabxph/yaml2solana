@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
+exports.ResolveError = exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
 const web3 = __importStar(require("@solana/web3.js"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -156,6 +156,16 @@ class Yaml2SolanaClass2 {
             }
         });
         return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
+    }
+    /**
+     * @returns instructions defined in yaml
+     */
+    getInstructions() {
+        const instructions = [];
+        for (const instruction in this.parsedYaml.instructionDefinition) {
+            instructions.push(instruction);
+        }
+        return instructions;
     }
     /**
      * @returns accounts from schema
@@ -352,6 +362,22 @@ class Yaml2SolanaClass2 {
      */
     getInstruction(name) {
         return this.getVar(name);
+    }
+    /**
+     * @param name Instruction to execute
+     * @returns available parameters that can be overriden for target instruction
+     */
+    getParametersFromInstructions(name) {
+        this.resolve({
+            onlyResolve: {}
+        });
+        return util.typeResolver.getVariablesFromInstructionDefinition2(
+        // name,
+        // target.instructionDefinition,
+        // accounts,
+        // pda,
+        // localDevelopment.testWallets
+        );
     }
     /**
      * Set parameter value (alias to setVar method)
@@ -722,3 +748,10 @@ class Transaction {
     }
 }
 exports.Transaction = Transaction;
+class ResolveError extends Error {
+    constructor(message, missingParams) {
+        super(message);
+        this.missingParams = missingParams;
+    }
+}
+exports.ResolveError = ResolveError;

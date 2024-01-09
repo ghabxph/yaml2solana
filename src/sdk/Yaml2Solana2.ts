@@ -159,6 +159,17 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * @returns instructions defined in yaml
+   */
+  getInstructions(): string [] {
+    const instructions: string[] = [];
+    for (const instruction in this.parsedYaml.instructionDefinition) {
+      instructions.push(instruction);
+    }
+    return instructions;
+  }
+
+  /**
    * @returns accounts from schema
    */
   getAccounts(): web3.PublicKey[] {
@@ -390,6 +401,25 @@ export class Yaml2SolanaClass2 {
    */
   getInstruction(name: string): web3.TransactionInstruction {
     return this.getVar<web3.TransactionInstruction>(name);
+  }
+
+  /**
+   * @param name Instruction to execute
+   * @returns available parameters that can be overriden for target instruction
+   */
+  getParametersFromInstructions(name: string): Record<string, util.typeResolver.VariableInfo> {
+    this.resolve(
+      {
+        onlyResolve: {}
+      }
+    );
+    return util.typeResolver.getVariablesFromInstructionDefinition2(
+      // name,
+      // target.instructionDefinition,
+      // accounts,
+      // pda,
+      // localDevelopment.testWallets
+    );
   }
 
   /**
@@ -848,4 +878,18 @@ export type ParsedYaml = {
 export type AccountFile = {
   key: web3.PublicKey,
   path: string,
+}
+
+export type ParamType = {
+  name: string,
+  type: string,
+}
+
+export class ResolveError extends Error {
+  constructor(
+    message: string,
+    public readonly missingParams: ParamType[],
+  ) {
+    super(message);
+  }
 }
