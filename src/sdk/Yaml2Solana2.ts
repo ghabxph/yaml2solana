@@ -244,7 +244,12 @@ export class Yaml2SolanaClass2 {
       cluster?: string,
       runFromExistingLocalnet?: boolean
     }
-  ) {
+  ): Promise<
+    Array<{
+      txid: string,
+      transactionResponse: web3.VersionedTransactionResponse | null,
+    }>
+  > {
     let {
       txns,
       skipRedownload,
@@ -264,6 +269,7 @@ export class Yaml2SolanaClass2 {
     }
 
     // Step 2: Execute transactions
+    const response: { txid: string, transactionResponse: web3.VersionedTransactionResponse | null }[] = [];
     for (const key in txns) {
       // Compile tx to versioned transaction
       const tx = await txns[key].compileToVersionedTransaction();
@@ -277,11 +283,21 @@ export class Yaml2SolanaClass2 {
         console.log(`tx sig ${sig}`);
         console.log(`localnet explorer: https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`);
         console.log(``);
+        const transactionResponse = (await connection.getTransaction(sig, {
+          commitment: "confirmed",
+          maxSupportedTransactionVersion: 0,
+        }));
+        response.push({ txid: sig, transactionResponse });
       } else {
         const sig = await connection.sendTransaction(tx);
         console.log(`TX: ${txns[key].description}`);
         console.log(`-------------------------------------------------------------------`)
         console.log(`tx sig ${sig}`);
+        const transactionResponse = (await connection.getTransaction(sig, {
+          commitment: "confirmed",
+          maxSupportedTransactionVersion: 0,
+        }));
+        response.push({ txid: sig, transactionResponse });
       }
     }
 
@@ -289,6 +305,8 @@ export class Yaml2SolanaClass2 {
     if (!keepRunning) {
       this.killTestValidator();
     }
+
+    return response;
   }
 
   /**

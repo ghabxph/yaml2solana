@@ -241,6 +241,7 @@ class Yaml2SolanaClass2 {
                 yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
             }
             // Step 2: Execute transactions
+            const response = [];
             for (const key in txns) {
                 // Compile tx to versioned transaction
                 const tx = yield txns[key].compileToVersionedTransaction();
@@ -253,18 +254,29 @@ class Yaml2SolanaClass2 {
                     console.log(`tx sig ${sig}`);
                     console.log(`localnet explorer: https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`);
                     console.log(``);
+                    const transactionResponse = (yield connection.getTransaction(sig, {
+                        commitment: "confirmed",
+                        maxSupportedTransactionVersion: 0,
+                    }));
+                    response.push({ txid: sig, transactionResponse });
                 }
                 else {
                     const sig = yield connection.sendTransaction(tx);
                     console.log(`TX: ${txns[key].description}`);
                     console.log(`-------------------------------------------------------------------`);
                     console.log(`tx sig ${sig}`);
+                    const transactionResponse = (yield connection.getTransaction(sig, {
+                        commitment: "confirmed",
+                        maxSupportedTransactionVersion: 0,
+                    }));
+                    response.push({ txid: sig, transactionResponse });
                 }
             }
             // Terminate test validator if specified to die after running transactions
             if (!keepRunning) {
                 this.killTestValidator();
             }
+            return response;
         });
     }
     /**
