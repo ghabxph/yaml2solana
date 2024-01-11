@@ -74,7 +74,10 @@ export declare class Yaml2SolanaClass2 {
         keepRunning?: boolean;
         cluster?: string;
         runFromExistingLocalnet?: boolean;
-    }): Promise<void>;
+    }): Promise<Array<{
+        txid: string;
+        transactionResponse: web3.VersionedTransactionResponse | null;
+    }>>;
     /**
      * Run test validator
      *
