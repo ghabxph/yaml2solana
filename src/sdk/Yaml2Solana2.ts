@@ -407,13 +407,18 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
-   * @param name Instruction to execute
+   * @param ixLabel Instruction to execute
    * @returns available parameters that can be overriden for target instruction
    */
-  getParametersFromInstructions(name: string): Record<string, util.typeResolver.VariableInfo> {
+  getParametersFromInstructions(ixLabel: string): Record<string, util.typeResolver.VariableInfo> {
+    // Find PDAs involved from given instruction
+    const pdas = this.findPdasInvolvedInInstruction(ixLabel);
     this.resolve(
       {
-        onlyResolve: {}
+        onlyResolve: {
+          thesePdas: pdas,
+          theseInstructions: [ixLabel],
+        }
       }
     );
     return util.typeResolver.getVariablesFromInstructionDefinition2(
@@ -423,6 +428,24 @@ export class Yaml2SolanaClass2 {
       // pda,
       // localDevelopment.testWallets
     );
+  }
+
+  /**
+   * Find PDAs involved from given instruction
+   *
+   * @param ixLabel 
+   */
+  private findPdasInvolvedInInstruction(ixLabel: string): string[] {
+    const result: string[] = [];
+    for (const accountMeta of this.parsedYaml.instructionDefinition[ixLabel].accounts) {
+      let [account] = accountMeta.split(',');
+      if (!account.startsWith('$')) continue
+      account = account.substring(1);
+      if (typeof this.parsedYaml.pda[account] !== 'undefined') {
+        result.push(account);
+      }
+    }
+    return result;
   }
 
   /**
@@ -664,7 +687,7 @@ export class Yaml2SolanaClass2 {
 
   private resolveInstructionAccounts(accounts: string[]): web3.AccountMeta[] {
     const accountMetas: web3.AccountMeta[] = [];
-    for (const account in accounts) {
+    for (const account of accounts) {
       const arr = account.split(',');
       const key = arr[0];
       let pubkey: web3.PublicKey;
