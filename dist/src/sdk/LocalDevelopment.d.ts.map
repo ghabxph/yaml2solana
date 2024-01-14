@@ -1,1 +1,0 @@
-{"version":3,"file":"LocalDevelopment.d.ts","sourceRoot":"","sources":["../../../src/sdk/LocalDevelopment.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,IAAI,MAAM,iBAAiB,CAAC;AAKxC,qBAAa,gBAAgB;IAE3B,QAAQ,CAAC,cAAc,EAAE,MAAM,CAAC;IAEhC,QAAQ,CAAC,WAAW,EAAE,MAAM,CAAC,MAAM,EAAE,IAAI,CAAC,OAAO,GAAG,SAAS,CAAC,CAAC;;IAG7D;;OAEG;IACH,MAAM,EAAE,MAAM;CAWjB"}
