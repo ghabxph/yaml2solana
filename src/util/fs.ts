@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as web3 from '@solana/web3.js';
-import { Yaml2SolanaClass } from '../sdk/Yaml2Solana';
 import { FullAccountInfo } from './solana';
 
 /**
@@ -121,13 +120,6 @@ export type Schema = {
 };
 
 /**
- * Read yaml2solana schema config yaml file
- */
-export function readSchema(schemaFile: string): Yaml2SolanaClass {
-  return new Yaml2SolanaClass(schemaFile)
-}
-
-/**
  * Cache folder must exist (create if not exist)
  *
  * @param cacheFolder
@@ -193,7 +185,8 @@ export function skipDownloadedAccounts(cacheFolder: string, accounts: web3.Publi
  * Read solana test validator template
  */
 export function readTestValidatorTemplate(): string {
-  return fs.readFileSync(`${__dirname}/../../../templates/solana-test-validator.template.sh`).toString('utf-8');
+  const target = path.resolve(`${__dirname}/../../templates/solana-test-validator.template.sh`);
+  return fs.readFileSync(target).toString('utf-8');
 }
 
 /**
