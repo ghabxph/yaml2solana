@@ -3,10 +3,11 @@ import * as bip39 from 'bip39';
 import * as web3 from "@solana/web3.js";
 import { derivePath } from 'ed25519-hd-key';
 import clear from "ts-clear-screen";
+import { keypairUi } from "./keypairUi";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
-const SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Show keypair from given bip39 seedphrase';
+const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 
 export async function utilUi() {
   clear();
@@ -19,7 +20,7 @@ export async function utilUi() {
         choices: [
           CHOICE_GENERATE_PDA,
           CHOICE_ANALYZE_TRANSACTION,
-          SHOW_KP_FROM_BIP39_SEEDPHRASE,
+          CHOICE_KEYPAIR_GENERATION,
         ],
       },
     ]
@@ -29,34 +30,14 @@ export async function utilUi() {
     return await generatePda();
   }
 
-  if (choice === SHOW_KP_FROM_BIP39_SEEDPHRASE) {
-    return await generateKpFromBip39SeedPhrase();
+  if (choice === CHOICE_ANALYZE_TRANSACTION) {
+    // do something
+  }
+
+  if (choice === CHOICE_KEYPAIR_GENERATION) {
+    return await keypairUi();
   }
 }
-
-/**
- * Generate keypair from BIP39 Seed Phrase
- */
-async function generateKpFromBip39SeedPhrase() {
-  const { seedPhrase } = await inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'seedPhrase',
-        message: 'Type 24-word seephrase here:'
-      }
-    ]);
-
-  const seed = bip39.mnemonicToSeedSync(seedPhrase);
-  const seedBuffer = Buffer.from(seed).toString('hex');
-  const path44change = `m/44'/501'/0'/0'`;
-  const deriveSeed = derivePath(path44change, seedBuffer).key;
-  const keypair = web3.Keypair.fromSeed(deriveSeed);
-
-  console.log(`privkey: ${Buffer.from(keypair.secretKey).toString('base64')}`);
-  console.log(`pubkey: ${keypair.publicKey}`);
-}
-
 
 /**
  * Generate PDA CLI
