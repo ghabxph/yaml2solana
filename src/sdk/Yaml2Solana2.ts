@@ -29,7 +29,7 @@ export class Yaml2SolanaClass2 {
   /**
    * Parsed yaml
    */
-  private parsedYaml: ParsedYaml;
+  private _parsedYaml: ParsedYaml;
 
   /**
    * Test validator runnin PID
@@ -47,10 +47,20 @@ export class Yaml2SolanaClass2 {
     // Read the YAML file.
     const yamlFile = fs.readFileSync(config, 'utf8');
     this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
-    this.parsedYaml = yaml.parse(yamlFile);
+    this._parsedYaml = yaml.parse(yamlFile);
 
     // Set named accounts to global variable
-    this.setNamedAccountsToGlobal(this.parsedYaml);
+    this.setNamedAccountsToGlobal(this._parsedYaml);
+
+    // Set known solana accounts (not meant to be downloaded)
+    this.setKnownAccounts();
+  }
+
+  /**
+   * Parsed yaml file
+   */
+  get parsedYaml(): ParsedYaml {
+    return this._parsedYaml;
   }
 
   /**
@@ -59,13 +69,13 @@ export class Yaml2SolanaClass2 {
    */
   resolve(params: ResolveParams) {
     // Resolve test wallets
-    this.resolveTestWallets(this.parsedYaml);
+    this.resolveTestWallets(this._parsedYaml);
 
     // Resolve PDAs
-    this.resolvePda(this.parsedYaml, params.onlyResolve.thesePdas);
+    this.resolvePda(this._parsedYaml, params.onlyResolve.thesePdas);
 
     // Resolve instructions
-    this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions)
+    this.resolveInstructions(this._parsedYaml, params.onlyResolve.theseInstructions)
   }
 
   /**
@@ -159,6 +169,73 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * Get signers from given instruction
+   *
+   * @param ixLabel
+   */
+  getSignersFromIx(ixLabel: string): web3.Signer[] {
+    const result: web3.Signer[] = [];
+    const payer = this.getVar<web3.Signer>(this._parsedYaml.instructionDefinition[ixLabel].payer);
+    let isPayerSigner = false;
+    for (const meta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+      const _meta = meta.split(',');
+      const [account] = _meta;
+      if (_meta.includes('signer')) {
+        const signer = this.getVar<web3.Signer>(account);
+        result.push(signer);
+        if (Buffer.from(signer.secretKey).equals(Buffer.from(payer.secretKey))) {
+          isPayerSigner = true;
+        }
+      }
+    }
+    if (!isPayerSigner) {
+      result.push(payer);
+    }
+    return result;
+  }
+
+  /**
+   * @returns instructions defined in yaml
+   */
+  getInstructions(): string [] {
+    const instructions: string[] = [];
+    for (const instruction in this._parsedYaml.instructionDefinition) {
+      instructions.push(instruction);
+    }
+    return instructions;
+  }
+
+  /**
+   * @returns accounts from schema
+   */
+  getAccounts(): web3.PublicKey[] {
+    const accounts: web3.PublicKey[] = [];
+    for (const key in this._parsedYaml.accounts) {
+      const [pk] = this._parsedYaml.accounts[key].split(',');
+      accounts.push(new web3.PublicKey(pk));
+    }
+    this._parsedYaml.accountsNoLabel.map(v => {
+      const [pk] = v.split(',');
+      accounts.push(new web3.PublicKey(pk));
+    });
+    return accounts;
+  }
+
+  /**
+   * @returns program accounts from schema
+   */
+  getProgramAccounts(): AccountFile[] {
+    return this.getFileAccount('so');
+  }
+
+  /**
+   * @returns json accounts from schema
+   */
+  getJsonAccounts(): AccountFile[] {
+    return this.getFileAccount('json');
+  }
+
+  /**
    * Batch download accounts from mainnet
    *
    * @param forceDownload
@@ -168,35 +245,33 @@ export class Yaml2SolanaClass2 {
     console.log('Downloading solana accounts:');
     console.log('--------------------------------------------------------------');
 
-    // 1. (old code) Read schema
-    const schema = util.fs.readSchema(this.config);
+    const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
 
-    // 2. (old code) Get accounts from schema
-    let accounts: web3.PublicKey[] = schema.accounts.getAccounts();
+    // 1. Get accounts from schema
+    let accounts: web3.PublicKey[] = this.getAccounts();
 
-    // 3. Skip accounts that are already downloaded
-    accounts = util.fs.skipDownloadedAccounts(schema, accounts);
+    // 2. Skip accounts that are already downloaded
+    accounts = util.fs.skipDownloadedAccounts(cacheFolder, accounts);
 
-    // 4. Force include accounts that are in forceDownloaded
+    // 3. Force include accounts that are in forceDownloaded
     accounts.push(...forceDownload);
     accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
 
-    // 5. Skip accounts that are defined in localDevelopment.skipCache
-    accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
+    // 4. Skip accounts that are defined in localDevelopment.skipCache
+    accounts = accounts.filter((v, i) => !this._parsedYaml.localDevelopment.skipCache.includes(v.toString()));
 
-    // 6. Fetch multiple accounts from mainnet at batches of 100
+    // 5. Fetch multiple accounts from mainnet at batches of 100
     const accountInfos = await util.solana.getMultipleAccountsInfo(accounts);
 
-    // 7. Find programs that are executable within account infos
+    // 6. Find programs that are executable within account infos
     const executables: web3.PublicKey[] = [];
     for (const key in accountInfos) {
       const accountInfo = accountInfos[key];
       if (accountInfo === null) continue;
       if (accountInfo.executable) {
-        console.log(`${key}: ${accountInfo.data.length}`);
         const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
         try {
-          fs.accessSync(path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
+          fs.accessSync(path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
         } catch {
           executables.push(executable); 
         }
@@ -208,10 +283,10 @@ export class Yaml2SolanaClass2 {
     }
 
     // 7. Write downloaded account infos from mainnet in designated cache folder
-    util.fs.writeAccountsToCacheFolder(schema, accountInfos);
+    util.fs.writeAccountsToCacheFolder(cacheFolder, accountInfos);
 
     // 8. Map accounts to downloaded to .accounts
-    return util.fs.mapAccountsFromCache(schema, accountInfos);
+    return util.fs.mapAccountsFromCache(cacheFolder, this.getAccounts());
   }
 
   /**
@@ -330,9 +405,12 @@ export class Yaml2SolanaClass2 {
     const mapping = await this.downloadAccountsFromMainnet(accountsToDownload);
 
     // Step 2: Run test validator
-    return await this.runTestValidator2(mapping, util.fs.readSchema(this.config));
+    return await this.runTestValidator2(mapping);
   }
 
+  /**
+   * Kill test validator
+   */
   killTestValidator() {
     const command = `kill -9 ${this.testValidatorPid}`;
 
@@ -361,13 +439,66 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
-   * Set parameter value (alias to setVar method)
+   * Resolve given instruction
+   *
+   * @param ixLabel Instruction to execute
+   * @returns available parameters that can be overriden for target instruction
+   */
+  resolveInstruction(ixLabel: string) {
+    // Find PDAs involved from given instruction
+    const pdas = this.findPdasInvolvedInInstruction(ixLabel);
+
+    // Then run resolve function
+    this.resolve(
+      {
+        onlyResolve: {
+          thesePdas: pdas,
+          theseInstructions: [ixLabel],
+        }
+      }
+    );
+  }
+
+  /**
+   * Extract variable info
+   *
+   * @param pattern
+   */
+  extractVarInfo(pattern: string): util.VariableInfo {
+
+    return util.extractVariableInfo2(pattern, this.global);
+  }
+
+  /**
+   * Find PDAs involved from given instruction
+   *
+   * @param ixLabel 
+   */
+  private findPdasInvolvedInInstruction(ixLabel: string): string[] {
+    const result: string[] = [];
+    for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+      let [account] = accountMeta.split(',');
+      if (!account.startsWith('$')) continue
+      account = account.substring(1);
+      if (typeof this._parsedYaml.pda[account] !== 'undefined') {
+        result.push(account);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Set parameter value
    *
    * @param name
    * @param value
    */
   setParam<T>(name: string, value: T) {
-    this.setVar(name, value);
+    if (name.startsWith('$')) {
+      this.setVar(name.substring(1), value);
+    } else {
+      throw 'Variable should begin with dollar symbol `$`';
+    }
   }
 
   /**
@@ -404,6 +535,33 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * @param extension File extension to check
+   * @returns
+   */
+  private getFileAccount(extension: string) {
+    const accounts: AccountFile[] = [];
+    for (const key in this._parsedYaml.accounts) {
+      const [pk, filePath] = this._parsedYaml.accounts[key].split(',');
+      if (filePath === undefined) continue;
+      const filePathSplit = filePath.split('.');
+      const _extension = filePathSplit[filePathSplit.length - 1];
+      if (_extension === extension) {
+        accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath)});
+      }
+    }
+    this._parsedYaml.accountsNoLabel.map(v => {
+      const [pk, filePath] = v.split(',');
+      if (filePath === undefined) return v;
+      const filePathSplit = filePath.split('.');
+      const _extension = filePathSplit[filePathSplit.length - 1];
+      if (_extension === extension) {
+        accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath)});
+      }
+    });
+    return accounts;
+  }
+
+  /**
    * Resolve test wallets
    *
    * @param parsedYaml
@@ -424,10 +582,10 @@ export class Yaml2SolanaClass2 {
    */
   private fundLocalnetWalletFromYaml(key: string) {
     const SOL = 1_000_000_000;
-    const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+    const solAmount = parseFloat(this._parsedYaml.localDevelopment.testWallets[key].solAmount);
     const keypair = this.getVar<web3.Signer>(key);
-    const y = util.fs.readSchema(this.config);
     const account: Record<string, web3.AccountInfo<Buffer>> = {};
+    const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
     account[keypair.publicKey.toString()] = {
       lamports: Math.floor(solAmount * SOL),
       data: Buffer.alloc(0),
@@ -435,10 +593,10 @@ export class Yaml2SolanaClass2 {
       executable: false,
       rentEpoch: 0
     }
-    util.fs.writeAccountsToCacheFolder(y, account);
+    util.fs.writeAccountsToCacheFolder(cacheFolder, account);
   }
 
-  private async runTestValidator2(mapping: Record<string, string | null>, schema: Yaml2SolanaClass) {
+  private async runTestValidator2(mapping: Record<string, string | null>) {
     // 1. Read solana-test-validator.template.sh to project base folder
     let template = util.fs.readTestValidatorTemplate();
 
@@ -463,7 +621,7 @@ export class Yaml2SolanaClass2 {
 
     // 3. Update programs and replace ==PROGRAMS==
     const programAccounts = [];
-    for (let account of schema.accounts.getProgramAccounts()) {
+    for (let account of this.getProgramAccounts()) {
       programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
     }
     if (programAccounts.length === 0) {
@@ -474,7 +632,7 @@ export class Yaml2SolanaClass2 {
 
     // 3. Update json accounts and replace ==JSON_ACCOUNTS==
     const jsonAccounts = [];
-    for (let account of schema.accounts.getJsonAccounts()) {
+    for (let account of this.getJsonAccounts()) {
       jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
     }
     if (jsonAccounts.length === 0) {
@@ -574,14 +732,16 @@ export class Yaml2SolanaClass2 {
 
   private resolveInstructionAccounts(accounts: string[]): web3.AccountMeta[] {
     const accountMetas: web3.AccountMeta[] = [];
-    for (const account in accounts) {
+    for (const account of accounts) {
       const arr = account.split(',');
       const key = arr[0];
-      let pubkey: web3.PublicKey;
+      let pubkey: web3.PublicKey | web3.Keypair;
       if (key.startsWith('$')) {
-        pubkey = this.getVar<web3.PublicKey>(key);
+        pubkey = this.getVar<web3.PublicKey | web3.Keypair>(key);
         if (typeof pubkey === 'undefined') {
           throw `Cannot resolve public key variable ${key}.`
+        } else if (typeof (pubkey as web3.Keypair).publicKey !== 'undefined') {
+          pubkey = (pubkey as web3.Keypair).publicKey;
         }
       } else {
         try {
@@ -592,7 +752,7 @@ export class Yaml2SolanaClass2 {
       }
       const isSigner = arr.includes('signer');
       const isWritable = arr.includes('mut');
-      accountMetas.push({ pubkey, isSigner, isWritable });
+      accountMetas.push({ pubkey: pubkey as web3.PublicKey, isSigner, isWritable });
     }
     return accountMetas;
   }
@@ -619,6 +779,26 @@ export class Yaml2SolanaClass2 {
       }
     }
   }
+
+  /**
+   * Set known solana accounts
+   *
+   * @param parsedYaml
+   */
+    private setKnownAccounts() {
+      this.setVar<web3.PublicKey>('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
+      this.setVar<web3.PublicKey>('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
+      this.setVar<web3.PublicKey>('SYSTEM_PROGRAM', web3.SystemProgram.programId);
+      this.setVar<web3.PublicKey>('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
+      this.setVar<web3.PublicKey>('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
+    }
 
   /**
    * Resolve PDAs
@@ -753,6 +933,7 @@ export type InstructionDefinition = {
   programId: string,
   data: string[],
   accounts: string[],
+  payer: string,
 }
 
 export type TestAccount = {
@@ -785,4 +966,9 @@ export type ParsedYaml = {
     testWallets: Record<string, TestWallet>,
     tests: Test[]
   }
+}
+
+export type AccountFile = {
+  key: web3.PublicKey,
+  path: string,
 }

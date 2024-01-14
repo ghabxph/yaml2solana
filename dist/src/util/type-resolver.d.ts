@@ -14,7 +14,9 @@ export type VariableInfo = {
     defaultValue?: any;
 };
 export declare function extractVariableInfo(pattern: string, accounts: Record<string, web3.PublicKey>, pda: Record<string, any>, testWallets: Record<string, web3.Keypair | undefined>): VariableInfo;
+export declare function extractVariableInfo2(pattern: string, params: Record<string, any>): VariableInfo;
 export declare function getVariablesFromInstructionDefinition(instructionToExecute: string, instructionDefinitions: InstructionDefinitions, accounts: any, pda: any, testWallets: Record<string, web3.Keypair | undefined>): Record<string, VariableInfo>;
+export declare function getVariablesFromInstructionDefinition2(): Record<string, VariableInfo>;
 /**
  * Resolve type
  *

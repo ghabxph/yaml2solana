@@ -146,8 +146,7 @@ function cacheFolderMustExist(cacheFolder: string) {
  * @param schema
  * @param accountInfos
  */
-export function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, accountInfos: FullAccountInfo) {
-  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+export function writeAccountsToCacheFolder(cacheFolder: string, accountInfos: FullAccountInfo) {
   cacheFolderMustExist(cacheFolder);
   for (let key in accountInfos) {
     const accountInfo = accountInfos[key];
@@ -177,8 +176,7 @@ export function writeAccountsToCacheFolder(schema: Yaml2SolanaClass, accountInfo
  * @param accounts
  * @returns
  */
-export function skipDownloadedAccounts(schema: Yaml2SolanaClass, accounts: web3.PublicKey[]) {
-  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+export function skipDownloadedAccounts(cacheFolder: string, accounts: web3.PublicKey[]) {
   cacheFolderMustExist(cacheFolder);
   const files = fs.readdirSync(cacheFolder);
   const fileNames = files.map(v => v.split('.')[0]);
@@ -201,10 +199,8 @@ export function readTestValidatorTemplate(): string {
 /**
  * Map cached accounts to accounts list
  */
-export function mapAccountsFromCache(schema: Yaml2SolanaClass, downloadedAccounts: FullAccountInfo): Record<string, string | null> {
-  const cacheFolder = path.resolve(schema.projectDir, schema.localDevelopment.accountsFolder);
+export function mapAccountsFromCache(cacheFolder: string, accounts: web3.PublicKey[]): Record<string, string | null> {
   cacheFolderMustExist(cacheFolder);
-  const accounts = schema.accounts.getAccounts();
   const files = fs.readdirSync(cacheFolder);
   const fileNames = files.map(v => v.split('.')[0]);
   const mapping: Record<string, string | null> = {}

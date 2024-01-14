@@ -21,9 +21,7 @@ function checkIfLocalnetIsRunning() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const response = yield axios_1.default.get('http://127.0.0.1:8899/health');
-            if (response.data === 'ok') {
-                return true;
-            }
+            return response.data === 'ok';
         }
         catch (_a) {
             return false;
