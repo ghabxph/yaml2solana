@@ -37,13 +37,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.utilUi = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
-const bip39 = __importStar(require("bip39"));
 const web3 = __importStar(require("@solana/web3.js"));
-const ed25519_hd_key_1 = require("ed25519-hd-key");
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
+const keypairUi_1 = require("./keypairUi");
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
-const SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Show keypair from given bip39 seedphrase';
+const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 function utilUi() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
@@ -56,41 +55,22 @@ function utilUi() {
                 choices: [
                     CHOICE_GENERATE_PDA,
                     CHOICE_ANALYZE_TRANSACTION,
-                    SHOW_KP_FROM_BIP39_SEEDPHRASE,
+                    CHOICE_KEYPAIR_GENERATION,
                 ],
             },
         ]);
         if (choice === CHOICE_GENERATE_PDA) {
             return yield generatePda();
         }
-        if (choice === SHOW_KP_FROM_BIP39_SEEDPHRASE) {
-            return yield generateKpFromBip39SeedPhrase();
+        if (choice === CHOICE_ANALYZE_TRANSACTION) {
+            // do something
+        }
+        if (choice === CHOICE_KEYPAIR_GENERATION) {
+            return yield (0, keypairUi_1.keypairUi)();
         }
     });
 }
 exports.utilUi = utilUi;
-/**
- * Generate keypair from BIP39 Seed Phrase
- */
-function generateKpFromBip39SeedPhrase() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { seedPhrase } = yield inquirer_1.default
-            .prompt([
-            {
-                type: 'input',
-                name: 'seedPhrase',
-                message: 'Type 24-word seephrase here:'
-            }
-        ]);
-        const seed = bip39.mnemonicToSeedSync(seedPhrase);
-        const seedBuffer = Buffer.from(seed).toString('hex');
-        const path44change = `m/44'/501'/0'/0'`;
-        const deriveSeed = (0, ed25519_hd_key_1.derivePath)(path44change, seedBuffer).key;
-        const keypair = web3.Keypair.fromSeed(deriveSeed);
-        console.log(`privkey: ${Buffer.from(keypair.secretKey).toString('base64')}`);
-        console.log(`pubkey: ${keypair.publicKey}`);
-    });
-}
 /**
  * Generate PDA CLI
  */
