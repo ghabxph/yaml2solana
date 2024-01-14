@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ResolveError = exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
+exports.Transaction = exports.Yaml2SolanaClass2 = void 0;
 const web3 = __importStar(require("@solana/web3.js"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -59,9 +59,17 @@ class Yaml2SolanaClass2 {
         // Read the YAML file.
         const yamlFile = fs.readFileSync(config, 'utf8');
         this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
-        this.parsedYaml = yaml.parse(yamlFile);
+        this._parsedYaml = yaml.parse(yamlFile);
         // Set named accounts to global variable
-        this.setNamedAccountsToGlobal(this.parsedYaml);
+        this.setNamedAccountsToGlobal(this._parsedYaml);
+        // Set known solana accounts (not meant to be downloaded)
+        this.setKnownAccounts();
+    }
+    /**
+     * Parsed yaml file
+     */
+    get parsedYaml() {
+        return this._parsedYaml;
     }
     /**
      * Resolve variables
@@ -69,11 +77,11 @@ class Yaml2SolanaClass2 {
      */
     resolve(params) {
         // Resolve test wallets
-        this.resolveTestWallets(this.parsedYaml);
+        this.resolveTestWallets(this._parsedYaml);
         // Resolve PDAs
-        this.resolvePda(this.parsedYaml, params.onlyResolve.thesePdas);
+        this.resolvePda(this._parsedYaml, params.onlyResolve.thesePdas);
         // Resolve instructions
-        this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions);
+        this.resolveInstructions(this._parsedYaml, params.onlyResolve.theseInstructions);
     }
     /**
      * Get accounts from solana instructions
@@ -158,11 +166,36 @@ class Yaml2SolanaClass2 {
         return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
     }
     /**
+     * Get signers from given instruction
+     *
+     * @param ixLabel
+     */
+    getSignersFromIx(ixLabel) {
+        const result = [];
+        const payer = this.getVar(this._parsedYaml.instructionDefinition[ixLabel].payer);
+        let isPayerSigner = false;
+        for (const meta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+            const _meta = meta.split(',');
+            const [account] = _meta;
+            if (_meta.includes('signer')) {
+                const signer = this.getVar(account);
+                result.push(signer);
+                if (Buffer.from(signer.secretKey).equals(Buffer.from(payer.secretKey))) {
+                    isPayerSigner = true;
+                }
+            }
+        }
+        if (!isPayerSigner) {
+            result.push(payer);
+        }
+        return result;
+    }
+    /**
      * @returns instructions defined in yaml
      */
     getInstructions() {
         const instructions = [];
-        for (const instruction in this.parsedYaml.instructionDefinition) {
+        for (const instruction in this._parsedYaml.instructionDefinition) {
             instructions.push(instruction);
         }
         return instructions;
@@ -172,12 +205,12 @@ class Yaml2SolanaClass2 {
      */
     getAccounts() {
         const accounts = [];
-        for (const key in this.parsedYaml.accounts) {
-            const [pk] = this.parsedYaml.accounts[key].split(',');
+        for (const key in this._parsedYaml.accounts) {
+            const [pk] = this._parsedYaml.accounts[key].split(',');
             accounts.push(new web3.PublicKey(pk));
         }
-        this.parsedYaml.accountsNoLabel.map(v => {
-            const [pk] = this.parsedYaml.accounts[v].split(',');
+        this._parsedYaml.accountsNoLabel.map(v => {
+            const [pk] = v.split(',');
             accounts.push(new web3.PublicKey(pk));
         });
         return accounts;
@@ -204,7 +237,7 @@ class Yaml2SolanaClass2 {
             console.log();
             console.log('Downloading solana accounts:');
             console.log('--------------------------------------------------------------');
-            const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
+            const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
             // 1. Get accounts from schema
             let accounts = this.getAccounts();
             // 2. Skip accounts that are already downloaded
@@ -213,7 +246,7 @@ class Yaml2SolanaClass2 {
             accounts.push(...forceDownload);
             accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
             // 4. Skip accounts that are defined in localDevelopment.skipCache
-            accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
+            accounts = accounts.filter((v, i) => !this._parsedYaml.localDevelopment.skipCache.includes(v.toString()));
             // 5. Fetch multiple accounts from mainnet at batches of 100
             const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts);
             // 6. Find programs that are executable within account infos
@@ -223,10 +256,9 @@ class Yaml2SolanaClass2 {
                 if (accountInfo === null)
                     continue;
                 if (accountInfo.executable) {
-                    console.log(`${key}: ${accountInfo.data.length}`);
                     const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
                     try {
-                        fs.accessSync(path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
+                        fs.accessSync(path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
                     }
                     catch (_a) {
                         executables.push(executable);
@@ -364,29 +396,61 @@ class Yaml2SolanaClass2 {
         return this.getVar(name);
     }
     /**
-     * @param name Instruction to execute
+     * Resolve given instruction
+     *
+     * @param ixLabel Instruction to execute
      * @returns available parameters that can be overriden for target instruction
      */
-    getParametersFromInstructions(name) {
+    resolveInstruction(ixLabel) {
+        // Find PDAs involved from given instruction
+        const pdas = this.findPdasInvolvedInInstruction(ixLabel);
+        // Then run resolve function
         this.resolve({
-            onlyResolve: {}
+            onlyResolve: {
+                thesePdas: pdas,
+                theseInstructions: [ixLabel],
+            }
         });
-        return util.typeResolver.getVariablesFromInstructionDefinition2(
-        // name,
-        // target.instructionDefinition,
-        // accounts,
-        // pda,
-        // localDevelopment.testWallets
-        );
     }
     /**
-     * Set parameter value (alias to setVar method)
+     * Extract variable info
+     *
+     * @param pattern
+     */
+    extractVarInfo(pattern) {
+        return util.extractVariableInfo2(pattern, this.global);
+    }
+    /**
+     * Find PDAs involved from given instruction
+     *
+     * @param ixLabel
+     */
+    findPdasInvolvedInInstruction(ixLabel) {
+        const result = [];
+        for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+            let [account] = accountMeta.split(',');
+            if (!account.startsWith('$'))
+                continue;
+            account = account.substring(1);
+            if (typeof this._parsedYaml.pda[account] !== 'undefined') {
+                result.push(account);
+            }
+        }
+        return result;
+    }
+    /**
+     * Set parameter value
      *
      * @param name
      * @param value
      */
     setParam(name, value) {
-        this.setVar(name, value);
+        if (name.startsWith('$')) {
+            this.setVar(name.substring(1), value);
+        }
+        else {
+            throw 'Variable should begin with dollar symbol `$`';
+        }
     }
     /**
      * Store value to global variable
@@ -425,16 +489,20 @@ class Yaml2SolanaClass2 {
      */
     getFileAccount(extension) {
         const accounts = [];
-        for (const key in this.parsedYaml.accounts) {
-            const [pk, filePath] = this.parsedYaml.accounts[key].split(',');
+        for (const key in this._parsedYaml.accounts) {
+            const [pk, filePath] = this._parsedYaml.accounts[key].split(',');
+            if (filePath === undefined)
+                continue;
             const filePathSplit = filePath.split('.');
             const _extension = filePathSplit[filePathSplit.length - 1];
             if (_extension === extension) {
                 accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath) });
             }
         }
-        this.parsedYaml.accountsNoLabel.map(v => {
-            const [pk, filePath] = this.parsedYaml.accounts[v].split(',');
+        this._parsedYaml.accountsNoLabel.map(v => {
+            const [pk, filePath] = v.split(',');
+            if (filePath === undefined)
+                return v;
             const filePathSplit = filePath.split('.');
             const _extension = filePathSplit[filePathSplit.length - 1];
             if (_extension === extension) {
@@ -461,10 +529,10 @@ class Yaml2SolanaClass2 {
      */
     fundLocalnetWalletFromYaml(key) {
         const SOL = 1000000000;
-        const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+        const solAmount = parseFloat(this._parsedYaml.localDevelopment.testWallets[key].solAmount);
         const keypair = this.getVar(key);
         const account = {};
-        const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
+        const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
         account[keypair.publicKey.toString()] = {
             lamports: Math.floor(solAmount * SOL),
             data: Buffer.alloc(0),
@@ -596,7 +664,7 @@ class Yaml2SolanaClass2 {
     }
     resolveInstructionAccounts(accounts) {
         const accountMetas = [];
-        for (const account in accounts) {
+        for (const account of accounts) {
             const arr = account.split(',');
             const key = arr[0];
             let pubkey;
@@ -604,6 +672,9 @@ class Yaml2SolanaClass2 {
                 pubkey = this.getVar(key);
                 if (typeof pubkey === 'undefined') {
                     throw `Cannot resolve public key variable ${key}.`;
+                }
+                else if (typeof pubkey.publicKey !== 'undefined') {
+                    pubkey = pubkey.publicKey;
                 }
             }
             else {
@@ -616,7 +687,7 @@ class Yaml2SolanaClass2 {
             }
             const isSigner = arr.includes('signer');
             const isWritable = arr.includes('mut');
-            accountMetas.push({ pubkey, isSigner, isWritable });
+            accountMetas.push({ pubkey: pubkey, isSigner, isWritable });
         }
         return accountMetas;
     }
@@ -638,6 +709,25 @@ class Yaml2SolanaClass2 {
                 this.setVar(address, { file });
             }
         }
+    }
+    /**
+     * Set known solana accounts
+     *
+     * @param parsedYaml
+     */
+    setKnownAccounts() {
+        this.setVar('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
+        this.setVar('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
+        this.setVar('SYSTEM_PROGRAM', web3.SystemProgram.programId);
+        this.setVar('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
+        this.setVar('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
+        this.setVar('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
+        this.setVar('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
+        this.setVar('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
+        this.setVar('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
+        this.setVar('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
+        this.setVar('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
+        this.setVar('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
     }
     /**
      * Resolve PDAs
@@ -748,10 +838,3 @@ class Transaction {
     }
 }
 exports.Transaction = Transaction;
-class ResolveError extends Error {
-    constructor(message, missingParams) {
-        super(message);
-        this.missingParams = missingParams;
-    }
-}
-exports.ResolveError = ResolveError;

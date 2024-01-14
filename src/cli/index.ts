@@ -26,4 +26,6 @@ clear();
     schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
   }
   await prompt.mainUi(schemaFile);
-})();
+})().catch(e => {
+  throw e;
+});

@@ -2,8 +2,7 @@ import inquirer from "inquirer";
 import * as util from "../../util";
 import * as web3 from '@solana/web3.js';
 import { utilUi } from "./utilUi";
-import { Yaml2Solana2 } from "../..";
-import { Transaction } from "../../sdk/Yaml2Solana2";
+import { Yaml2Solana } from "../..";
 
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
@@ -76,7 +75,7 @@ export async function mainUi(schemaFile: string) {
 async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string, string | null>> {
 
   // Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana2(schemaFile);
+  const yaml2solana = Yaml2Solana(schemaFile);
 
   // Download accounts from mainnet
   return await yaml2solana.downloadAccountsFromMainnet([]);
@@ -88,7 +87,7 @@ async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string
 async function runTestValidator(schemaFile: string) {
 
   // Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana2(schemaFile);
+  const yaml2solana = Yaml2Solana(schemaFile);
 
   // Run test validator using v2
   return await yaml2solana.runTestValidator();
@@ -96,18 +95,12 @@ async function runTestValidator(schemaFile: string) {
 
 async function runInstruction(schemaFile: string) {
 
-  // Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana2(schemaFile);
+  // 1. Create yaml2solana v2 instance
+  const yaml2solana = Yaml2Solana(schemaFile);
 
-  // Read schema
-  const schema = util.fs.readSchema(schemaFile);
-
-  // Whether to run from existing running localnet instance
-  let runFromExistingLocalnet = await util.test.checkIfLocalnetIsRunning();
-
-  // 1. Select what instruction to execute
+  // 2. Select what instruction to execute
   const choices = yaml2solana.getInstructions();
-  const { instructionToExecute } = await inquirer
+  const { instructionToExecute }: { instructionToExecute: string} = await inquirer
     .prompt([
       {
         type: 'list',
@@ -118,84 +111,126 @@ async function runInstruction(schemaFile: string) {
     ]
   );
 
-  // 2. Resolve variables
-  const variables = yaml2solana.getParametersFromInstructions(instructionToExecute);
-  // const prompt = [];
-  // for (const key in variables) {
-  //   if (variables[key].type === 'bool') {
-  //     prompt.push({
-  //       type: 'list',
-  //       name: key,
-  //       message: `Value for ${key}`,
-  //       choices: ['true', 'false'],
-  //       filter: (input: string) => {
-  //         return input === 'true';
-  //       }
-  //     })
-  //   } else {
-  //     let defaultValue = variables[key].defaultValue;
-  //     if (variables[key].type === 'pubkey') {
-  //       switch (key) {
-  //         case 'RENT_SYSVAR':
-  //           defaultValue = 'SysvarRent111111111111111111111111111111111';
-  //           break;
-  //         case 'CLOCK_SYSVAR':
-  //           defaultValue = 'SysvarC1ock11111111111111111111111111111111';
-  //           break;
-  //         case 'TOKEN_PROGRAM':
-  //           defaultValue = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-  //           break;
-  //         case 'ASSOCIATED_TOKEN_PROGRAM':
-  //           defaultValue = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
-  //           break;
-  //         case 'SYSTEM_PROGRAM':
-  //           defaultValue = '11111111111111111111111111111111';
-  //           break;
-  //       }
-  //     }
-  //     prompt.push({
-  //       type: 'input',
-  //       name: key,
-  //       message: `Value for ${key}:`,
-  //       default: defaultValue,
-  //       filter: (input: string) => {
-  //         if (variables[key].type === 'pubkey') {
-  //           if (typeof input === 'string') {
-  //             return new web3.PublicKey(input);
-  //           } else {
-  //             return input;
-  //           }
-  //         }
-  //         const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
-  //         if (numberTypes.includes(variables[key].type)) {
-  //           if (Math.round(Number(input)) === Number(input)) {
-  //             return Number(input)
-  //           } else {
-  //             throw `${key} is not a valid integer value.`
-  //           }
-  //         }
-  //         return input;
-  //       }
-  //     });
-  //   }
-  // }
-  // const params = await inquirer.prompt(prompt);
+  // 3. Resolve variables (from data)
+  for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].data) {
+    try {
+      yaml2solana.resolveInstruction(instructionToExecute);
+    } catch {} finally {
+      const varInfo = yaml2solana.extractVarInfo(param);
+      if (varInfo.isVariable) {
+        if (varInfo.type === 'bool') {
+          await inquirer.prompt({
+            type: 'list',
+            name: varInfo.name,
+            message: `Value for ${varInfo.name}`,
+            choices: ['true', 'false'],
+            filter: (input: string) => {
+              return input === 'true';
+            }
+          });
+        } else {
+          await inquirer.prompt({
+            type: 'input',
+            name: varInfo.name,
+            message: `Value for ${varInfo.name}`,
+            default: varInfo.defaultValue,
+            filter: (input: string) => {
+              if (varInfo.type === 'pubkey') {
+                if (typeof input === 'string') {
+                  return new web3.PublicKey(input);
+                } else {
+                  return input;
+                }
+              }
+              const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
+              if (numberTypes.includes(varInfo.type)) {
+                if (Math.round(Number(input)) === Number(input)) {
+                  return Number(input)
+                } else {
+                  throw `${varInfo.name} is not a valid integer value.`
+                }
+              }
+              return input;
+            }
+          })
+        }
+      }
+    }
+  }
 
-  // // 3. Create instruction instance based on given parameters
-  // console.log(``);
-  // const ix: web3.TransactionInstruction = schema.instructionDefinition[instructionToExecute](params);
-  // const signers = schema.instructionDefinition.getSigners(instructionToExecute);
-  // await yaml2solana.executeTransactionsLocally({
-  //   txns: [
-  //     new Transaction(
-  //       instructionToExecute,
-  //       yaml2solana.localnetConnection,
-  //       [ix],
-  //       [], // Alt accounts
-  //       schema.instructionDefinition.getPayer(instructionToExecute),
-  //       signers,
-  //     )
-  //   ],
-  //   runFromExistingLocalnet,
-  // });
+  // 4. Resolve params (from meta)
+  for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].accounts) {
+    try {
+      yaml2solana.resolveInstruction(instructionToExecute);
+    } catch {} finally {
+      const [account] = param.split(',');
+      let defaultValue = yaml2solana.getVar<web3.PublicKey | web3.Keypair>(account);
+      if (defaultValue !== undefined && (defaultValue as web3.Keypair).publicKey !== undefined) {
+        defaultValue = (defaultValue as web3.Keypair).publicKey;
+      }
+      const { value } = await inquirer.prompt({
+        type: 'input',
+        name: 'value',
+        message: `Value for ${account}`,
+        default: defaultValue,
+        filter: (input: string) => {
+          if (typeof input === 'string') {
+            return new web3.PublicKey(input);
+          } else {
+            return input;
+          }
+        }
+      });
+      yaml2solana.setParam<web3.PublicKey>(account, value);
+    }
+  }
+
+  // 5. Resolve transaction payer
+  try {
+    yaml2solana.resolveInstruction(instructionToExecute);
+  } catch {} finally {
+    const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
+    const kp = yaml2solana.getVar<web3.Keypair>(account);
+    let defaultValue: string | undefined;
+    if (kp === undefined) {
+      const { value } = await inquirer.prompt({
+        type: 'input',
+        name: 'value',
+        message: `Value for transaction payer ${account} (base64 encoded):`,
+        default: defaultValue,
+        filter: (input: string) => {
+          web3.Keypair.fromSecretKey(
+            Buffer.from(input, 'base64')
+          );
+          return input;
+        }
+      });
+      yaml2solana.setParam<web3.Keypair>(
+        account,
+        web3.Keypair.fromSecretKey(
+          Buffer.from(value, 'base64')
+        )
+      );
+    }
+  }
+
+  // 5. Resolve instruction
+  try {
+    yaml2solana.resolveInstruction(instructionToExecute);
+  } catch {}
+
+  // 6. Execute instruction
+  console.log();
+  await yaml2solana.executeTransactionsLocally({
+    txns: [
+      yaml2solana.createLocalnetTransaction(
+        instructionToExecute,
+        [`$${instructionToExecute}`],
+        [],
+        yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer,
+        yaml2solana.getSignersFromIx(instructionToExecute)
+      )
+    ],
+    runFromExistingLocalnet: await util.test.checkIfLocalnetIsRunning(),
+  });
 }

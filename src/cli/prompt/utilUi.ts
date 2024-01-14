@@ -1,7 +1,5 @@
 import inquirer from "inquirer";
-import * as bip39 from 'bip39';
 import * as web3 from "@solana/web3.js";
-import { derivePath } from 'ed25519-hd-key';
 import clear from "ts-clear-screen";
 import { keypairUi } from "./keypairUi";
 

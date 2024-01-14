@@ -20,7 +20,7 @@ export declare class Yaml2SolanaClass2 {
     /**
      * Parsed yaml
      */
-    private parsedYaml;
+    private _parsedYaml;
     /**
      * Test validator runnin PID
      */
@@ -30,6 +30,10 @@ export declare class Yaml2SolanaClass2 {
      * yaml config path
      */
     config: string);
+    /**
+     * Parsed yaml file
+     */
+    get parsedYaml(): ParsedYaml;
     /**
      * Resolve variables
      * @param params
@@ -52,6 +56,12 @@ export declare class Yaml2SolanaClass2 {
      * @returns
      */
     createLocalnetTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Transaction;
+    /**
+     * Get signers from given instruction
+     *
+     * @param ixLabel
+     */
+    getSignersFromIx(ixLabel: string): web3.Signer[];
     /**
      * @returns instructions defined in yaml
      */
@@ -115,12 +125,26 @@ export declare class Yaml2SolanaClass2 {
      */
     getInstruction(name: string): web3.TransactionInstruction;
     /**
-     * @param name Instruction to execute
+     * Resolve given instruction
+     *
+     * @param ixLabel Instruction to execute
      * @returns available parameters that can be overriden for target instruction
      */
-    getParametersFromInstructions(name: string): Record<string, util.typeResolver.VariableInfo>;
+    resolveInstruction(ixLabel: string): void;
     /**
-     * Set parameter value (alias to setVar method)
+     * Extract variable info
+     *
+     * @param pattern
+     */
+    extractVarInfo(pattern: string): util.VariableInfo;
+    /**
+     * Find PDAs involved from given instruction
+     *
+     * @param ixLabel
+     */
+    private findPdasInvolvedInInstruction;
+    /**
+     * Set parameter value
      *
      * @param name
      * @param value
@@ -184,6 +208,12 @@ export declare class Yaml2SolanaClass2 {
      * @param parsedYaml
      */
     private setNamedAccountsToGlobal;
+    /**
+     * Set known solana accounts
+     *
+     * @param parsedYaml
+     */
+    private setKnownAccounts;
     /**
      * Resolve PDAs
      *
@@ -261,12 +291,4 @@ export type AccountFile = {
     key: web3.PublicKey;
     path: string;
 };
-export type ParamType = {
-    name: string;
-    type: string;
-};
-export declare class ResolveError extends Error {
-    readonly missingParams: ParamType[];
-    constructor(message: string, missingParams: ParamType[]);
-}
 //# sourceMappingURL=Yaml2Solana2.d.ts.map

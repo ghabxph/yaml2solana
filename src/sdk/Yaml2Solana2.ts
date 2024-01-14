@@ -29,7 +29,7 @@ export class Yaml2SolanaClass2 {
   /**
    * Parsed yaml
    */
-  private parsedYaml: ParsedYaml;
+  private _parsedYaml: ParsedYaml;
 
   /**
    * Test validator runnin PID
@@ -47,13 +47,20 @@ export class Yaml2SolanaClass2 {
     // Read the YAML file.
     const yamlFile = fs.readFileSync(config, 'utf8');
     this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
-    this.parsedYaml = yaml.parse(yamlFile);
+    this._parsedYaml = yaml.parse(yamlFile);
 
     // Set named accounts to global variable
-    this.setNamedAccountsToGlobal(this.parsedYaml);
+    this.setNamedAccountsToGlobal(this._parsedYaml);
 
     // Set known solana accounts (not meant to be downloaded)
     this.setKnownAccounts();
+  }
+
+  /**
+   * Parsed yaml file
+   */
+  get parsedYaml(): ParsedYaml {
+    return this._parsedYaml;
   }
 
   /**
@@ -62,13 +69,13 @@ export class Yaml2SolanaClass2 {
    */
   resolve(params: ResolveParams) {
     // Resolve test wallets
-    this.resolveTestWallets(this.parsedYaml);
+    this.resolveTestWallets(this._parsedYaml);
 
     // Resolve PDAs
-    this.resolvePda(this.parsedYaml, params.onlyResolve.thesePdas);
+    this.resolvePda(this._parsedYaml, params.onlyResolve.thesePdas);
 
     // Resolve instructions
-    this.resolveInstructions(this.parsedYaml, params.onlyResolve.theseInstructions)
+    this.resolveInstructions(this._parsedYaml, params.onlyResolve.theseInstructions)
   }
 
   /**
@@ -162,11 +169,37 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * Get signers from given instruction
+   *
+   * @param ixLabel
+   */
+  getSignersFromIx(ixLabel: string): web3.Signer[] {
+    const result: web3.Signer[] = [];
+    const payer = this.getVar<web3.Signer>(this._parsedYaml.instructionDefinition[ixLabel].payer);
+    let isPayerSigner = false;
+    for (const meta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+      const _meta = meta.split(',');
+      const [account] = _meta;
+      if (_meta.includes('signer')) {
+        const signer = this.getVar<web3.Signer>(account);
+        result.push(signer);
+        if (Buffer.from(signer.secretKey).equals(Buffer.from(payer.secretKey))) {
+          isPayerSigner = true;
+        }
+      }
+    }
+    if (!isPayerSigner) {
+      result.push(payer);
+    }
+    return result;
+  }
+
+  /**
    * @returns instructions defined in yaml
    */
   getInstructions(): string [] {
     const instructions: string[] = [];
-    for (const instruction in this.parsedYaml.instructionDefinition) {
+    for (const instruction in this._parsedYaml.instructionDefinition) {
       instructions.push(instruction);
     }
     return instructions;
@@ -177,12 +210,12 @@ export class Yaml2SolanaClass2 {
    */
   getAccounts(): web3.PublicKey[] {
     const accounts: web3.PublicKey[] = [];
-    for (const key in this.parsedYaml.accounts) {
-      const [pk] = this.parsedYaml.accounts[key].split(',');
+    for (const key in this._parsedYaml.accounts) {
+      const [pk] = this._parsedYaml.accounts[key].split(',');
       accounts.push(new web3.PublicKey(pk));
     }
-    this.parsedYaml.accountsNoLabel.map(v => {
-      const [pk] = this.parsedYaml.accounts[v].split(',');
+    this._parsedYaml.accountsNoLabel.map(v => {
+      const [pk] = v.split(',');
       accounts.push(new web3.PublicKey(pk));
     });
     return accounts;
@@ -212,7 +245,7 @@ export class Yaml2SolanaClass2 {
     console.log('Downloading solana accounts:');
     console.log('--------------------------------------------------------------');
 
-    const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
+    const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
 
     // 1. Get accounts from schema
     let accounts: web3.PublicKey[] = this.getAccounts();
@@ -225,7 +258,7 @@ export class Yaml2SolanaClass2 {
     accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
 
     // 4. Skip accounts that are defined in localDevelopment.skipCache
-    accounts = accounts.filter((v, i) => !this.parsedYaml.localDevelopment.skipCache.includes(v.toString()));
+    accounts = accounts.filter((v, i) => !this._parsedYaml.localDevelopment.skipCache.includes(v.toString()));
 
     // 5. Fetch multiple accounts from mainnet at batches of 100
     const accountInfos = await util.solana.getMultipleAccountsInfo(accounts);
@@ -236,10 +269,9 @@ export class Yaml2SolanaClass2 {
       const accountInfo = accountInfos[key];
       if (accountInfo === null) continue;
       if (accountInfo.executable) {
-        console.log(`${key}: ${accountInfo.data.length}`);
         const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
         try {
-          fs.accessSync(path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
+          fs.accessSync(path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
         } catch {
           executables.push(executable); 
         }
@@ -407,12 +439,16 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
+   * Resolve given instruction
+   *
    * @param ixLabel Instruction to execute
    * @returns available parameters that can be overriden for target instruction
    */
-  getParametersFromInstructions(ixLabel: string): Record<string, util.typeResolver.VariableInfo> {
+  resolveInstruction(ixLabel: string) {
     // Find PDAs involved from given instruction
     const pdas = this.findPdasInvolvedInInstruction(ixLabel);
+
+    // Then run resolve function
     this.resolve(
       {
         onlyResolve: {
@@ -421,13 +457,16 @@ export class Yaml2SolanaClass2 {
         }
       }
     );
-    return util.typeResolver.getVariablesFromInstructionDefinition2(
-      // name,
-      // target.instructionDefinition,
-      // accounts,
-      // pda,
-      // localDevelopment.testWallets
-    );
+  }
+
+  /**
+   * Extract variable info
+   *
+   * @param pattern
+   */
+  extractVarInfo(pattern: string): util.VariableInfo {
+
+    return util.extractVariableInfo2(pattern, this.global);
   }
 
   /**
@@ -437,11 +476,11 @@ export class Yaml2SolanaClass2 {
    */
   private findPdasInvolvedInInstruction(ixLabel: string): string[] {
     const result: string[] = [];
-    for (const accountMeta of this.parsedYaml.instructionDefinition[ixLabel].accounts) {
+    for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
       let [account] = accountMeta.split(',');
       if (!account.startsWith('$')) continue
       account = account.substring(1);
-      if (typeof this.parsedYaml.pda[account] !== 'undefined') {
+      if (typeof this._parsedYaml.pda[account] !== 'undefined') {
         result.push(account);
       }
     }
@@ -449,13 +488,17 @@ export class Yaml2SolanaClass2 {
   }
 
   /**
-   * Set parameter value (alias to setVar method)
+   * Set parameter value
    *
    * @param name
    * @param value
    */
   setParam<T>(name: string, value: T) {
-    this.setVar(name, value);
+    if (name.startsWith('$')) {
+      this.setVar(name.substring(1), value);
+    } else {
+      throw 'Variable should begin with dollar symbol `$`';
+    }
   }
 
   /**
@@ -497,16 +540,18 @@ export class Yaml2SolanaClass2 {
    */
   private getFileAccount(extension: string) {
     const accounts: AccountFile[] = [];
-    for (const key in this.parsedYaml.accounts) {
-      const [pk, filePath] = this.parsedYaml.accounts[key].split(',');
+    for (const key in this._parsedYaml.accounts) {
+      const [pk, filePath] = this._parsedYaml.accounts[key].split(',');
+      if (filePath === undefined) continue;
       const filePathSplit = filePath.split('.');
       const _extension = filePathSplit[filePathSplit.length - 1];
       if (_extension === extension) {
         accounts.push({ key: new web3.PublicKey(pk), path: path.resolve(this.projectDir, filePath)});
       }
     }
-    this.parsedYaml.accountsNoLabel.map(v => {
-      const [pk, filePath] = this.parsedYaml.accounts[v].split(',');
+    this._parsedYaml.accountsNoLabel.map(v => {
+      const [pk, filePath] = v.split(',');
+      if (filePath === undefined) return v;
       const filePathSplit = filePath.split('.');
       const _extension = filePathSplit[filePathSplit.length - 1];
       if (_extension === extension) {
@@ -537,10 +582,10 @@ export class Yaml2SolanaClass2 {
    */
   private fundLocalnetWalletFromYaml(key: string) {
     const SOL = 1_000_000_000;
-    const solAmount = parseFloat(this.parsedYaml.localDevelopment.testWallets[key].solAmount);
+    const solAmount = parseFloat(this._parsedYaml.localDevelopment.testWallets[key].solAmount);
     const keypair = this.getVar<web3.Signer>(key);
     const account: Record<string, web3.AccountInfo<Buffer>> = {};
-    const cacheFolder = path.resolve(this.projectDir, this.parsedYaml.localDevelopment.accountsFolder);
+    const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
     account[keypair.publicKey.toString()] = {
       lamports: Math.floor(solAmount * SOL),
       data: Buffer.alloc(0),
@@ -690,11 +735,13 @@ export class Yaml2SolanaClass2 {
     for (const account of accounts) {
       const arr = account.split(',');
       const key = arr[0];
-      let pubkey: web3.PublicKey;
+      let pubkey: web3.PublicKey | web3.Keypair;
       if (key.startsWith('$')) {
-        pubkey = this.getVar<web3.PublicKey>(key);
+        pubkey = this.getVar<web3.PublicKey | web3.Keypair>(key);
         if (typeof pubkey === 'undefined') {
           throw `Cannot resolve public key variable ${key}.`
+        } else if (typeof (pubkey as web3.Keypair).publicKey !== 'undefined') {
+          pubkey = (pubkey as web3.Keypair).publicKey;
         }
       } else {
         try {
@@ -705,7 +752,7 @@ export class Yaml2SolanaClass2 {
       }
       const isSigner = arr.includes('signer');
       const isWritable = arr.includes('mut');
-      accountMetas.push({ pubkey, isSigner, isWritable });
+      accountMetas.push({ pubkey: pubkey as web3.PublicKey, isSigner, isWritable });
     }
     return accountMetas;
   }
@@ -924,18 +971,4 @@ export type ParsedYaml = {
 export type AccountFile = {
   key: web3.PublicKey,
   path: string,
-}
-
-export type ParamType = {
-  name: string,
-  type: string,
-}
-
-export class ResolveError extends Error {
-  constructor(
-    message: string,
-    public readonly missingParams: ParamType[],
-  ) {
-    super(message);
-  }
 }

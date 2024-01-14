@@ -63,4 +63,6 @@ const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', '
         schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
     }
     yield prompt.mainUi(schemaFile);
-}))();
+}))().catch(e => {
+    throw e;
+});
