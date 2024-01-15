@@ -43,26 +43,35 @@ const BASE_DIR = __dirname;
 const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
-(0, ts_clear_screen_1.default)();
-(() => __awaiter(void 0, void 0, void 0, function* () {
-    let schemaFile = '';
-    let schemaFiles = find();
-    if (schemaFiles.length === 0) {
-        if ((yield prompt.createInitialYaml(BASE_DIR)) === false) {
-            return;
+function main() {
+    return __awaiter(this, void 0, void 0, function* () {
+        (0, ts_clear_screen_1.default)();
+        let schemaFile = '';
+        let schemaFiles = find();
+        if (schemaFiles.length === 0) {
+            if ((yield prompt.createInitialYaml(BASE_DIR)) === false) {
+                return;
+            }
+            else {
+                schemaFiles = find();
+            }
+        }
+        if (schemaFiles.length > 1) {
+            const { targetFile } = yield prompt.chooseYaml(WORK_DIR, schemaFiles);
+            schemaFile = targetFile;
         }
         else {
-            schemaFiles = find();
+            schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
         }
-    }
-    if (schemaFiles.length > 1) {
-        const { targetFile } = yield prompt.chooseYaml(WORK_DIR, schemaFiles);
-        schemaFile = targetFile;
-    }
-    else {
-        schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
-    }
-    yield prompt.mainUi(schemaFile);
-}))().catch(e => {
-    throw e;
+        yield prompt.mainUi(schemaFile);
+    });
+}
+if (require.main === module) {
+    main();
+}
+process.on('unhandledRejection', (e) => {
+    console.error();
+    console.error(`Error: ${e}`);
+    console.trace();
+    console.error();
 });

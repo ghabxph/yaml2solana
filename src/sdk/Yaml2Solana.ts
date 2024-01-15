@@ -463,8 +463,7 @@ export class Yaml2SolanaClass {
    * @param pattern
    */
   extractVarInfo(pattern: string): util.VariableInfo {
-
-    return util.extractVariableInfo2(pattern, this.global);
+    return util.extractVariableInfo(pattern, this.global);
   }
 
   /**
