@@ -40,9 +40,11 @@ const inquirer_1 = __importDefault(require("inquirer"));
 const web3 = __importStar(require("@solana/web3.js"));
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const keypairUi_1 = require("./keypairUi");
+const util = __importStar(require("../../util"));
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
+const CHOICE_SIGHASH = 'Generate sighash';
 function utilUi() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
@@ -56,6 +58,7 @@ function utilUi() {
                     CHOICE_GENERATE_PDA,
                     CHOICE_ANALYZE_TRANSACTION,
                     CHOICE_KEYPAIR_GENERATION,
+                    CHOICE_SIGHASH,
                 ],
             },
         ]);
@@ -67,6 +70,9 @@ function utilUi() {
         }
         if (choice === CHOICE_KEYPAIR_GENERATION) {
             return yield (0, keypairUi_1.keypairUi)();
+        }
+        if (choice === CHOICE_SIGHASH) {
+            return yield generateSighash();
         }
     });
 }
@@ -154,5 +160,20 @@ function generatePda() {
         const [pda, bump] = web3.PublicKey.findProgramAddressSync(seeds, programId);
         console.log(`PDA: ${pda}`);
         console.log(`Bump: ${bump}`);
+    });
+}
+/**
+ * Generate sighash
+ */
+function generateSighash() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { value } = yield inquirer_1.default
+            .prompt({
+            type: 'input',
+            name: 'value',
+            message: 'Enter value:'
+        });
+        const hexValue = util.typeResolver.sighash(value).toString('hex');
+        console.log(`Hex value: ${hexValue}`);
     });
 }
