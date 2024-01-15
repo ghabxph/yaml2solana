@@ -1,5 +1,6 @@
 import inquirer from "inquirer";
 import * as util from "../../util";
+import path from "path";
 
 export async function createInitialYaml(basedir: string): Promise<boolean> {
   const answer = await inquirer
@@ -12,7 +13,8 @@ export async function createInitialYaml(basedir: string): Promise<boolean> {
     },
   ]);
   if (answer.confirm) {
-    util.fs.createFile('yaml2solana.yaml', `${basedir}/template.yaml`);
+    const _templatePath = path.resolve(`${basedir}/../../templates/template.yaml`);
+    util.fs.createFile('yaml2solana.yaml', _templatePath);
     return true;
   } else {
     console.log('Cancelled.');

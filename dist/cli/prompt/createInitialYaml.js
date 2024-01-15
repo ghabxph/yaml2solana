@@ -38,6 +38,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createInitialYaml = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const util = __importStar(require("../../util"));
+const path_1 = __importDefault(require("path"));
 function createInitialYaml(basedir) {
     return __awaiter(this, void 0, void 0, function* () {
         const answer = yield inquirer_1.default
@@ -50,7 +51,8 @@ function createInitialYaml(basedir) {
             },
         ]);
         if (answer.confirm) {
-            util.fs.createFile('yaml2solana.yaml', `${basedir}/template.yaml`);
+            const _templatePath = path_1.default.resolve(`${basedir}/../../templates/template.yaml`);
+            util.fs.createFile('yaml2solana.yaml', _templatePath);
             return true;
         }
         else {
