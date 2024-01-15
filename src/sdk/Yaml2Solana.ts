@@ -70,17 +70,22 @@ export class Yaml2SolanaClass {
    * @param params
    */
   resolve(params: ResolveParams) {
+    let onlyResolve: string[] | undefined;
+
     // Resolve test wallets
     this.resolveTestWallets(this._parsedYaml);
 
     // Resolve PDAs
-    this.resolvePda(params.onlyResolve.thesePdas);
+    onlyResolve = params.onlyResolve.thesePdas?.map(v => this.sanitizeDollar(v));
+    this.resolvePda(onlyResolve);
 
     // Resolve instructions
-    this.resolveInstructions(params.onlyResolve.theseInstructions)
+    onlyResolve = params.onlyResolve.theseInstructions?.map(v => this.sanitizeDollar(v));
+    this.resolveInstructions(onlyResolve)
 
     // Resolve instruction bundles
-    this.resolveInstructionBundles(params.onlyResolve.theseInstructionBundles);
+    onlyResolve = params.onlyResolve.theseInstructionBundles?.map(v => this.sanitizeDollar(v));
+    this.resolveInstructionBundles(onlyResolve);
   }
 
   /**
@@ -208,6 +213,68 @@ export class Yaml2SolanaClass {
       instructions.push(instruction);
     }
     return instructions;
+  }
+  
+
+  /**
+   * @returns instruction bundle labels defined in yaml
+   */
+  getInstructionBundles(): string[] {
+    const result: string[] = [];
+    for (const label in this._parsedYaml.instructionBundle) {
+      result.push(label);
+    }
+    return result;
+  }
+
+  /**
+   * Resolve instruction bundle payer
+   *
+   * @param label Instruction bundle label
+   * @returns 
+   */
+  resolveInstructionBundlePayer(label: string): web3.PublicKey {
+    const payer = this._parsedYaml.instructionBundle![label].payer;
+    let kp: web3.Keypair;
+    if (payer.startsWith('$')) {
+      kp = this.getVar<web3.Keypair>(payer);
+    } else {
+      // Assume that value is base64 encoded keypair
+      kp = web3.Keypair.fromSecretKey(
+        Buffer.from(payer, 'base64')
+      );
+    }
+    return kp.publicKey;
+  }
+
+  /**
+   * Resolve instruction bundle signers from instructions
+   *
+   * @param label Instruction bundle label
+   * @returns 
+   */
+  resolveInstructionBundleSigners(label: string): web3.Signer[] {
+    const result: web3.Signer[] = [];
+    const signers: string[] = [];
+    label = label.startsWith('$') ? label.substring(1) : label;
+    const ixLabels = this._parsedYaml.instructionBundle![label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
+    ixLabels.map(ixLabel => {
+      this._parsedYaml.instructionDefinition[ixLabel].accounts.map(meta => {
+        const _meta = meta.split(',');
+        if (_meta.includes('signer')) {
+          const [signer] = _meta;
+          signers.push(signer);
+        }
+      })
+    });
+    signers.filter((v,i,s) => s.indexOf(v) === i).map(signer => {
+      if (signer.startsWith('$')) {
+        result.push(this.getVar<web3.Signer>(signer));
+      } else {
+        throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
+      }
+    })
+    return result;
   }
 
   /**
@@ -459,6 +526,7 @@ export class Yaml2SolanaClass {
         onlyResolve: {
           thesePdas: pdas,
           theseInstructions: [ixLabel],
+          theseInstructionBundles: [],
         }
       }
     );
@@ -526,6 +594,7 @@ export class Yaml2SolanaClass {
    * @param ixLabel 
    */
   private findPdasInvolvedInInstruction(ixLabel: string): string[] {
+    ixLabel = ixLabel.startsWith('$') ? ixLabel.substring(1) : ixLabel;
     const result: string[] = [];
     for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
       let [account] = accountMeta.split(',');
@@ -889,39 +958,54 @@ export class Yaml2SolanaClass {
 
       const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
 
-      for (const ixLabel in ixBundle) {
-        const ix = ixBundle[ixLabel];
+      for (const ix of ixBundle.instructions) {
         const isDynamic = ix.dynamic;
         if (isDynamic) continue; // TODO: Implement dynamic instruction
 
         // Set global variables
         for (const key in ix.params) {
-          const [valueOrVar, type] = ix.params[key].split(':');
           let value;
-          if (valueOrVar.startsWith('$')) {
-            value = this.getVar(valueOrVar);
+          if (typeof ix.params[key] !== 'string') {
+            value = ix.params[key];
           } else {
-            if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
-              value = parseInt(valueOrVar);
-            } else if (['u64', 'usize', 'i64'].includes(type)) {
-              value = BigInt(valueOrVar);
-            } else if (type === 'bool') {
-              value = valueOrVar === 'true';
-            } else if (type === 'pubkey') {
-              value = new web3.PublicKey(valueOrVar);
+            const [valueOrVar, type] = ix.params[key].split(':');
+            if (valueOrVar.startsWith('$')) {
+              value = this.getVar(valueOrVar);
             } else {
-              throw `Type of ${key} is not defined.`
+              if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
+                value = parseInt(valueOrVar);
+              } else if (['u64', 'usize', 'i64'].includes(type)) {
+                value = BigInt(valueOrVar);
+              } else if (type === 'bool') {
+                value = valueOrVar === 'true';
+              } else if (type === 'pubkey') {
+                value = new web3.PublicKey(valueOrVar);
+              } else {
+                throw `Type of ${key} is not defined.`
+              }
+              value = valueOrVar;
             }
-            value = valueOrVar;
           }
           this.setVar(key, value);
         }
 
         // Then resolve instruction
         // Assuming here that parameters required by instruction is already set.
-        this.resolveInstruction(ixLabel);
+        this.resolveInstruction(ix.label);
       }
+
+      // Lastly, store ix bundle in global
+      const ixs: web3.TransactionInstruction[] = [];
+      for (const ix of ixBundle.instructions) {
+        const _ix = this.getVar<web3.TransactionInstruction>(ix.label);
+        ixs.push(_ix);
+      }
+      this.setVar<web3.TransactionInstruction[]>(_ixBundle, ixs);
     }
+  }
+
+  private sanitizeDollar(pattern: string) {
+    return pattern.startsWith('$') ? pattern.substring(1) : pattern;
   }
 }
 
@@ -1017,11 +1101,16 @@ export type Test = {
   params: Record<string, string>
 }
 
-export type InstructionBundle = Record<string, Instruction>;
-
-export type Instruction = {
+export type InstructionBundleIxs = {
+  label: string,
   dynamic?: boolean,
   params: Record<string, string>,
+}
+
+export type InstructionBundle = {
+  alts: string[],
+  payer: string,
+  instructions: InstructionBundleIxs[]
 }
 
 export type ParsedYaml = {
