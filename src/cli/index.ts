@@ -8,8 +8,9 @@ const BASE_DIR = __dirname;
 const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
-clear();
-(async () => {
+
+async function main() {
+  clear();
   let schemaFile = '';
   let schemaFiles = find();
   if (schemaFiles.length === 0) {
@@ -26,6 +27,15 @@ clear();
     schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
   }
   await prompt.mainUi(schemaFile);
-})().catch(e => {
-  throw e;
+}
+
+if (require.main === module) {
+  main();
+}
+
+process.on('unhandledRejection', (e) => {
+  console.error();
+  console.error(`Error: ${e}`);
+  console.trace();
+  console.error();
 });

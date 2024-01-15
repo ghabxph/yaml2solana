@@ -418,7 +418,7 @@ class Yaml2SolanaClass {
      * @param pattern
      */
     extractVarInfo(pattern) {
-        return util.extractVariableInfo2(pattern, this.global);
+        return util.extractVariableInfo(pattern, this.global);
     }
     /**
      * Find PDAs involved from given instruction
