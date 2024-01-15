@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveSighash = exports.sighash = exports.resolveAccountMeta = exports.resolveType2 = exports.extractVariableInfo = void 0;
+exports.resolveBool = exports.resolveI64 = exports.resolveI32 = exports.resolveI16 = exports.resolveI8 = exports.resolveUsize = exports.resolveU64 = exports.resolveU32 = exports.resolveU16 = exports.resolveU8 = exports.resolveSighash = exports.sighash = exports.resolveAccountMeta = exports.resolveType2 = exports.extractVariableInfo = void 0;
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
@@ -375,6 +375,7 @@ function resolveU8(data, params) {
         throw `Parameter $${key} is not set`;
     }
 }
+exports.resolveU8 = resolveU8;
 /**
  * Resolve unsigned 16-bit integer to Buffer
  *
@@ -402,6 +403,7 @@ function resolveU16(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveU16 = resolveU16;
 /**
  * Resolve unsigned 32-bit integer to Buffer
  *
@@ -429,6 +431,7 @@ function resolveU32(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveU32 = resolveU32;
 /**
  * Resolve unsigned 64-bit integer to Buffer
  *
@@ -456,6 +459,7 @@ function resolveU64(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveU64 = resolveU64;
 /**
  * Resolve usize to Buffer
  *
@@ -483,6 +487,7 @@ function resolveUsize(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveUsize = resolveUsize;
 /**
  * Resolve signed 8-bit integer to Buffer
  *
@@ -510,6 +515,7 @@ function resolveI8(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveI8 = resolveI8;
 /**
  * Resolve signed 16-bit integer to Buffer
  *
@@ -537,6 +543,7 @@ function resolveI16(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveI16 = resolveI16;
 /**
  * Resolve signed 32-bit integer to Buffer
  *
@@ -564,6 +571,7 @@ function resolveI32(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveI32 = resolveI32;
 /**
  * Resolve signed 64-bit integer to Buffer
  *
@@ -593,6 +601,7 @@ function resolveI64(data, params) {
         throw `Parameter $${key} is not set.`;
     }
 }
+exports.resolveI64 = resolveI64;
 /**
  * Resolve boolean to Buffer
  *
@@ -614,66 +623,7 @@ function resolveBool(data, params) {
         throw `The value of $${key} is not a valid boolean. Value: ${params[key]}`;
     }
 }
-/**
- * Resolve public key from account definition or given parameters
- *
- * @param data
- * @param params
- * @param accounts
- * @param pda
- * @returns
- */
-function resolvePubkey(data, params, accounts, pda, testWallets, prioritizeParams = true) {
-    const key = data.replace(/\$([^:]+):pubkey/, "$1");
-    if (params[key] !== undefined && prioritizeParams) {
-        return new web3.PublicKey(params[key]).toBuffer();
-    }
-    else if (accounts[key] !== undefined) {
-        return accounts[key].toBuffer();
-    }
-    else if (pda[key] !== undefined) {
-        return pda[key](Object.assign({}, params)).toBuffer();
-    }
-    else if (testWallets[key] !== undefined) {
-        return testWallets[key].publicKey.toBuffer();
-    }
-    else if (params[key] !== undefined) {
-        return new web3.PublicKey(params[key]).toBuffer();
-    }
-    else {
-        throw `Cannot find $${key} on accounts in schema, or in parameter.`;
-    }
-}
-/**
- * Resolve public key from account definition or given parameters
- *
- * @param data
- * @param params
- * @param accounts
- * @param pda
- * @returns
- */
-function resolvePubkey2(data, params, accounts, pda, testWallets, prioritizeParams = true) {
-    const key = data.replace(/\$([^:]+)/, "$1");
-    if (params[key] !== undefined && prioritizeParams) {
-        return new web3.PublicKey(params[key]).toBuffer();
-    }
-    else if (accounts[key] !== undefined) {
-        return accounts[key].toBuffer();
-    }
-    else if (pda[key] !== undefined) {
-        return pda[key](Object.assign({}, params)).toBuffer();
-    }
-    else if (testWallets[key] !== undefined) {
-        return testWallets[key].publicKey.toBuffer();
-    }
-    else if (params[key] !== undefined) {
-        return new web3.PublicKey(params[key]).toBuffer();
-    }
-    else {
-        throw `Cannot find $${key} on accounts in schema, or in parameter.`;
-    }
-}
+exports.resolveBool = resolveBool;
 /**
  * Resolve public key from account definition or given parameters
  *

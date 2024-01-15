@@ -407,7 +407,7 @@ export function resolveSighash(data: string): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveU8(data: string, params: Record<string, any>): Buffer {
+export function resolveU8(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):u8/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -430,7 +430,7 @@ function resolveU8(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveU16(data: string, params: Record<string, any>): Buffer {
+export function resolveU16(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):u16/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -455,7 +455,7 @@ function resolveU16(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveU32(data: string, params: Record<string, any>): Buffer {
+export function resolveU32(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):u32/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -480,7 +480,7 @@ function resolveU32(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveU64(data: string, params: Record<string, any>): Buffer {
+export function resolveU64(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):u64/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "bigint" || typeof params[key] === "number") {
@@ -505,7 +505,7 @@ function resolveU64(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveUsize(data: string, params: Record<string, any>): Buffer {
+export function resolveUsize(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):usize/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "bigint" || typeof params[key] === "number") {
@@ -530,7 +530,7 @@ function resolveUsize(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveI8(data: string, params: Record<string, any>): Buffer {
+export function resolveI8(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):i8/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -555,7 +555,7 @@ function resolveI8(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveI16(data: string, params: Record<string, any>): Buffer {
+export function resolveI16(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):i16/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -580,7 +580,7 @@ function resolveI16(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveI32(data: string, params: Record<string, any>): Buffer {
+export function resolveI32(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):i32/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "number") {
@@ -605,7 +605,7 @@ function resolveI32(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params Parameters from function in object form
  */
-function resolveI64(data: string, params: Record<string, any>): Buffer {
+export function resolveI64(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):i64/, "$1");
   if (params[key] !== undefined) {
     if (typeof params[key] === "bigint" || typeof params[key] === "number") {
@@ -633,7 +633,7 @@ function resolveI64(data: string, params: Record<string, any>): Buffer {
  * @param data
  * @param params
  */
-function resolveBool(data: string, params: Record<string, any>): Buffer {
+export function resolveBool(data: string, params: Record<string, any>): Buffer {
   const key = data.replace(/\$([^:]+):bool/, "$1");
   if (params[key] === true) {
     return Buffer.from([1]);
@@ -643,72 +643,6 @@ function resolveBool(data: string, params: Record<string, any>): Buffer {
     throw `Parameter $${key} is not set`;
   } else {
     throw `The value of $${key} is not a valid boolean. Value: ${params[key]}`;
-  }
-}
-
-/**
- * Resolve public key from account definition or given parameters
- *
- * @param data
- * @param params
- * @param accounts
- * @param pda
- * @returns
- */
-function resolvePubkey(
-  data: string,
-  params: Record<string, any>,
-  accounts: Record<string, web3.PublicKey>,
-  pda: Record<string, any>,
-  testWallets: Record<string, web3.Keypair | undefined>,
-  prioritizeParams: boolean = true,
-): Buffer {
-  const key = data.replace(/\$([^:]+):pubkey/, "$1");
-  if (params[key] !== undefined && prioritizeParams) {
-    return new web3.PublicKey(params[key]).toBuffer();
-  } else if (accounts[key] !== undefined) {
-    return accounts[key].toBuffer();
-  } else if (pda[key] !== undefined) {
-    return pda[key]({ ...params }).toBuffer();
-  } else if (testWallets[key] !== undefined) {
-    return testWallets[key]!.publicKey.toBuffer();
-  } else if (params[key] !== undefined) {
-    return new web3.PublicKey(params[key]).toBuffer();
-  } else {
-    throw `Cannot find $${key} on accounts in schema, or in parameter.`;
-  }
-}
-
-/**
- * Resolve public key from account definition or given parameters
- *
- * @param data
- * @param params
- * @param accounts
- * @param pda
- * @returns
- */
-function resolvePubkey2(
-  data: string,
-  params: Record<string, any>,
-  accounts: Record<string, web3.PublicKey>,
-  pda: Record<string, any>,
-  testWallets: Record<string, web3.Keypair | undefined>,
-  prioritizeParams: boolean = true,
-): Buffer {
-  const key = data.replace(/\$([^:]+)/, "$1");
-  if (params[key] !== undefined && prioritizeParams) {
-    return new web3.PublicKey(params[key]).toBuffer();
-  } else if (accounts[key] !== undefined) {
-    return accounts[key].toBuffer();
-  } else if (pda[key] !== undefined) {
-    return pda[key]({ ...params }).toBuffer();
-  } else if (testWallets[key] !== undefined) {
-    return testWallets[key]!.publicKey.toBuffer();
-  } else if (params[key] !== undefined) {
-    return new web3.PublicKey(params[key]).toBuffer();
-  } else {
-    throw `Cannot find $${key} on accounts in schema, or in parameter.`;
   }
 }
 

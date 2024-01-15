@@ -45,4 +45,74 @@ export declare function sighash(ixName: string): Buffer;
  * @param data
  */
 export declare function resolveSighash(data: string): Buffer;
+/**
+ * Resolve unsigned 8-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveU8(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve unsigned 16-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveU16(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve unsigned 32-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveU32(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve unsigned 64-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveU64(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve usize to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveUsize(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve signed 8-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveI8(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve signed 16-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveI16(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve signed 32-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveI32(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve signed 64-bit integer to Buffer
+ *
+ * @param data
+ * @param params Parameters from function in object form
+ */
+export declare function resolveI64(data: string, params: Record<string, any>): Buffer;
+/**
+ * Resolve boolean to Buffer
+ *
+ * @param data
+ * @param params
+ */
+export declare function resolveBool(data: string, params: Record<string, any>): Buffer;
 //# sourceMappingURL=type-resolver.d.ts.map

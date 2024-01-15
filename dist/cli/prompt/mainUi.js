@@ -194,7 +194,7 @@ function runInstruction(schemaFile) {
             catch (_b) { }
             finally {
                 const [account] = param.split(',');
-                let defaultValue = yaml2solana.getVar(account);
+                let defaultValue = yaml2solana.getParam(account);
                 if (defaultValue !== undefined && defaultValue.publicKey !== undefined) {
                     defaultValue = defaultValue.publicKey;
                 }
@@ -222,7 +222,7 @@ function runInstruction(schemaFile) {
         catch (_c) { }
         finally {
             const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
-            const kp = yaml2solana.getVar(account);
+            const kp = yaml2solana.getParam(account);
             let defaultValue;
             if (kp === undefined) {
                 const { value } = yield inquirer_1.default.prompt({
