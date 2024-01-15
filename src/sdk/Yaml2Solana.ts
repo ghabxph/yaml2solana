@@ -6,6 +6,7 @@ import * as util from '../util';
 import find from 'find-process';
 import { exec } from 'child_process';
 import { spawn } from 'child_process';
+import { AccountDecoder } from './AccountDecoder';
 
 export class Yaml2SolanaClass {
 
@@ -52,6 +53,9 @@ export class Yaml2SolanaClass {
 
     // Set known solana accounts (not meant to be downloaded)
     this.setKnownAccounts();
+
+    // Generate account decoders
+    this.generateAccountDecoders();
   }
 
   /**
@@ -467,6 +471,53 @@ export class Yaml2SolanaClass {
   }
 
   /**
+   * Set parameter value
+   *
+   * @param name
+   * @param value
+   */
+  setParam<T>(name: string, value: T) {
+    if (name.startsWith('$')) {
+      this.setVar(name.substring(1), value);
+    } else {
+      throw 'Variable should begin with dollar symbol `$`';
+    }
+  }
+
+  /**
+   * Alias to getVar
+   *
+   * @param name 
+   */
+  getParam<T>(name: string): T {
+    return this.getVar<T>(name);
+  }
+
+  /**
+   * Store value to global variable
+   *
+   * @param name 
+   * @param value 
+   */
+  private setVar<T>(name: string, value: T) {
+    this.global[name] = value;
+  }
+
+  /**
+   * Retrieve value from global variable
+   *
+   * @param name
+   * @returns
+   */
+  private getVar<T>(name: string): T {
+    if (name.startsWith('$')) {
+      return this.global[name.substring(1)];
+    } else {
+      throw 'Variable should begin with dollar symbol `$`';
+    }
+  }
+
+  /**
    * Find PDAs involved from given instruction
    *
    * @param ixLabel 
@@ -482,53 +533,6 @@ export class Yaml2SolanaClass {
       }
     }
     return result;
-  }
-
-  /**
-   * Set parameter value
-   *
-   * @param name
-   * @param value
-   */
-  setParam<T>(name: string, value: T) {
-    if (name.startsWith('$')) {
-      this.setVar(name.substring(1), value);
-    } else {
-      throw 'Variable should begin with dollar symbol `$`';
-    }
-  }
-
-  /**
-   * Store value to global variable
-   *
-   * @param name 
-   * @param value 
-   */
-  setVar<T>(name: string, value: T) {
-    this.global[name] = value;
-  }
-
-  /**
-   * Alias to getVar
-   *
-   * @param name 
-   */
-  getParam<T>(name: string): T {
-    return this.getVar<T>(name);
-  }
-
-  /**
-   * Retrieve value from global variable
-   *
-   * @param name
-   * @returns
-   */
-  getVar<T>(name: string): T {
-    if (name.startsWith('$')) {
-      return this.global[name.substring(1)];
-    } else {
-      throw 'Variable should begin with dollar symbol `$`';
-    }
   }
 
   /**
@@ -856,6 +860,20 @@ export class Yaml2SolanaClass {
       this.setVar<web3.PublicKey>(key, _pda);
     }
   }
+
+  /**
+   * Generate account decoder instances
+   */
+  private generateAccountDecoders() {
+    if (this._parsedYaml.accountDecoder !== undefined) {
+      for (const name in this._parsedYaml.accountDecoder) {
+        this.setVar<AccountDecoder>(
+          name,
+          new AccountDecoder(name, this._parsedYaml.accountDecoder[name])
+        );
+      }
+    }
+  }
 }
 
 export class Transaction {
@@ -956,6 +974,7 @@ export type ParsedYaml = {
   accountsNoLabel: string[],
   pda: Record<string, Pda>,
   instructionDefinition: Record<string, InstructionDefinition>,
+  accountDecoder?: Record<string, string[]>
   localDevelopment: {
     accountsFolder: string,
     skipCache: string[],

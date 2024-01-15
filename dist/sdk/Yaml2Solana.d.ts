@@ -138,12 +138,6 @@ export declare class Yaml2SolanaClass {
      */
     extractVarInfo(pattern: string): util.VariableInfo;
     /**
-     * Find PDAs involved from given instruction
-     *
-     * @param ixLabel
-     */
-    private findPdasInvolvedInInstruction;
-    /**
      * Set parameter value
      *
      * @param name
@@ -151,25 +145,31 @@ export declare class Yaml2SolanaClass {
      */
     setParam<T>(name: string, value: T): void;
     /**
-     * Store value to global variable
-     *
-     * @param name
-     * @param value
-     */
-    setVar<T>(name: string, value: T): void;
-    /**
      * Alias to getVar
      *
      * @param name
      */
     getParam<T>(name: string): T;
     /**
+     * Store value to global variable
+     *
+     * @param name
+     * @param value
+     */
+    private setVar;
+    /**
      * Retrieve value from global variable
      *
      * @param name
      * @returns
      */
-    getVar<T>(name: string): T;
+    private getVar;
+    /**
+     * Find PDAs involved from given instruction
+     *
+     * @param ixLabel
+     */
+    private findPdasInvolvedInInstruction;
     /**
      * @param extension File extension to check
      * @returns
@@ -221,6 +221,10 @@ export declare class Yaml2SolanaClass {
      * @param onlyResolve Only resolve these PDAs
      */
     private resolvePda;
+    /**
+     * Generate account decoder instances
+     */
+    private generateAccountDecoders;
 }
 export declare class Transaction {
     readonly description: string;
@@ -279,6 +283,7 @@ export type ParsedYaml = {
     accountsNoLabel: string[];
     pda: Record<string, Pda>;
     instructionDefinition: Record<string, InstructionDefinition>;
+    accountDecoder?: Record<string, string[]>;
     localDevelopment: {
         accountsFolder: string;
         skipCache: string[];

@@ -44,6 +44,7 @@ const util = __importStar(require("../util"));
 const find_process_1 = __importDefault(require("find-process"));
 const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
+const AccountDecoder_1 = require("./AccountDecoder");
 class Yaml2SolanaClass {
     constructor(
     /**
@@ -64,6 +65,8 @@ class Yaml2SolanaClass {
         this.setNamedAccountsToGlobal(this._parsedYaml);
         // Set known solana accounts (not meant to be downloaded)
         this.setKnownAccounts();
+        // Generate account decoders
+        this.generateAccountDecoders();
     }
     /**
      * Parsed yaml file
@@ -421,6 +424,51 @@ class Yaml2SolanaClass {
         return util.extractVariableInfo(pattern, this.global);
     }
     /**
+     * Set parameter value
+     *
+     * @param name
+     * @param value
+     */
+    setParam(name, value) {
+        if (name.startsWith('$')) {
+            this.setVar(name.substring(1), value);
+        }
+        else {
+            throw 'Variable should begin with dollar symbol `$`';
+        }
+    }
+    /**
+     * Alias to getVar
+     *
+     * @param name
+     */
+    getParam(name) {
+        return this.getVar(name);
+    }
+    /**
+     * Store value to global variable
+     *
+     * @param name
+     * @param value
+     */
+    setVar(name, value) {
+        this.global[name] = value;
+    }
+    /**
+     * Retrieve value from global variable
+     *
+     * @param name
+     * @returns
+     */
+    getVar(name) {
+        if (name.startsWith('$')) {
+            return this.global[name.substring(1)];
+        }
+        else {
+            throw 'Variable should begin with dollar symbol `$`';
+        }
+    }
+    /**
      * Find PDAs involved from given instruction
      *
      * @param ixLabel
@@ -437,51 +485,6 @@ class Yaml2SolanaClass {
             }
         }
         return result;
-    }
-    /**
-     * Set parameter value
-     *
-     * @param name
-     * @param value
-     */
-    setParam(name, value) {
-        if (name.startsWith('$')) {
-            this.setVar(name.substring(1), value);
-        }
-        else {
-            throw 'Variable should begin with dollar symbol `$`';
-        }
-    }
-    /**
-     * Store value to global variable
-     *
-     * @param name
-     * @param value
-     */
-    setVar(name, value) {
-        this.global[name] = value;
-    }
-    /**
-     * Alias to getVar
-     *
-     * @param name
-     */
-    getParam(name) {
-        return this.getVar(name);
-    }
-    /**
-     * Retrieve value from global variable
-     *
-     * @param name
-     * @returns
-     */
-    getVar(name) {
-        if (name.startsWith('$')) {
-            return this.global[name.substring(1)];
-        }
-        else {
-            throw 'Variable should begin with dollar symbol `$`';
-        }
     }
     /**
      * @param extension File extension to check
@@ -790,6 +793,16 @@ class Yaml2SolanaClass {
             // Generate PDA
             const [_pda] = web3.PublicKey.findProgramAddressSync(seeds, programId);
             this.setVar(key, _pda);
+        }
+    }
+    /**
+     * Generate account decoder instances
+     */
+    generateAccountDecoders() {
+        if (this._parsedYaml.accountDecoder !== undefined) {
+            for (const name in this._parsedYaml.accountDecoder) {
+                this.setVar(name, new AccountDecoder_1.AccountDecoder(name, this._parsedYaml.accountDecoder[name]));
+            }
         }
     }
 }
