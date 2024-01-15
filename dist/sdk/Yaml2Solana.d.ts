@@ -191,7 +191,6 @@ export declare class Yaml2SolanaClass {
     /**
      * Resolve transaction instructions
      *
-     * @param parsedYaml
      * @param onlyResolve
      */
     private resolveInstructions;
@@ -217,7 +216,6 @@ export declare class Yaml2SolanaClass {
     /**
      * Resolve PDAs
      *
-     * @param parsedYaml
      * @param onlyResolve Only resolve these PDAs
      */
     private resolvePda;
@@ -225,6 +223,12 @@ export declare class Yaml2SolanaClass {
      * Generate account decoder instances
      */
     private generateAccountDecoders;
+    /**
+     * Resolve instruction bundles
+     *
+     * @param onlyResolve
+     */
+    private resolveInstructionBundles;
 }
 export declare class Transaction {
     readonly description: string;
@@ -244,6 +248,7 @@ export type ResolveParams = {
     onlyResolve: {
         thesePdas?: string[];
         theseInstructions?: string[];
+        theseInstructionBundles?: string[];
     };
 };
 export type Account = {
@@ -276,6 +281,11 @@ export type Test = {
     description: string;
     params: Record<string, string>;
 };
+export type InstructionBundle = Record<string, Instruction>;
+export type Instruction = {
+    dynamic?: boolean;
+    params: Record<string, string>;
+};
 export type ParsedYaml = {
     addressLookupTables?: string[];
     computeLimitSettings?: Record<string, ComputeLimitSettings>;
@@ -284,6 +294,7 @@ export type ParsedYaml = {
     pda: Record<string, Pda>;
     instructionDefinition: Record<string, InstructionDefinition>;
     accountDecoder?: Record<string, string[]>;
+    instructionBundle?: Record<string, InstructionBundle>;
     localDevelopment: {
         accountsFolder: string;
         skipCache: string[];

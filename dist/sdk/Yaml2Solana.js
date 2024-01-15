@@ -82,9 +82,11 @@ class Yaml2SolanaClass {
         // Resolve test wallets
         this.resolveTestWallets(this._parsedYaml);
         // Resolve PDAs
-        this.resolvePda(this._parsedYaml, params.onlyResolve.thesePdas);
+        this.resolvePda(params.onlyResolve.thesePdas);
         // Resolve instructions
-        this.resolveInstructions(this._parsedYaml, params.onlyResolve.theseInstructions);
+        this.resolveInstructions(params.onlyResolve.theseInstructions);
+        // Resolve instruction bundles
+        this.resolveInstructionBundles(params.onlyResolve.theseInstructionBundles);
     }
     /**
      * Get accounts from solana instructions
@@ -622,16 +624,15 @@ class Yaml2SolanaClass {
     /**
      * Resolve transaction instructions
      *
-     * @param parsedYaml
      * @param onlyResolve
      */
-    resolveInstructions(parsedYaml, onlyResolve) {
+    resolveInstructions(onlyResolve) {
         // Loop through instructions
-        for (const key in parsedYaml.instructionDefinition) {
+        for (const key in this.parsedYaml.instructionDefinition) {
             // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
-            const ixDef = parsedYaml.instructionDefinition[key];
+            const ixDef = this.parsedYaml.instructionDefinition[key];
             let programId;
             if (ixDef.programId.startsWith('$')) {
                 programId = this.getVar(ixDef.programId);
@@ -735,16 +736,15 @@ class Yaml2SolanaClass {
     /**
      * Resolve PDAs
      *
-     * @param parsedYaml
      * @param onlyResolve Only resolve these PDAs
      */
-    resolvePda(parsedYaml, onlyResolve) {
+    resolvePda(onlyResolve) {
         // Loop through PDA
-        for (const key in parsedYaml.pda) {
+        for (const key in this.parsedYaml.pda) {
             // If onlyResolve is defined, skip PDAs that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
-            const pda = parsedYaml.pda[key];
+            const pda = this.parsedYaml.pda[key];
             let programId;
             if (pda.programId.startsWith('$')) {
                 programId = this.getVar(pda.programId);
@@ -802,6 +802,55 @@ class Yaml2SolanaClass {
         if (this._parsedYaml.accountDecoder !== undefined) {
             for (const name in this._parsedYaml.accountDecoder) {
                 this.setVar(name, new AccountDecoder_1.AccountDecoder(name, this._parsedYaml.accountDecoder[name]));
+            }
+        }
+    }
+    /**
+     * Resolve instruction bundles
+     *
+     * @param onlyResolve
+     */
+    resolveInstructionBundles(onlyResolve) {
+        for (const _ixBundle in this._parsedYaml.instructionBundle) {
+            // Skip if not included in onlyResolve
+            if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
+                continue;
+            const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
+            for (const ixLabel in ixBundle) {
+                const ix = ixBundle[ixLabel];
+                const isDynamic = ix.dynamic;
+                if (isDynamic)
+                    continue; // TODO: Implement dynamic instruction
+                // Set global variables
+                for (const key in ix.params) {
+                    const [valueOrVar, type] = ix.params[key].split(':');
+                    let value;
+                    if (valueOrVar.startsWith('$')) {
+                        value = this.getVar(valueOrVar);
+                    }
+                    else {
+                        if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
+                            value = parseInt(valueOrVar);
+                        }
+                        else if (['u64', 'usize', 'i64'].includes(type)) {
+                            value = BigInt(valueOrVar);
+                        }
+                        else if (type === 'bool') {
+                            value = valueOrVar === 'true';
+                        }
+                        else if (type === 'pubkey') {
+                            value = new web3.PublicKey(valueOrVar);
+                        }
+                        else {
+                            throw `Type of ${key} is not defined.`;
+                        }
+                        value = valueOrVar;
+                    }
+                    this.setVar(key, value);
+                }
+                // Then resolve instruction
+                // Assuming here that parameters required by instruction is already set.
+                this.resolveInstruction(ixLabel);
             }
         }
     }

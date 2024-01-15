@@ -164,7 +164,7 @@ async function runInstruction(schemaFile: string) {
       yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
       const [account] = param.split(',');
-      let defaultValue = yaml2solana.getVar<web3.PublicKey | web3.Keypair>(account);
+      let defaultValue = yaml2solana.getParam<web3.PublicKey | web3.Keypair>(account);
       if (defaultValue !== undefined && (defaultValue as web3.Keypair).publicKey !== undefined) {
         defaultValue = (defaultValue as web3.Keypair).publicKey;
       }
@@ -190,7 +190,7 @@ async function runInstruction(schemaFile: string) {
     yaml2solana.resolveInstruction(instructionToExecute);
   } catch {} finally {
     const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
-    const kp = yaml2solana.getVar<web3.Keypair>(account);
+    const kp = yaml2solana.getParam<web3.Keypair>(account);
     let defaultValue: string | undefined;
     if (kp === undefined) {
       const { value } = await inquirer.prompt({
