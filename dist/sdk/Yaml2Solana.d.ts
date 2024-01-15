@@ -67,6 +67,24 @@ export declare class Yaml2SolanaClass {
      */
     getInstructions(): string[];
     /**
+     * @returns instruction bundle labels defined in yaml
+     */
+    getInstructionBundles(): string[];
+    /**
+     * Resolve instruction bundle payer
+     *
+     * @param label Instruction bundle label
+     * @returns
+     */
+    resolveInstructionBundlePayer(label: string): web3.PublicKey;
+    /**
+     * Resolve instruction bundle signers from instructions
+     *
+     * @param label Instruction bundle label
+     * @returns
+     */
+    resolveInstructionBundleSigners(label: string): web3.Signer[];
+    /**
      * @returns accounts from schema
      */
     getAccounts(): web3.PublicKey[];
@@ -229,6 +247,7 @@ export declare class Yaml2SolanaClass {
      * @param onlyResolve
      */
     private resolveInstructionBundles;
+    private sanitizeDollar;
 }
 export declare class Transaction {
     readonly description: string;
@@ -281,10 +300,15 @@ export type Test = {
     description: string;
     params: Record<string, string>;
 };
-export type InstructionBundle = Record<string, Instruction>;
-export type Instruction = {
+export type InstructionBundleIxs = {
+    label: string;
     dynamic?: boolean;
     params: Record<string, string>;
+};
+export type InstructionBundle = {
+    alts: string[];
+    payer: string;
+    instructions: InstructionBundleIxs[];
 };
 export type ParsedYaml = {
     addressLookupTables?: string[];

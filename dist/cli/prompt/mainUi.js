@@ -38,9 +38,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mainUi = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const util = __importStar(require("../../util"));
-const web3 = __importStar(require("@solana/web3.js"));
 const utilUi_1 = require("./utilUi");
 const __1 = require("../..");
+const runInstructionUi_1 = require("./runInstructionUi");
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
@@ -73,7 +73,7 @@ function mainUi(schemaFile) {
         }
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_INSTRUCTION) {
-            return yield runInstruction(schemaFile);
+            return yield (0, runInstructionUi_1.runInstructionUi)(schemaFile);
         }
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_TEST) {
@@ -118,138 +118,5 @@ function runTestValidator(schemaFile) {
         const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
         // Run test validator using v2
         return yield yaml2solana.runTestValidator();
-    });
-}
-function runInstruction(schemaFile) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // 1. Create yaml2solana v2 instance
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
-        // 2. Select what instruction to execute
-        const choices = yaml2solana.getInstructions();
-        const { instructionToExecute } = yield inquirer_1.default
-            .prompt([
-            {
-                type: 'list',
-                name: 'instructionToExecute',
-                message: 'Choose instruction to execute:',
-                choices,
-            },
-        ]);
-        // 3. Resolve variables (from data)
-        for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].data) {
-            try {
-                yaml2solana.resolveInstruction(instructionToExecute);
-            }
-            catch (_a) { }
-            finally {
-                const varInfo = yaml2solana.extractVarInfo(param);
-                if (varInfo.isVariable) {
-                    if (varInfo.type === 'bool') {
-                        yield inquirer_1.default.prompt({
-                            type: 'list',
-                            name: varInfo.name,
-                            message: `Value for ${varInfo.name}`,
-                            choices: ['true', 'false'],
-                            filter: (input) => {
-                                return input === 'true';
-                            }
-                        });
-                    }
-                    else {
-                        yield inquirer_1.default.prompt({
-                            type: 'input',
-                            name: varInfo.name,
-                            message: `Value for ${varInfo.name}`,
-                            default: varInfo.defaultValue,
-                            filter: (input) => {
-                                if (varInfo.type === 'pubkey') {
-                                    if (typeof input === 'string') {
-                                        return new web3.PublicKey(input);
-                                    }
-                                    else {
-                                        return input;
-                                    }
-                                }
-                                const numberTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64'];
-                                if (numberTypes.includes(varInfo.type)) {
-                                    if (Math.round(Number(input)) === Number(input)) {
-                                        return Number(input);
-                                    }
-                                    else {
-                                        throw `${varInfo.name} is not a valid integer value.`;
-                                    }
-                                }
-                                return input;
-                            }
-                        });
-                    }
-                }
-            }
-        }
-        // 4. Resolve params (from meta)
-        for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].accounts) {
-            try {
-                yaml2solana.resolveInstruction(instructionToExecute);
-            }
-            catch (_b) { }
-            finally {
-                const [account] = param.split(',');
-                let defaultValue = yaml2solana.getParam(account);
-                if (defaultValue !== undefined && defaultValue.publicKey !== undefined) {
-                    defaultValue = defaultValue.publicKey;
-                }
-                const { value } = yield inquirer_1.default.prompt({
-                    type: 'input',
-                    name: 'value',
-                    message: `Value for ${account}`,
-                    default: defaultValue,
-                    filter: (input) => {
-                        if (typeof input === 'string') {
-                            return new web3.PublicKey(input);
-                        }
-                        else {
-                            return input;
-                        }
-                    }
-                });
-                yaml2solana.setParam(account, value);
-            }
-        }
-        // 5. Resolve transaction payer
-        try {
-            yaml2solana.resolveInstruction(instructionToExecute);
-        }
-        catch (_c) { }
-        finally {
-            const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
-            const kp = yaml2solana.getParam(account);
-            let defaultValue;
-            if (kp === undefined) {
-                const { value } = yield inquirer_1.default.prompt({
-                    type: 'input',
-                    name: 'value',
-                    message: `Value for transaction payer ${account} (base64 encoded):`,
-                    default: defaultValue,
-                    filter: (input) => {
-                        web3.Keypair.fromSecretKey(Buffer.from(input, 'base64'));
-                        return input;
-                    }
-                });
-                yaml2solana.setParam(account, web3.Keypair.fromSecretKey(Buffer.from(value, 'base64')));
-            }
-        }
-        // 5. Resolve instruction
-        try {
-            yaml2solana.resolveInstruction(instructionToExecute);
-        }
-        catch (_d) { }
-        // 6. Execute instruction
-        console.log();
-        yield yaml2solana.executeTransactionsLocally({
-            txns: [
-                yaml2solana.createLocalnetTransaction(instructionToExecute, [`$${instructionToExecute}`], [], yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer, yaml2solana.getSignersFromIx(instructionToExecute))
-            ],
-            runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning(),
-        });
     });
 }
