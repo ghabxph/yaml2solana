@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveSighash = exports.resolveAccountMeta = exports.resolveType2 = exports.resolveType = exports.getVariablesFromInstructionDefinition2 = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo2 = exports.extractVariableInfo = void 0;
+exports.resolveSighash = exports.sighash = exports.resolveAccountMeta = exports.resolveType2 = exports.resolveType = exports.getVariablesFromInstructionDefinition2 = exports.getVariablesFromInstructionDefinition = exports.extractVariableInfo2 = exports.extractVariableInfo = void 0;
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
@@ -636,6 +636,7 @@ function sighash(ixName) {
     const preimage = `global:${name}`;
     return Buffer.from(js_sha256_1.sha256.digest(preimage)).slice(0, 8);
 }
+exports.sighash = sighash;
 /**
  * Resolve sighash to Buffer
  *

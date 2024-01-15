@@ -46,6 +46,13 @@ export declare function resolveType2(data: string, params: Record<string, any>):
  */
 export declare function resolveAccountMeta(accountMeta: string, params: Record<string, string>, accounts: Record<string, web3.PublicKey>, pda: Record<string, any>, testWallets: Record<string, web3.Keypair | undefined>): web3.AccountMeta;
 /**
+ * Anchor sighash function
+ *
+ * @param ixName
+ * @returns
+ */
+export declare function sighash(ixName: string): Buffer;
+/**
  * Resolve sighash to Buffer
  *
  * @param data

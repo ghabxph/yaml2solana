@@ -731,7 +731,7 @@ export function resolveAccountMeta(
  * @param ixName
  * @returns
  */
-function sighash(ixName: string): Buffer {
+export function sighash(ixName: string): Buffer {
   const name = snakeCase(ixName);
   const preimage = `global:${name}`;
   return Buffer.from(sha256.digest(preimage)).slice(0, 8);

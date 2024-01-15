@@ -2,10 +2,12 @@ import inquirer from "inquirer";
 import * as web3 from "@solana/web3.js";
 import clear from "ts-clear-screen";
 import { keypairUi } from "./keypairUi";
+import * as util from "../../util";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
+const CHOICE_SIGHASH = 'Generate sighash';
 
 export async function utilUi() {
   clear();
@@ -19,6 +21,7 @@ export async function utilUi() {
           CHOICE_GENERATE_PDA,
           CHOICE_ANALYZE_TRANSACTION,
           CHOICE_KEYPAIR_GENERATION,
+          CHOICE_SIGHASH,
         ],
       },
     ]
@@ -34,6 +37,10 @@ export async function utilUi() {
 
   if (choice === CHOICE_KEYPAIR_GENERATION) {
     return await keypairUi();
+  }
+
+  if (choice === CHOICE_SIGHASH) {
+    return await generateSighash();
   }
 }
 
@@ -120,4 +127,19 @@ async function generatePda() {
   const [pda, bump] = web3.PublicKey.findProgramAddressSync(seeds, programId);
   console.log(`PDA: ${pda}`);
   console.log(`Bump: ${bump}`);
+}
+
+/**
+ * Generate sighash
+ */
+async function generateSighash() {
+  const { value } = await inquirer
+    .prompt({
+      type: 'input',
+      name: 'value',
+      message: 'Enter value:'
+    });
+  
+  const hexValue = util.typeResolver.sighash(value).toString('hex');
+  console.log(`Hex value: ${hexValue}`);
 }
