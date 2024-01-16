@@ -36,6 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.cliEntrypoint = void 0;
 const util = __importStar(require("../util"));
 const prompt = __importStar(require("./prompt"));
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
@@ -43,7 +44,7 @@ const BASE_DIR = __dirname;
 const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
-function main() {
+function cliEntrypoint() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
         let schemaFile = '';
@@ -66,8 +67,9 @@ function main() {
         yield prompt.mainUi(schemaFile);
     });
 }
+exports.cliEntrypoint = cliEntrypoint;
 if (require.main === module) {
-    main();
+    cliEntrypoint();
 }
 process.on('unhandledRejection', (e) => {
     console.error();

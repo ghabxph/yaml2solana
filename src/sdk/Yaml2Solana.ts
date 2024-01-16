@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import { spawn } from 'child_process';
 import { AccountDecoder } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
+import { cliEntrypoint } from '../cli';
 
 export class Yaml2SolanaClass {
 
@@ -24,7 +25,7 @@ export class Yaml2SolanaClass {
   /**
    * Global variable
    */
-  private global: Record<string, any> = {};
+  private _global: Record<string, any> = {};
 
   /**
    * Parsed yaml
@@ -55,6 +56,20 @@ export class Yaml2SolanaClass {
 
     // Generate dynamic accoutns
     this.generateDynamicAccounts();
+  }
+
+  /**
+   * Get all global variables
+   */
+  get global(): Record<string, any> {
+    return this._global;
+  }
+
+  /**
+   * Start CLI
+   */
+  async cli() {
+    await cliEntrypoint();
   }
 
   /**
@@ -600,7 +615,7 @@ export class Yaml2SolanaClass {
    * @param pattern
    */
   extractVarInfo(pattern: string): util.typeResolver.VariableInfo {
-    return util.typeResolver.extractVariableInfo(pattern, this.global);
+    return util.typeResolver.extractVariableInfo(pattern, this._global);
   }
 
   /**
@@ -662,7 +677,7 @@ export class Yaml2SolanaClass {
    * @param value 
    */
   private setVar<T>(name: string, value: T) {
-    this.global[name] = value;
+    this._global[name] = value;
   }
 
   /**
@@ -673,7 +688,7 @@ export class Yaml2SolanaClass {
    */
   private getVar<T>(name: string): T {
     if (name.startsWith('$')) {
-      const result = this.global[name.substring(1)]
+      const result = this._global[name.substring(1)]
       return result;
     } else {
       throw 'Variable should begin with dollar symbol `$`';
@@ -890,7 +905,7 @@ export class Yaml2SolanaClass {
   private resolveInstructionData(data: string[]): Buffer {
     const dataArray: Buffer[] = [];
     for (const dataStr of data) {
-      dataArray.push(util.typeResolver.resolveType2(dataStr, this.global));
+      dataArray.push(util.typeResolver.resolveType2(dataStr, this._global));
     }
     return Buffer.concat(dataArray);
   }
@@ -1106,16 +1121,17 @@ export class Yaml2SolanaClass {
    */
   private generateDynamicAccounts() {
     for (const ixLabel in this._parsedYaml.instructionDefinition) {
+      let dynamicIx: DynamicInstruction = { dynamic: true, params: [] };
       try {
-        const dynamicIx = this.getDynamicInstruction(ixLabel);
-        if (dynamicIx.dynamic) {
-          this.setVar<DynamicInstructionClass>(
-            ixLabel,
-            new DynamicInstructionClass(this, dynamicIx.params)
-          );
-        }
+        dynamicIx = this.getDynamicInstruction(ixLabel);
       } catch {
         continue;
+      }
+      if (dynamicIx.dynamic) {
+        this.setVar<DynamicInstructionClass>(
+          ixLabel,
+          new DynamicInstructionClass(this, dynamicIx.params)
+        );
       }
     }
   }

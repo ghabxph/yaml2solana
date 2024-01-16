@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-export {};
+export declare function cliEntrypoint(): Promise<void>;
 //# sourceMappingURL=index.d.ts.map

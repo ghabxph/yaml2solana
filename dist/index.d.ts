@@ -1,3 +1,4 @@
+export { DynamicInstruction } from "./sdk/DynamicInstruction";
 import { Yaml2SolanaClass } from "./sdk/Yaml2Solana";
 /**
  * Creates an instance of Yaml2Solana class

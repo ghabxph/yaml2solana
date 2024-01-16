@@ -12,7 +12,7 @@ export declare class Yaml2SolanaClass {
     /**
      * Global variable
      */
-    private global;
+    private _global;
     /**
      * Parsed yaml
      */
@@ -22,6 +22,14 @@ export declare class Yaml2SolanaClass {
      */
     private testValidatorPid?;
     constructor(config: string);
+    /**
+     * Get all global variables
+     */
+    get global(): Record<string, any>;
+    /**
+     * Start CLI
+     */
+    cli(): Promise<void>;
     /**
      * Parsed yaml file
      */
