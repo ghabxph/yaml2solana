@@ -65,7 +65,7 @@ export async function mainUi(schemaFile: string) {
 
   // Debugging Tools
   if (choice === CHOICE_UTILS) {
-    await utilUi();
+    await utilUi(schemaFile);
     return;
   }
 }

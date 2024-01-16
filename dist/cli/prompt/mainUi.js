@@ -92,7 +92,7 @@ function mainUi(schemaFile) {
         }
         // Debugging Tools
         if (choice === CHOICE_UTILS) {
-            yield (0, utilUi_1.utilUi)();
+            yield (0, utilUi_1.utilUi)(schemaFile);
             return;
         }
     });

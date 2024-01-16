@@ -70,6 +70,31 @@ class AccountDecoder {
         }
     }
     /**
+     * Return decoded values
+     */
+    get values() {
+        const result = {};
+        for (const id in this.offsets) {
+            const offset = this.offsets[id];
+            const _result = this.getValue(offset.label);
+            if (typeof _result.cmp === 'function') {
+                try {
+                    result[offset.label] = _result.toNumber();
+                }
+                catch (_a) {
+                    result[offset.label] = BigInt(_result.toString());
+                }
+            }
+            else if (typeof _result.toBase58 === 'function') {
+                result[offset.label] = _result.toBase58();
+            }
+            else {
+                result[offset.label] = _result;
+            }
+        }
+        return result;
+    }
+    /**
      * Get data value
      *
      * @param label
@@ -80,7 +105,7 @@ class AccountDecoder {
         if (this.data.length === 0)
             return undefined;
         switch (offset.type) {
-            case 'PublicKey':
+            case 'pubkey':
                 return this.getPublicKey(offset.offset);
             case 'bool':
                 return this.getBool(offset.offset);
@@ -111,7 +136,7 @@ class AccountDecoder {
         if (this.data.length === 0)
             throw 'Account data is empty';
         switch (offset.type) {
-            case 'PublicKey':
+            case 'pubkey':
                 const publicKey = new web3.PublicKey(value);
                 return this.setPublicKey(offset.offset, publicKey);
             case 'bool':
@@ -228,7 +253,7 @@ class AccountDecoder {
     getPublicKey(offset) {
         const data = this.data;
         const size = typeSize.PublicKey;
-        if (offset + size >= data.length) {
+        if (offset + size > data.length) {
             throw Error(`Offset exceeded account info data size: ${offset + size} > ${data.length}`);
         }
         return new web3.PublicKey(data.subarray(offset, offset + size));
@@ -241,7 +266,7 @@ class AccountDecoder {
      */
     setPublicKey(offset, value) {
         const size = typeSize.PublicKey;
-        if (offset + size >= this.data.length) {
+        if (offset + size > this.data.length) {
             throw Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`);
         }
         this.data.write(value.toBuffer().toString('base64'), offset, 'base64');
@@ -420,7 +445,7 @@ class AccountDecoder {
      * @param value
      */
     setUnsignedNumber(offset, size, value) {
-        if (offset + size >= this.data.length) {
+        if (offset + size > this.data.length) {
             throw Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`);
         }
         if (size === typeSize.u8) {

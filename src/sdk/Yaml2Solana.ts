@@ -35,12 +35,7 @@ export class Yaml2SolanaClass {
    */
   private testValidatorPid?: number;
 
-  constructor(
-    /**
-     * yaml config path
-     */
-    private config: string
-  ) {
+  constructor(config: string) {
     this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
 
     // Read the YAML file.
@@ -63,6 +58,17 @@ export class Yaml2SolanaClass {
    */
   get parsedYaml(): ParsedYaml {
     return this._parsedYaml;
+  }
+
+  /**
+   * Get account decoders
+   */
+  get accountDecoders(): string[] {
+    const result: string[] = [];
+    for (const decoder in this.parsedYaml.accountDecoder) {
+      result.push(decoder);
+    }
+    return result;
   }
 
   /**
@@ -632,7 +638,8 @@ export class Yaml2SolanaClass {
    */
   private getVar<T>(name: string): T {
     if (name.startsWith('$')) {
-      return this.global[name.substring(1)];
+      const result = this.global[name.substring(1)]
+      return result;
     } else {
       throw 'Variable should begin with dollar symbol `$`';
     }
