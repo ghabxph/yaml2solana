@@ -23,11 +23,27 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveBool = exports.resolveI64 = exports.resolveI32 = exports.resolveI16 = exports.resolveI8 = exports.resolveUsize = exports.resolveU64 = exports.resolveU32 = exports.resolveU16 = exports.resolveU8 = exports.resolveSighash = exports.sighash = exports.resolveAccountMeta = exports.resolveType2 = exports.extractVariableInfo = void 0;
+exports.resolveBool = exports.resolveI64 = exports.resolveI32 = exports.resolveI16 = exports.resolveI8 = exports.resolveUsize = exports.resolveU64 = exports.resolveU32 = exports.resolveU16 = exports.resolveU8 = exports.resolveSighash = exports.sighash = exports.resolveAccountMeta = exports.resolveType2 = exports.extractVariableInfo = exports.variableTypes = void 0;
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
 const INVALID_KEY = new web3.PublicKey('123456789abcdefghijkLmnopqrstuvwxyz123456789');
+exports.variableTypes = [
+    "u8",
+    "u16",
+    "u32",
+    "u64",
+    "u128",
+    "usize",
+    "i8",
+    "i16",
+    "i32",
+    "i64",
+    "i128",
+    "bool",
+    "pubkey",
+    "string",
+];
 function extractVariableInfo(pattern, params) {
     const _sighash = /sighash\([a-zA-Z0-9_]+\)/;
     const _u8 = /\$[a-zA-Z0-9_]+:u8/;

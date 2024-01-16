@@ -15,26 +15,49 @@ export type InstructionDefinitions = Record<
 >;
 
 export type VariableType = 
-  "sighash" |
   "u8" |
   "u16" |
   "u32" |
   "u64" |
+  "u128" |
   "usize" |
   "i8" |
   "i16" |
   "i32" |
   "i64" |
+  "i128" |
   "bool" |
   "pubkey" |
+  "string";
+
+export const variableTypes: string[] = [
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+  "usize",
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "bool",
+  "pubkey",
+  "string",
+];
+
+export type DataVariableType =
+  "sighash" |
   "bytes" |
   "hex" |
-  "fromBase64";
+  "fromBase64" |
+  VariableType;
 
 export type VariableInfo = {
   isVariable: boolean,
   name: string,
-  type: VariableType,
+  type: DataVariableType,
   defaultValue?: any,
 }
 

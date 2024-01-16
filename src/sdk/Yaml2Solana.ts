@@ -7,6 +7,7 @@ import find from 'find-process';
 import { exec } from 'child_process';
 import { spawn } from 'child_process';
 import { AccountDecoder } from './AccountDecoder';
+import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 
 export class Yaml2SolanaClass {
 
@@ -51,6 +52,9 @@ export class Yaml2SolanaClass {
 
     // Generate account decoders
     this.generateAccountDecoders();
+
+    // Generate dynamic accoutns
+    this.generateDynamicAccounts();
   }
 
   /**
@@ -191,9 +195,10 @@ export class Yaml2SolanaClass {
    */
   getSignersFromIx(ixLabel: string): web3.Signer[] {
     const result: web3.Signer[] = [];
-    const payer = this.getVar<web3.Signer>(this._parsedYaml.instructionDefinition[ixLabel].payer);
+    const ixDef = this.getIxDefinition(ixLabel);
+    const payer = this.getVar<web3.Signer>(ixDef.payer);
     let isPayerSigner = false;
-    for (const meta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+    for (const meta of ixDef.accounts) {
       const _meta = meta.split(',');
       const [account] = _meta;
       if (_meta.includes('signer')) {
@@ -265,7 +270,8 @@ export class Yaml2SolanaClass {
     label = label.startsWith('$') ? label.substring(1) : label;
     const ixLabels = this._parsedYaml.instructionBundle![label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
     ixLabels.map(ixLabel => {
-      this._parsedYaml.instructionDefinition[ixLabel].accounts.map(meta => {
+      const ixDef = this.getIxDefinition(ixLabel);
+      ixDef.accounts.map(meta => {
         const _meta = meta.split(',');
         if (_meta.includes('signer')) {
           const [signer] = _meta;
@@ -593,8 +599,8 @@ export class Yaml2SolanaClass {
    *
    * @param pattern
    */
-  extractVarInfo(pattern: string): util.VariableInfo {
-    return util.extractVariableInfo(pattern, this.global);
+  extractVarInfo(pattern: string): util.typeResolver.VariableInfo {
+    return util.typeResolver.extractVariableInfo(pattern, this.global);
   }
 
   /**
@@ -618,6 +624,35 @@ export class Yaml2SolanaClass {
    */
   getParam<T>(name: string): T {
     return this.getVar<T>(name);
+  }
+
+
+  /**
+   * Get ix definition
+   *
+   * @param ixLabel
+   * @returns
+   */
+  public getIxDefinition(ixLabel: string): InstructionDefinition{
+    const ixDef = this._parsedYaml.instructionDefinition[ixLabel];
+    if ('programId' in ixDef && 'data' in ixDef && 'accounts' in ixDef && 'payer' in ixDef) {
+      return ixDef as InstructionDefinition;
+    }
+    throw `${ixLabel} is not an InstructionDefinition`
+  }
+
+  /**
+   * Get ix definition
+   *
+   * @param ixLabel
+   * @returns
+   */
+  public getDynamicInstruction(ixLabel: string): DynamicInstruction{
+    const ixDef = this._parsedYaml.instructionDefinition[ixLabel];
+    if ('dynamic' in ixDef && 'params' in ixDef) {
+      return ixDef as DynamicInstruction;
+    }
+    throw `${ixLabel} is not an InstructionDefinition`
   }
 
   /**
@@ -653,7 +688,8 @@ export class Yaml2SolanaClass {
   private findPdasInvolvedInInstruction(ixLabel: string): string[] {
     ixLabel = ixLabel.startsWith('$') ? ixLabel.substring(1) : ixLabel;
     const result: string[] = [];
-    for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+    const ixDef = this.getIxDefinition(ixLabel);
+    for (const accountMeta of ixDef.accounts) {
       let [account] = accountMeta.split(',');
       if (!account.startsWith('$')) continue
       account = account.substring(1);
@@ -821,7 +857,7 @@ export class Yaml2SolanaClass {
       // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
       if (onlyResolve !== undefined && !onlyResolve.includes(key)) continue;
 
-      const ixDef = this.parsedYaml.instructionDefinition[key];
+      const ixDef = this.getIxDefinition(key);
       let programId;
       if (ixDef.programId.startsWith('$')) {
         programId = this.getVar<web3.PublicKey>(ixDef.programId);
@@ -854,7 +890,7 @@ export class Yaml2SolanaClass {
   private resolveInstructionData(data: string[]): Buffer {
     const dataArray: Buffer[] = [];
     for (const dataStr of data) {
-      dataArray.push(util.resolveType2(dataStr, this.global));
+      dataArray.push(util.typeResolver.resolveType2(dataStr, this.global));
     }
     return Buffer.concat(dataArray);
   }
@@ -1064,6 +1100,25 @@ export class Yaml2SolanaClass {
   private sanitizeDollar(pattern: string) {
     return pattern.startsWith('$') ? pattern.substring(1) : pattern;
   }
+
+  /**
+   * Generate dynamic accounts
+   */
+  private generateDynamicAccounts() {
+    for (const ixLabel in this._parsedYaml.instructionDefinition) {
+      try {
+        const dynamicIx = this.getDynamicInstruction(ixLabel);
+        if (dynamicIx.dynamic) {
+          this.setVar<DynamicInstructionClass>(
+            ixLabel,
+            new DynamicInstructionClass(this, dynamicIx.params)
+          );
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
 }
 
 export class Transaction {
@@ -1171,13 +1226,18 @@ export type InstructionBundle = {
   instructions: InstructionBundleIxs[]
 }
 
+export type DynamicInstruction = {
+  dynamic: true,
+  params: string[],
+}
+
 export type ParsedYaml = {
   addressLookupTables?: string[],
   computeLimitSettings?: Record<string, ComputeLimitSettings>
   accounts: Record<string, string>,
   accountsNoLabel: string[],
   pda: Record<string, Pda>,
-  instructionDefinition: Record<string, InstructionDefinition>,
+  instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>,
   accountDecoder?: Record<string, string[]>
   instructionBundle?: Record<string, InstructionBundle>,
   localDevelopment: {

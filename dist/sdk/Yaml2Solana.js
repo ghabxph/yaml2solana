@@ -45,6 +45,7 @@ const find_process_1 = __importDefault(require("find-process"));
 const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
 const AccountDecoder_1 = require("./AccountDecoder");
+const DynamicInstruction_1 = require("./DynamicInstruction");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
@@ -62,6 +63,8 @@ class Yaml2SolanaClass {
         this.setKnownAccounts();
         // Generate account decoders
         this.generateAccountDecoders();
+        // Generate dynamic accoutns
+        this.generateDynamicAccounts();
     }
     /**
      * Parsed yaml file
@@ -187,9 +190,10 @@ class Yaml2SolanaClass {
      */
     getSignersFromIx(ixLabel) {
         const result = [];
-        const payer = this.getVar(this._parsedYaml.instructionDefinition[ixLabel].payer);
+        const ixDef = this.getIxDefinition(ixLabel);
+        const payer = this.getVar(ixDef.payer);
         let isPayerSigner = false;
-        for (const meta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+        for (const meta of ixDef.accounts) {
             const _meta = meta.split(',');
             const [account] = _meta;
             if (_meta.includes('signer')) {
@@ -255,7 +259,8 @@ class Yaml2SolanaClass {
         label = label.startsWith('$') ? label.substring(1) : label;
         const ixLabels = this._parsedYaml.instructionBundle[label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
         ixLabels.map(ixLabel => {
-            this._parsedYaml.instructionDefinition[ixLabel].accounts.map(meta => {
+            const ixDef = this.getIxDefinition(ixLabel);
+            ixDef.accounts.map(meta => {
                 const _meta = meta.split(',');
                 if (_meta.includes('signer')) {
                     const [signer] = _meta;
@@ -541,7 +546,7 @@ class Yaml2SolanaClass {
      * @param pattern
      */
     extractVarInfo(pattern) {
-        return util.extractVariableInfo(pattern, this.global);
+        return util.typeResolver.extractVariableInfo(pattern, this.global);
     }
     /**
      * Set parameter value
@@ -564,6 +569,32 @@ class Yaml2SolanaClass {
      */
     getParam(name) {
         return this.getVar(name);
+    }
+    /**
+     * Get ix definition
+     *
+     * @param ixLabel
+     * @returns
+     */
+    getIxDefinition(ixLabel) {
+        const ixDef = this._parsedYaml.instructionDefinition[ixLabel];
+        if ('programId' in ixDef && 'data' in ixDef && 'accounts' in ixDef && 'payer' in ixDef) {
+            return ixDef;
+        }
+        throw `${ixLabel} is not an InstructionDefinition`;
+    }
+    /**
+     * Get ix definition
+     *
+     * @param ixLabel
+     * @returns
+     */
+    getDynamicInstruction(ixLabel) {
+        const ixDef = this._parsedYaml.instructionDefinition[ixLabel];
+        if ('dynamic' in ixDef && 'params' in ixDef) {
+            return ixDef;
+        }
+        throw `${ixLabel} is not an InstructionDefinition`;
     }
     /**
      * Store value to global variable
@@ -597,7 +628,8 @@ class Yaml2SolanaClass {
     findPdasInvolvedInInstruction(ixLabel) {
         ixLabel = ixLabel.startsWith('$') ? ixLabel.substring(1) : ixLabel;
         const result = [];
-        for (const accountMeta of this._parsedYaml.instructionDefinition[ixLabel].accounts) {
+        const ixDef = this.getIxDefinition(ixLabel);
+        for (const accountMeta of ixDef.accounts) {
             let [account] = accountMeta.split(',');
             if (!account.startsWith('$'))
                 continue;
@@ -752,7 +784,7 @@ class Yaml2SolanaClass {
             // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
-            const ixDef = this.parsedYaml.instructionDefinition[key];
+            const ixDef = this.getIxDefinition(key);
             let programId;
             if (ixDef.programId.startsWith('$')) {
                 programId = this.getVar(ixDef.programId);
@@ -782,7 +814,7 @@ class Yaml2SolanaClass {
     resolveInstructionData(data) {
         const dataArray = [];
         for (const dataStr of data) {
-            dataArray.push(util.resolveType2(dataStr, this.global));
+            dataArray.push(util.typeResolver.resolveType2(dataStr, this.global));
         }
         return Buffer.concat(dataArray);
     }
@@ -987,6 +1019,22 @@ class Yaml2SolanaClass {
     }
     sanitizeDollar(pattern) {
         return pattern.startsWith('$') ? pattern.substring(1) : pattern;
+    }
+    /**
+     * Generate dynamic accounts
+     */
+    generateDynamicAccounts() {
+        for (const ixLabel in this._parsedYaml.instructionDefinition) {
+            try {
+                const dynamicIx = this.getDynamicInstruction(ixLabel);
+                if (dynamicIx.dynamic) {
+                    this.setVar(ixLabel, new DynamicInstruction_1.DynamicInstruction(this, dynamicIx.params));
+                }
+            }
+            catch (_a) {
+                continue;
+            }
+        }
     }
 }
 exports.Yaml2SolanaClass = Yaml2SolanaClass;

@@ -6,11 +6,13 @@ export type InstructionDefinitions = Record<string, {
     accounts: string[];
     payer: string;
 }>;
-export type VariableType = "sighash" | "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "bool" | "pubkey" | "bytes" | "hex" | "fromBase64";
+export type VariableType = "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128" | "bool" | "pubkey" | "string";
+export declare const variableTypes: string[];
+export type DataVariableType = "sighash" | "bytes" | "hex" | "fromBase64" | VariableType;
 export type VariableInfo = {
     isVariable: boolean;
     name: string;
-    type: VariableType;
+    type: DataVariableType;
     defaultValue?: any;
 };
 export declare function extractVariableInfo(pattern: string, params: Record<string, any>): VariableInfo;
