@@ -212,7 +212,6 @@ async function runBundledInstructions(schemaFile: string) {
   console.log();
   await yaml2solana.executeTransactionsLocally({
     txns: [tx],
-    keepRunning: false,
     runFromExistingLocalnet: await util.test.checkIfLocalnetIsRunning()
   });
 }

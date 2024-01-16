@@ -432,7 +432,27 @@ class Yaml2SolanaClass {
             });
             accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
             const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
-            // Step 2: Run test validator
+            // Step 2: Override lamport amount from test wallet
+            const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
+            for (const walletId in this._parsedYaml.localDevelopment.testWallets) {
+                const testWallet = this._parsedYaml.localDevelopment.testWallets[walletId];
+                const kp = web3.Keypair.fromSecretKey(Buffer.from(testWallet.privateKey, 'base64'));
+                const pubkey = kp.publicKey;
+                const account = {};
+                const lamports = parseInt((parseFloat(testWallet.solAmount) * 1000000000).toString());
+                account[`${pubkey}`] = {
+                    executable: false,
+                    owner: web3.SystemProgram.programId,
+                    lamports,
+                    data: Buffer.alloc(0),
+                    rentEpoch: 0,
+                };
+                util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+                const walletPath = path.resolve(cacheFolder, `${pubkey}.json`);
+                mapping[`${pubkey}`] = walletPath;
+            }
+            // Step 3: TODO: Override account data
+            // Step 4: Run test validator
             return yield this.runTestValidator2(mapping);
         });
     }
