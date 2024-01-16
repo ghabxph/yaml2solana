@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as web3 from '@solana/web3.js';
-import { FullAccountInfo } from './solana';
+import { FullAccountInfo, FullAccountInfoFile } from './solana';
 
 /**
  * Find all .gitignore instances and compile files to ignore for scanning
@@ -159,6 +159,26 @@ export function writeAccountsToCacheFolder(cacheFolder: string, accountInfos: Fu
       }, null, 2))
     }
   }
+}
+
+/**
+ * Read account from cache
+ *
+ * @param cacheFolder
+ * @param address
+ */
+export function readAccount(cacheFolder: string, address: string): FullAccountInfo {
+  cacheFolderMustExist(cacheFolder);
+  const filePath = path.resolve(cacheFolder, `${address}.json`);
+  const file = fs.readFileSync(filePath).toString('utf-8');
+  const json: FullAccountInfoFile = JSON.parse(file);
+  const result: FullAccountInfo = {};
+  result[json.pubkey] = {
+    ...json.account,
+    data: Buffer.from(json.account.data[0], 'base64'),
+    owner: new web3.PublicKey(json.account.owner),
+  }
+  return result;
 }
 
 /**

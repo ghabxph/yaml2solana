@@ -498,7 +498,33 @@ export class Yaml2SolanaClass {
       mapping[`${pubkey}`] = walletPath;
     }
 
-    // Step 3: TODO: Override account data
+    // Step 3: Override account data
+    for (const testAccount of this._parsedYaml.localDevelopment.testAccounts) {
+      const decoder = this.getVar<AccountDecoder>(`$${testAccount.schema}`);
+      let key: string;
+      if (testAccount.key.startsWith('$')) {
+        const pubkeyOrKp = this.getVar<web3.PublicKey | web3.Keypair>(testAccount.key);
+        if (typeof (pubkeyOrKp as web3.Keypair).publicKey !== 'undefined') {
+          key = (pubkeyOrKp as web3.Keypair).publicKey.toBase58();
+        } else if (typeof (pubkeyOrKp as web3.PublicKey).toBase58 === 'function') {
+          key = (pubkeyOrKp as web3.PublicKey).toBase58();
+        } else {
+          throw `Cannot resolve ${testAccount.key}`;
+        }
+      } else {
+        key = testAccount.key;
+      }
+      const account = util.fs.readAccount(cacheFolder, key);
+      decoder.data = account[key]!.data;
+      for (const id in testAccount.params) {
+        const value = testAccount.params[id];
+        decoder.setValue(`$${id}`, value);
+      }
+      account[key]!.data = decoder.data;
+      util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+      const accountPath = path.resolve(cacheFolder, `${key}.json`);
+      mapping[`${key}`] = accountPath;
+    }
 
     // Step 4: Run test validator
     return await this.runTestValidator2(mapping);
@@ -1110,6 +1136,7 @@ export type InstructionDefinition = {
 }
 
 export type TestAccount = {
+  key: string,
   schema: string,
   params: Record<string, string>
 }
@@ -1149,7 +1176,7 @@ export type ParsedYaml = {
   localDevelopment: {
     accountsFolder: string,
     skipCache: string[],
-    testAccounts: TestWallet[],
+    testAccounts: TestAccount[],
     testWallets: Record<string, TestWallet>,
     tests: Test[]
   }
