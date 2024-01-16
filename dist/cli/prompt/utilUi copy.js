@@ -41,13 +41,12 @@ const web3 = __importStar(require("@solana/web3.js"));
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const keypairUi_1 = require("./keypairUi");
 const util = __importStar(require("../../util"));
-const accountDecoderUi_1 = require("./accountDecoderUi");
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
 const CHOICE_ACCOUNT_DECODER = 'Account Decoder';
-function utilUi(schemaFile) {
+function utilUi() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
         const { choice } = yield inquirer_1.default
@@ -76,9 +75,6 @@ function utilUi(schemaFile) {
         }
         if (choice === CHOICE_SIGHASH) {
             return yield generateSighash();
-        }
-        if (choice === CHOICE_ACCOUNT_DECODER) {
-            return yield (0, accountDecoderUi_1.accountDecoderUi)(schemaFile);
         }
     });
 }

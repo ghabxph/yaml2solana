@@ -28,7 +28,7 @@ export type AccountDataType =
   'i32' |
   'i64' |
   'i128' |
-  'PublicKey';
+  'pubkey';
 
 export type AccountDataOffset = {
   label: string,
@@ -69,6 +69,29 @@ export class AccountDecoder {
   }
 
   /**
+   * Return decoded values
+   */
+  get values(): Record<string, any> {
+    const result: Record<string, any> = {}
+    for (const id in this.offsets) {
+      const offset = this.offsets[id];
+      const _result = this.getValue(offset.label)
+      if (typeof (_result as BN).cmp === 'function') {
+        try {
+          result[offset.label] = (_result as BN).toNumber();
+        } catch {
+          result[offset.label] = BigInt((_result as BN).toString());
+        }
+      } else if (typeof (_result as web3.PublicKey).toBase58 === 'function') {
+        result[offset.label] = (_result as web3.PublicKey).toBase58();
+      } else {
+        result[offset.label] = _result;
+      }
+    }
+    return result;
+  }
+
+  /**
    * Get data value
    *
    * @param label
@@ -78,7 +101,7 @@ export class AccountDecoder {
     const offset = this.offsets[label];
     if (this.data.length === 0) return undefined;
     switch(offset.type) {
-      case 'PublicKey':
+      case 'pubkey':
         return this.getPublicKey(offset.offset) as T;
       case 'bool':
         return this.getBool(offset.offset) as T;
@@ -109,7 +132,7 @@ export class AccountDecoder {
     const offset = this.offsets[label];
     if (this.data.length === 0) throw 'Account data is empty';
     switch(offset.type) {
-      case 'PublicKey':
+      case 'pubkey':
         const publicKey = new web3.PublicKey(value);
         return this.setPublicKey(offset.offset, publicKey);
       case 'bool':
@@ -207,7 +230,7 @@ export class AccountDecoder {
   private getPublicKey(offset: number): web3.PublicKey {
     const data = this.data;
     const size = typeSize.PublicKey;
-    if (offset + size >= data.length) {
+    if (offset + size > data.length) {
       throw Error(
         `Offset exceeded account info data size: ${offset + size} > ${
           data.length
@@ -225,7 +248,7 @@ export class AccountDecoder {
    */
   private setPublicKey(offset: number, value: web3.PublicKey) {
     const size = typeSize.PublicKey;
-    if (offset + size >= this.data.length) {
+    if (offset + size > this.data.length) {
       throw Error(
         `Offset exceeded account info data size: ${offset + size} > ${
           this.data.length
@@ -421,7 +444,7 @@ export class AccountDecoder {
    * @param value
    */
   private setUnsignedNumber<T>(offset: number, size: number, value: T) {
-    if (offset + size >= this.data.length) {
+    if (offset + size > this.data.length) {
       throw Error(
         `Offset exceeded account info data size: ${offset + size} > ${
           this.data.length

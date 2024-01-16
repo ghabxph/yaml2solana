@@ -2,10 +2,6 @@ import * as web3 from '@solana/web3.js';
 import * as util from '../util';
 export declare class Yaml2SolanaClass {
     /**
-     * yaml config path
-     */
-    private config;
-    /**
      * Localnet connection instance
      */
     readonly localnetConnection: web3.Connection;
@@ -25,15 +21,15 @@ export declare class Yaml2SolanaClass {
      * Test validator runnin PID
      */
     private testValidatorPid?;
-    constructor(
-    /**
-     * yaml config path
-     */
-    config: string);
+    constructor(config: string);
     /**
      * Parsed yaml file
      */
     get parsedYaml(): ParsedYaml;
+    /**
+     * Get account decoders
+     */
+    get accountDecoders(): string[];
     /**
      * Resolve variables
      * @param params

@@ -46,12 +46,7 @@ const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
 const AccountDecoder_1 = require("./AccountDecoder");
 class Yaml2SolanaClass {
-    constructor(
-    /**
-     * yaml config path
-     */
-    config) {
-        this.config = config;
+    constructor(config) {
         /**
          * Global variable
          */
@@ -73,6 +68,16 @@ class Yaml2SolanaClass {
      */
     get parsedYaml() {
         return this._parsedYaml;
+    }
+    /**
+     * Get account decoders
+     */
+    get accountDecoders() {
+        const result = [];
+        for (const decoder in this.parsedYaml.accountDecoder) {
+            result.push(decoder);
+        }
+        return result;
     }
     /**
      * Resolve variables
@@ -577,7 +582,8 @@ class Yaml2SolanaClass {
      */
     getVar(name) {
         if (name.startsWith('$')) {
-            return this.global[name.substring(1)];
+            const result = this.global[name.substring(1)];
+            return result;
         }
         else {
             throw 'Variable should begin with dollar symbol `$`';

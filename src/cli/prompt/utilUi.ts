@@ -3,13 +3,15 @@ import * as web3 from "@solana/web3.js";
 import clear from "ts-clear-screen";
 import { keypairUi } from "./keypairUi";
 import * as util from "../../util";
+import { accountDecoderUi } from "./accountDecoderUi";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
+const CHOICE_ACCOUNT_DECODER = 'Account Decoder'; 
 
-export async function utilUi() {
+export async function utilUi(schemaFile: string) {
   clear();
   const { choice } = await inquirer
     .prompt([
@@ -22,6 +24,7 @@ export async function utilUi() {
           CHOICE_ANALYZE_TRANSACTION,
           CHOICE_KEYPAIR_GENERATION,
           CHOICE_SIGHASH,
+          CHOICE_ACCOUNT_DECODER,
         ],
       },
     ]
@@ -41,6 +44,10 @@ export async function utilUi() {
 
   if (choice === CHOICE_SIGHASH) {
     return await generateSighash();
+  }
+
+  if (choice === CHOICE_ACCOUNT_DECODER) {
+    return await accountDecoderUi(schemaFile);
   }
 }
 

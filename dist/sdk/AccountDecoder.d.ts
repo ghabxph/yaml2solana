@@ -1,5 +1,5 @@
 /// <reference types="node" />
-export type AccountDataType = 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'i8' | 'i16' | 'i32' | 'i64' | 'i128' | 'PublicKey';
+export type AccountDataType = 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'i8' | 'i16' | 'i32' | 'i64' | 'i128' | 'pubkey';
 export type AccountDataOffset = {
     label: string;
     type: AccountDataType;
@@ -24,6 +24,10 @@ export declare class AccountDecoder {
      * Schema offsets
      */
     offsets: string[]);
+    /**
+     * Return decoded values
+     */
+    get values(): Record<string, any>;
     /**
      * Get data value
      *

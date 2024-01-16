@@ -1,2 +1,2 @@
-export declare function utilUi(): Promise<void>;
+export declare function utilUi(schemaFile: string): Promise<void>;
 //# sourceMappingURL=utilUi.d.ts.map
