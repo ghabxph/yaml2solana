@@ -229,7 +229,6 @@ function runBundledInstructions(schemaFile) {
         console.log();
         yield yaml2solana.executeTransactionsLocally({
             txns: [tx],
-            keepRunning: false,
             runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning()
         });
     });
