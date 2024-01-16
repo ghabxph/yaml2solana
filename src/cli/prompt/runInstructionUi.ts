@@ -29,7 +29,6 @@ export async function runInstructionUi(schemaFile: string) {
   }
 }
 
-
 async function runSingleInstruction(schemaFile: string) {
 
   // 1. Create yaml2solana v2 instance
@@ -49,7 +48,8 @@ async function runSingleInstruction(schemaFile: string) {
   );
 
   // 3. Resolve variables (from data)
-  for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].data) {
+  const ixDef = yaml2solana.getIxDefinition(instructionToExecute);
+  for (const param of ixDef.data) {
     try {
       yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
@@ -96,7 +96,7 @@ async function runSingleInstruction(schemaFile: string) {
   }
 
   // 4. Resolve params (from meta)
-  for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].accounts) {
+  for (const param of ixDef.accounts) {
     try {
       yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
@@ -126,7 +126,7 @@ async function runSingleInstruction(schemaFile: string) {
   try {
     yaml2solana.resolveInstruction(instructionToExecute);
   } catch {} finally {
-    const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
+    const account = ixDef.payer;
     const kp = yaml2solana.getParam<web3.Keypair>(account);
     let defaultValue: string | undefined;
     if (kp === undefined) {
@@ -164,7 +164,7 @@ async function runSingleInstruction(schemaFile: string) {
         instructionToExecute,
         [`$${instructionToExecute}`],
         [],
-        yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer,
+        ixDef.payer,
         yaml2solana.getSignersFromIx(instructionToExecute)
       )
     ],

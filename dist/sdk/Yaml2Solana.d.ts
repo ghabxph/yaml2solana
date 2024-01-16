@@ -150,7 +150,7 @@ export declare class Yaml2SolanaClass {
      *
      * @param pattern
      */
-    extractVarInfo(pattern: string): util.VariableInfo;
+    extractVarInfo(pattern: string): util.typeResolver.VariableInfo;
     /**
      * Set parameter value
      *
@@ -164,6 +164,20 @@ export declare class Yaml2SolanaClass {
      * @param name
      */
     getParam<T>(name: string): T;
+    /**
+     * Get ix definition
+     *
+     * @param ixLabel
+     * @returns
+     */
+    getIxDefinition(ixLabel: string): InstructionDefinition;
+    /**
+     * Get ix definition
+     *
+     * @param ixLabel
+     * @returns
+     */
+    getDynamicInstruction(ixLabel: string): DynamicInstruction;
     /**
      * Store value to global variable
      *
@@ -244,6 +258,10 @@ export declare class Yaml2SolanaClass {
      */
     private resolveInstructionBundles;
     private sanitizeDollar;
+    /**
+     * Generate dynamic accounts
+     */
+    private generateDynamicAccounts;
 }
 export declare class Transaction {
     readonly description: string;
@@ -307,13 +325,17 @@ export type InstructionBundle = {
     payer: string;
     instructions: InstructionBundleIxs[];
 };
+export type DynamicInstruction = {
+    dynamic: true;
+    params: string[];
+};
 export type ParsedYaml = {
     addressLookupTables?: string[];
     computeLimitSettings?: Record<string, ComputeLimitSettings>;
     accounts: Record<string, string>;
     accountsNoLabel: string[];
     pda: Record<string, Pda>;
-    instructionDefinition: Record<string, InstructionDefinition>;
+    instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>;
     accountDecoder?: Record<string, string[]>;
     instructionBundle?: Record<string, InstructionBundle>;
     localDevelopment: {

@@ -83,7 +83,8 @@ function runSingleInstruction(schemaFile) {
             },
         ]);
         // 3. Resolve variables (from data)
-        for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].data) {
+        const ixDef = yaml2solana.getIxDefinition(instructionToExecute);
+        for (const param of ixDef.data) {
             try {
                 yaml2solana.resolveInstruction(instructionToExecute);
             }
@@ -134,7 +135,7 @@ function runSingleInstruction(schemaFile) {
             }
         }
         // 4. Resolve params (from meta)
-        for (const param of yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].accounts) {
+        for (const param of ixDef.accounts) {
             try {
                 yaml2solana.resolveInstruction(instructionToExecute);
             }
@@ -168,7 +169,7 @@ function runSingleInstruction(schemaFile) {
         }
         catch (_c) { }
         finally {
-            const account = yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer;
+            const account = ixDef.payer;
             const kp = yaml2solana.getParam(account);
             let defaultValue;
             if (kp === undefined) {
@@ -194,7 +195,7 @@ function runSingleInstruction(schemaFile) {
         console.log();
         yield yaml2solana.executeTransactionsLocally({
             txns: [
-                yaml2solana.createLocalnetTransaction(instructionToExecute, [`$${instructionToExecute}`], [], yaml2solana.parsedYaml.instructionDefinition[instructionToExecute].payer, yaml2solana.getSignersFromIx(instructionToExecute))
+                yaml2solana.createLocalnetTransaction(instructionToExecute, [`$${instructionToExecute}`], [], ixDef.payer, yaml2solana.getSignersFromIx(instructionToExecute))
             ],
             runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning(),
         });
