@@ -1,5 +1,5 @@
 /// <reference types="node" />
-export type AccountDataType = 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'i32' | 'PublicKey';
+export type AccountDataType = 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'i8' | 'i16' | 'i32' | 'i64' | 'i128' | 'PublicKey';
 export type AccountDataOffset = {
     label: string;
     type: AccountDataType;
@@ -31,6 +31,7 @@ export declare class AccountDecoder {
      * @returns
      */
     getValue<T>(label: string): T | undefined;
+    setValue(label: string, value: any): void;
     /**
      * Get public key starting from given offset
      *
@@ -38,6 +39,13 @@ export declare class AccountDecoder {
      * @returns
      */
     private getPublicKey;
+    /**
+     * Set public key to given offset
+     *
+     * @param offset
+     * @param value
+     */
+    private setPublicKey;
     /**
      * Gets boolean value from given offset
      *
@@ -75,17 +83,65 @@ export declare class AccountDecoder {
      */
     private getU128;
     /**
+     * Get signed 8-bit integer starting from given offset
+     *
+     * @param offset
+     */
+    private getI8;
+    /**
+     * Get signed 16-bit integer starting from given offset
+     *
+     * @param offset
+     */
+    private getI16;
+    /**
      * Get signed integer (4-bytes) starting from given offset
      *
      * @param offset
      */
     private getI32;
     /**
+     * Get signed 64-bit integer starting from given offset
+     *
+     * @param offset
+     */
+    private getI64;
+    /**
+     * Get signed 128-bit integer starting from given offset
+     *
+     * @param offset
+     */
+    private getI128;
+    /**
+     * Get number from given offset
      *
      * @param offset
      * @param size
      * @returns
      */
     private number;
+    /**
+     * Set signed number to given offset
+     *
+     * @param offset
+     * @param size
+     * @param value
+     */
+    private setSignedNumber;
+    /**
+     * Set unsigned number to given offset
+     *
+     * @param offset
+     * @param size
+     * @param value
+     */
+    private setUnsignedNumber;
+    /**
+     * Set unsigned u128-bit number to given offset
+     *
+     * @param value
+     * @param offset
+     */
+    private writeBigUInt128LE;
 }
 //# sourceMappingURL=AccountDecoder.d.ts.map

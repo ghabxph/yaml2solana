@@ -48,6 +48,13 @@ export type Schema = {
  */
 export declare function writeAccountsToCacheFolder(cacheFolder: string, accountInfos: FullAccountInfo): void;
 /**
+ * Read account from cache
+ *
+ * @param cacheFolder
+ * @param address
+ */
+export declare function readAccount(cacheFolder: string, address: string): FullAccountInfo;
+/**
  * Skip accounts that are already downloaded
  *
  * @param schema

@@ -451,7 +451,36 @@ class Yaml2SolanaClass {
                 const walletPath = path.resolve(cacheFolder, `${pubkey}.json`);
                 mapping[`${pubkey}`] = walletPath;
             }
-            // Step 3: TODO: Override account data
+            // Step 3: Override account data
+            for (const testAccount of this._parsedYaml.localDevelopment.testAccounts) {
+                const decoder = this.getVar(`$${testAccount.schema}`);
+                let key;
+                if (testAccount.key.startsWith('$')) {
+                    const pubkeyOrKp = this.getVar(testAccount.key);
+                    if (typeof pubkeyOrKp.publicKey !== 'undefined') {
+                        key = pubkeyOrKp.publicKey.toBase58();
+                    }
+                    else if (typeof pubkeyOrKp.toBase58 === 'function') {
+                        key = pubkeyOrKp.toBase58();
+                    }
+                    else {
+                        throw `Cannot resolve ${testAccount.key}`;
+                    }
+                }
+                else {
+                    key = testAccount.key;
+                }
+                const account = util.fs.readAccount(cacheFolder, key);
+                decoder.data = account[key].data;
+                for (const id in testAccount.params) {
+                    const value = testAccount.params[id];
+                    decoder.setValue(`$${id}`, value);
+                }
+                account[key].data = decoder.data;
+                util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+                const accountPath = path.resolve(cacheFolder, `${key}.json`);
+                mapping[`${key}`] = accountPath;
+            }
             // Step 4: Run test validator
             return yield this.runTestValidator2(mapping);
         });

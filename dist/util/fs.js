@@ -23,9 +23,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mapAccountsFromCache = exports.readTestValidatorTemplate = exports.skipDownloadedAccounts = exports.writeAccountsToCacheFolder = exports.deleteFolderRecursive = exports.createScript = exports.createFile = exports.findFilesRecursively = exports.compileIgnoreFiles = void 0;
+exports.mapAccountsFromCache = exports.readTestValidatorTemplate = exports.skipDownloadedAccounts = exports.readAccount = exports.writeAccountsToCacheFolder = exports.deleteFolderRecursive = exports.createScript = exports.createFile = exports.findFilesRecursively = exports.compileIgnoreFiles = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const web3 = __importStar(require("@solana/web3.js"));
 /**
  * Find all .gitignore instances and compile files to ignore for scanning
  */
@@ -165,6 +166,22 @@ function writeAccountsToCacheFolder(cacheFolder, accountInfos) {
     }
 }
 exports.writeAccountsToCacheFolder = writeAccountsToCacheFolder;
+/**
+ * Read account from cache
+ *
+ * @param cacheFolder
+ * @param address
+ */
+function readAccount(cacheFolder, address) {
+    cacheFolderMustExist(cacheFolder);
+    const filePath = path.resolve(cacheFolder, `${address}.json`);
+    const file = fs.readFileSync(filePath).toString('utf-8');
+    const json = JSON.parse(file);
+    const result = {};
+    result[json.pubkey] = Object.assign(Object.assign({}, json.account), { data: Buffer.from(json.account.data[0], 'base64'), owner: new web3.PublicKey(json.account.owner) });
+    return result;
+}
+exports.readAccount = readAccount;
 /**
  * Skip accounts that are already downloaded
  *

@@ -288,6 +288,7 @@ export type InstructionDefinition = {
     payer: string;
 };
 export type TestAccount = {
+    key: string;
     schema: string;
     params: Record<string, string>;
 };
@@ -322,7 +323,7 @@ export type ParsedYaml = {
     localDevelopment: {
         accountsFolder: string;
         skipCache: string[];
-        testAccounts: TestWallet[];
+        testAccounts: TestAccount[];
         testWallets: Record<string, TestWallet>;
         tests: Test[];
     };
