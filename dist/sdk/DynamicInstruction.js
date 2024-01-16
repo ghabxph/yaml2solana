@@ -33,7 +33,7 @@ class DynamicInstruction {
             if (!param.startsWith('$')) {
                 throw `${param} must start with '$' dollar symbol.`;
             }
-            const [id, type] = param.split(',');
+            const [id, type] = param.split(':');
             if (util.typeResolver.variableTypes.includes(type)) {
                 this.varType[id] = { id, type: type };
             }

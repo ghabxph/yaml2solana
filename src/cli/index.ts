@@ -9,7 +9,7 @@ const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
 
-async function main() {
+export async function cliEntrypoint() {
   clear();
   let schemaFile = '';
   let schemaFiles = find();
@@ -30,7 +30,7 @@ async function main() {
 }
 
 if (require.main === module) {
-  main();
+  cliEntrypoint();
 }
 
 process.on('unhandledRejection', (e) => {

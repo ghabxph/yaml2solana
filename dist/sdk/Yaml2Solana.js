@@ -46,12 +46,13 @@ const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
 const AccountDecoder_1 = require("./AccountDecoder");
 const DynamicInstruction_1 = require("./DynamicInstruction");
+const cli_1 = require("../cli");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
          * Global variable
          */
-        this.global = {};
+        this._global = {};
         this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
         // Read the YAML file.
         const yamlFile = fs.readFileSync(config, 'utf8');
@@ -65,6 +66,20 @@ class Yaml2SolanaClass {
         this.generateAccountDecoders();
         // Generate dynamic accoutns
         this.generateDynamicAccounts();
+    }
+    /**
+     * Get all global variables
+     */
+    get global() {
+        return this._global;
+    }
+    /**
+     * Start CLI
+     */
+    cli() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield (0, cli_1.cliEntrypoint)();
+        });
     }
     /**
      * Parsed yaml file
@@ -546,7 +561,7 @@ class Yaml2SolanaClass {
      * @param pattern
      */
     extractVarInfo(pattern) {
-        return util.typeResolver.extractVariableInfo(pattern, this.global);
+        return util.typeResolver.extractVariableInfo(pattern, this._global);
     }
     /**
      * Set parameter value
@@ -603,7 +618,7 @@ class Yaml2SolanaClass {
      * @param value
      */
     setVar(name, value) {
-        this.global[name] = value;
+        this._global[name] = value;
     }
     /**
      * Retrieve value from global variable
@@ -613,7 +628,7 @@ class Yaml2SolanaClass {
      */
     getVar(name) {
         if (name.startsWith('$')) {
-            const result = this.global[name.substring(1)];
+            const result = this._global[name.substring(1)];
             return result;
         }
         else {
@@ -814,7 +829,7 @@ class Yaml2SolanaClass {
     resolveInstructionData(data) {
         const dataArray = [];
         for (const dataStr of data) {
-            dataArray.push(util.typeResolver.resolveType2(dataStr, this.global));
+            dataArray.push(util.typeResolver.resolveType2(dataStr, this._global));
         }
         return Buffer.concat(dataArray);
     }
@@ -1025,14 +1040,15 @@ class Yaml2SolanaClass {
      */
     generateDynamicAccounts() {
         for (const ixLabel in this._parsedYaml.instructionDefinition) {
+            let dynamicIx = { dynamic: true, params: [] };
             try {
-                const dynamicIx = this.getDynamicInstruction(ixLabel);
-                if (dynamicIx.dynamic) {
-                    this.setVar(ixLabel, new DynamicInstruction_1.DynamicInstruction(this, dynamicIx.params));
-                }
+                dynamicIx = this.getDynamicInstruction(ixLabel);
             }
             catch (_a) {
                 continue;
+            }
+            if (dynamicIx.dynamic) {
+                this.setVar(ixLabel, new DynamicInstruction_1.DynamicInstruction(this, dynamicIx.params));
             }
         }
     }
