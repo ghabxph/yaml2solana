@@ -42,6 +42,33 @@ class DynamicInstruction {
             }
         }
     }
+    get generateIxs() {
+        return this._generateIxs;
+    }
+    get generateIx() {
+        return this._generateIx;
+    }
+    /**
+     * Set dynamic instruction function
+     *
+     * @param ixFn
+     */
+    extend(ixFn) {
+        if (this.isGenerateIxsFn(ixFn)) {
+            this._generateIxs = ixFn;
+        }
+        else if (this.isGenerateIxFn(ixFn)) {
+            this._generateIx = ixFn;
+        }
+    }
+    // User-defined type guard for GenerateIxsFn
+    isGenerateIxsFn(fn) {
+        return 'length' in fn;
+    }
+    // User-defined type guard for GenerateIxFn
+    isGenerateIxFn(fn) {
+        return 'call' in fn;
+    }
     getValue(id, type) {
         if (["u8", "u16", "u32", "usize", "i8", "i16", "i32"].includes(type)) {
             return this.y2s.getParam(id);
