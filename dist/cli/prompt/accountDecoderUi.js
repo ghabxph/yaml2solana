@@ -44,7 +44,7 @@ const __1 = require("../..");
 const path_1 = __importDefault(require("path"));
 const CHOICE_MAINNET = 'Decode account from mainnet';
 const CHOICE_LOCAL = 'Decode account from local machine';
-function accountDecoderUi(schemaFile) {
+function accountDecoderUi(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
         // 1. Enter address to decode
@@ -58,7 +58,7 @@ function accountDecoderUi(schemaFile) {
             }
         });
         // 2. Choose decoder:
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
+        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
         const { _decoder } = yield inquirer_1.default.prompt({
             type: 'list',
             name: '_decoder',

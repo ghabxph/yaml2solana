@@ -6,11 +6,12 @@ import * as util from "../../util";
 import { Yaml2Solana } from "../..";
 import { AccountDecoder } from "../../sdk/AccountDecoder";
 import path from "path";
+import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 
 const CHOICE_MAINNET = 'Decode account from mainnet';
 const CHOICE_LOCAL = 'Decode account from local machine';
 
-export async function accountDecoderUi(schemaFile: string) {
+export async function accountDecoderUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
   clear();
   // 1. Enter address to decode
   const { address } = await inquirer.prompt({
@@ -24,7 +25,7 @@ export async function accountDecoderUi(schemaFile: string) {
   });
 
   // 2. Choose decoder:
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
   const { _decoder } = await inquirer.prompt({
     type: 'list',
     name: '_decoder',

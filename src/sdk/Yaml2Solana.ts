@@ -70,7 +70,7 @@ export class Yaml2SolanaClass {
    * Start CLI
    */
   async cli() {
-    await cliEntrypoint();
+    await cliEntrypoint(this);
   }
 
   /**
@@ -95,7 +95,7 @@ export class Yaml2SolanaClass {
    * Resolve variables
    * @param params
    */
-  resolve(params: ResolveParams) {
+  async resolve(params: ResolveParams) {
     let onlyResolve: string[] | undefined;
 
     // Resolve test wallets
@@ -111,7 +111,7 @@ export class Yaml2SolanaClass {
 
     // Resolve instruction bundles
     onlyResolve = params.onlyResolve.theseInstructionBundles?.map(v => this.sanitizeDollar(v));
-    this.resolveInstructionBundles(onlyResolve);
+    await this.resolveInstructionBundles(onlyResolve);
   }
 
   /**
@@ -160,41 +160,38 @@ export class Yaml2SolanaClass {
    * @param signers
    * @returns
    */
-  createLocalnetTransaction(
+  async createTransaction(
     description: string,
     ixns: (string | web3.TransactionInstruction)[],
     alts: string[],
     payer: string | web3.PublicKey,
     signers: (string | web3.Signer)[]
-  ): Transaction {
+  ): Promise<Transaction> {
     const _ixns: web3.TransactionInstruction[] = [];
-    ixns.map(ix => {
+    for (const ix of ixns) {
       if (this.isObjectInstruction(ix)) {
         _ixns.push(ix as web3.TransactionInstruction);
-        return;
       } else if (typeof ix === 'string') {
         const _ix = this.getVar<web3.TransactionInstruction | DynamicInstructionClass>(ix);
         if (this.isObjectInstruction(ix)) {
           _ixns.push(_ix as web3.TransactionInstruction);
-          return;
         } else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
           const singleIx = (_ix as DynamicInstructionClass).ix;
           const multipleIx = (_ix as DynamicInstructionClass).ixs;
           if (singleIx !== undefined) {
-            _ixns.push(singleIx);
+            _ixns.push(await singleIx);
           } else if (multipleIx !== undefined) {
-            _ixns.push(...multipleIx);
+            _ixns.push(...await multipleIx);
           } else {
             throw `Dynamic instruction ${ix} is not yet defined`;
           }
-          return;
         } else {
           throw `Variable ${ix} is not a valid transaction instruction`;
         }
       } else {
         throw 'Invalid solana transaction instruction'
       }
-    });
+    }
     let _payer: web3.PublicKey;
     if (typeof payer === 'string') {
       const __payer = this.getVar<web3.PublicKey | web3.Keypair>(payer);
@@ -311,29 +308,56 @@ export class Yaml2SolanaClass {
    * @param label Instruction bundle label
    * @returns 
    */
-  resolveInstructionBundleSigners(label: string): web3.Signer[] {
+  async resolveInstructionBundleSigners(label: string): Promise<web3.Signer[]> {
     const result: web3.Signer[] = [];
     const signers: string[] = [];
+    const dynIxSigners: web3.PublicKey[] = [];
     label = label.startsWith('$') ? label.substring(1) : label;
     const ixLabels = this._parsedYaml.instructionBundle![label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
-    ixLabels.map(ixLabel => {
-      const ixDef = this.getIxDefinition(ixLabel);
+    for (const ixLabel of ixLabels) {
+      let ixDef: InstructionDefinition;
+      try {
+        ixDef = this.getIxDefinition(ixLabel);
+      } catch {
+        this.getDynamicInstruction(ixLabel);
+        const dynIx = this.getVar<DynamicInstructionClass>(`$${ixLabel}`);
+        const singleIx = await dynIx.ix;
+        const multipleIx = await dynIx.ixs;
+        if (singleIx !== undefined) {
+          dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+        } else if (multipleIx !== undefined) {
+          multipleIx.map(ix => {
+            dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+          });
+        } else {
+          throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+        }
+        continue;
+      }
       ixDef.accounts.map(meta => {
         const _meta = meta.split(',');
         if (_meta.includes('signer')) {
           const [signer] = _meta;
           signers.push(signer);
         }
-      })
-    });
+      });
+    }
     signers.filter((v,i,s) => s.indexOf(v) === i).map(signer => {
       if (signer.startsWith('$')) {
         result.push(this.getVar<web3.Signer>(signer));
       } else {
         throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
       }
-    })
-    return result;
+    });
+    for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
+      const kp = this.getVar<web3.Signer>(`$${testWallet}`);
+      for (const dynIxSigner of dynIxSigners) {
+        if (kp.publicKey.equals(dynIxSigner)) {
+          result.push(kp);
+        }
+      }
+    }
+    return result.filter((v,i,s) => s.indexOf(v) === i);
   }
 
   /**
@@ -625,12 +649,12 @@ export class Yaml2SolanaClass {
    * @param ixLabel Instruction to execute
    * @returns available parameters that can be overriden for target instruction
    */
-  resolveInstruction(ixLabel: string) {
+  async resolveInstruction(ixLabel: string) {
     // Find PDAs involved from given instruction
     const pdas = this.findPdasInvolvedInInstruction(ixLabel);
 
     // Then run resolve function
-    this.resolve(
+    await this.resolve(
       {
         onlyResolve: {
           thesePdas: pdas,
@@ -1074,7 +1098,7 @@ export class Yaml2SolanaClass {
    *
    * @param onlyResolve
    */
-  private resolveInstructionBundles(onlyResolve?: string[]) {
+  private async resolveInstructionBundles(onlyResolve?: string[]) {
     for (const _ixBundle in this._parsedYaml.instructionBundle) {
 
       // Skip if not included in onlyResolve
@@ -1083,9 +1107,6 @@ export class Yaml2SolanaClass {
       const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
 
       for (const ix of ixBundle.instructions) {
-        const isDynamic = ix.dynamic;
-        if (isDynamic) continue; // TODO: Implement dynamic instruction
-
         // Set global variables
         for (const key in ix.params) {
           let value;
@@ -1104,6 +1125,11 @@ export class Yaml2SolanaClass {
                 value = valueOrVar === 'true';
               } else if (type === 'pubkey') {
                 value = new web3.PublicKey(valueOrVar);
+              } else if (ix.dynamic) {
+                const dynamicIx = this.getVar<DynamicInstructionClass>(ix.label);
+                if (dynamicIx.varType[`$${key}`].type === 'string') {
+                  value = valueOrVar as string;
+                }
               } else {
                 throw `Type of ${key} is not defined.`
               }
@@ -1113,16 +1139,32 @@ export class Yaml2SolanaClass {
           this.setVar(key, value);
         }
 
-        // Then resolve instruction
-        // Assuming here that parameters required by instruction is already set.
-        this.resolveInstruction(ix.label);
+        const isDynamic = ix.dynamic;
+        if (!isDynamic) {
+          // Assuming here that parameters required by instruction is already set.
+          this.resolveInstruction(ix.label);
+        }
       }
 
       // Lastly, store ix bundle in global
       const ixs: web3.TransactionInstruction[] = [];
       for (const ix of ixBundle.instructions) {
-        const _ix = this.getVar<web3.TransactionInstruction>(ix.label);
-        ixs.push(_ix);
+        const _ix = this.getVar<web3.TransactionInstruction | DynamicInstructionClass>(ix.label);
+        if (_ix instanceof web3.TransactionInstruction) {
+          ixs.push(_ix);
+        } else if (_ix instanceof DynamicInstructionClass) {
+          const singleIx = await _ix.ix;
+          const multipleIx = await _ix.ixs;
+          if (singleIx !== undefined) {
+            ixs.push(singleIx);
+          } else if (multipleIx !== undefined) {
+            ixs.push(...multipleIx);
+          } else {
+            throw `Dynamic instruction ${ix.label} is not yet defined.`;
+          }
+        } else {
+          throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
+        }
       }
       this.setVar<web3.TransactionInstruction[]>(_ixBundle, ixs);
     }

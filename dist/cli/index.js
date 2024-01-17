@@ -44,7 +44,7 @@ const BASE_DIR = __dirname;
 const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
-function cliEntrypoint() {
+function cliEntrypoint(y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
         let schemaFile = '';
@@ -64,7 +64,7 @@ function cliEntrypoint() {
         else {
             schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
         }
-        yield prompt.mainUi(schemaFile);
+        yield prompt.mainUi(schemaFile, y2s);
     });
 }
 exports.cliEntrypoint = cliEntrypoint;

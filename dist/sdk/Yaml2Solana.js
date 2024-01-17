@@ -78,7 +78,7 @@ class Yaml2SolanaClass {
      */
     cli() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield (0, cli_1.cliEntrypoint)();
+            yield (0, cli_1.cliEntrypoint)(this);
         });
     }
     /**
@@ -103,18 +103,20 @@ class Yaml2SolanaClass {
      */
     resolve(params) {
         var _a, _b, _c;
-        let onlyResolve;
-        // Resolve test wallets
-        this.resolveTestWallets(this._parsedYaml);
-        // Resolve PDAs
-        onlyResolve = (_a = params.onlyResolve.thesePdas) === null || _a === void 0 ? void 0 : _a.map(v => this.sanitizeDollar(v));
-        this.resolvePda(onlyResolve);
-        // Resolve instructions
-        onlyResolve = (_b = params.onlyResolve.theseInstructions) === null || _b === void 0 ? void 0 : _b.map(v => this.sanitizeDollar(v));
-        this.resolveInstructions(onlyResolve);
-        // Resolve instruction bundles
-        onlyResolve = (_c = params.onlyResolve.theseInstructionBundles) === null || _c === void 0 ? void 0 : _c.map(v => this.sanitizeDollar(v));
-        this.resolveInstructionBundles(onlyResolve);
+        return __awaiter(this, void 0, void 0, function* () {
+            let onlyResolve;
+            // Resolve test wallets
+            this.resolveTestWallets(this._parsedYaml);
+            // Resolve PDAs
+            onlyResolve = (_a = params.onlyResolve.thesePdas) === null || _a === void 0 ? void 0 : _a.map(v => this.sanitizeDollar(v));
+            this.resolvePda(onlyResolve);
+            // Resolve instructions
+            onlyResolve = (_b = params.onlyResolve.theseInstructions) === null || _b === void 0 ? void 0 : _b.map(v => this.sanitizeDollar(v));
+            this.resolveInstructions(onlyResolve);
+            // Resolve instruction bundles
+            onlyResolve = (_c = params.onlyResolve.theseInstructionBundles) === null || _c === void 0 ? void 0 : _c.map(v => this.sanitizeDollar(v));
+            yield this.resolveInstructionBundles(onlyResolve);
+        });
     }
     /**
      * Get accounts from solana instructions
@@ -159,77 +161,76 @@ class Yaml2SolanaClass {
      * @param signers
      * @returns
      */
-    createLocalnetTransaction(description, ixns, alts, payer, signers) {
-        const _ixns = [];
-        ixns.map(ix => {
-            if (this.isObjectInstruction(ix)) {
-                _ixns.push(ix);
-                return;
-            }
-            else if (typeof ix === 'string') {
-                const _ix = this.getVar(ix);
+    createTransaction(description, ixns, alts, payer, signers) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const _ixns = [];
+            for (const ix of ixns) {
                 if (this.isObjectInstruction(ix)) {
-                    _ixns.push(_ix);
-                    return;
+                    _ixns.push(ix);
                 }
-                else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
-                    const singleIx = _ix.ix;
-                    const multipleIx = _ix.ixs;
-                    if (singleIx !== undefined) {
-                        _ixns.push(singleIx);
+                else if (typeof ix === 'string') {
+                    const _ix = this.getVar(ix);
+                    if (this.isObjectInstruction(ix)) {
+                        _ixns.push(_ix);
                     }
-                    else if (multipleIx !== undefined) {
-                        _ixns.push(...multipleIx);
+                    else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
+                        const singleIx = _ix.ix;
+                        const multipleIx = _ix.ixs;
+                        if (singleIx !== undefined) {
+                            _ixns.push(yield singleIx);
+                        }
+                        else if (multipleIx !== undefined) {
+                            _ixns.push(...yield multipleIx);
+                        }
+                        else {
+                            throw `Dynamic instruction ${ix} is not yet defined`;
+                        }
                     }
                     else {
-                        throw `Dynamic instruction ${ix} is not yet defined`;
+                        throw `Variable ${ix} is not a valid transaction instruction`;
                     }
-                    return;
                 }
                 else {
-                    throw `Variable ${ix} is not a valid transaction instruction`;
+                    throw 'Invalid solana transaction instruction';
                 }
             }
-            else {
-                throw 'Invalid solana transaction instruction';
-            }
-        });
-        let _payer;
-        if (typeof payer === 'string') {
-            const __payer = this.getVar(payer);
-            const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
-            const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
-            if (isPublicKey || isKeypair) {
-                if (isPublicKey) {
-                    _payer = __payer;
+            let _payer;
+            if (typeof payer === 'string') {
+                const __payer = this.getVar(payer);
+                const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
+                const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
+                if (isPublicKey || isKeypair) {
+                    if (isPublicKey) {
+                        _payer = __payer;
+                    }
+                    else {
+                        _payer = __payer.publicKey;
+                    }
                 }
                 else {
-                    _payer = __payer.publicKey;
+                    throw `Variable ${payer} is not a valid public key`;
                 }
             }
             else {
-                throw `Variable ${payer} is not a valid public key`;
+                _payer = payer;
             }
-        }
-        else {
-            _payer = payer;
-        }
-        const _signers = signers.map(signer => {
-            if (typeof signer === 'string') {
-                const _signer = this.getVar(signer);
-                if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
-                    throw `Variable ${signer} is not a valid Signer instance`;
+            const _signers = signers.map(signer => {
+                if (typeof signer === 'string') {
+                    const _signer = this.getVar(signer);
+                    if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
+                        throw `Variable ${signer} is not a valid Signer instance`;
+                    }
+                    return _signer;
                 }
-                return _signer;
-            }
-            else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
-                return signer;
-            }
-            else {
-                throw `Invalid solana signer instance`;
-            }
+                else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
+                    return signer;
+                }
+                else {
+                    throw `Invalid solana signer instance`;
+                }
+            });
+            return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
         });
-        return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
     }
     /**
      * Get signers from given instruction
@@ -302,29 +303,61 @@ class Yaml2SolanaClass {
      * @returns
      */
     resolveInstructionBundleSigners(label) {
-        const result = [];
-        const signers = [];
-        label = label.startsWith('$') ? label.substring(1) : label;
-        const ixLabels = this._parsedYaml.instructionBundle[label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
-        ixLabels.map(ixLabel => {
-            const ixDef = this.getIxDefinition(ixLabel);
-            ixDef.accounts.map(meta => {
-                const _meta = meta.split(',');
-                if (_meta.includes('signer')) {
-                    const [signer] = _meta;
-                    signers.push(signer);
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = [];
+            const signers = [];
+            const dynIxSigners = [];
+            label = label.startsWith('$') ? label.substring(1) : label;
+            const ixLabels = this._parsedYaml.instructionBundle[label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
+            for (const ixLabel of ixLabels) {
+                let ixDef;
+                try {
+                    ixDef = this.getIxDefinition(ixLabel);
+                }
+                catch (_a) {
+                    this.getDynamicInstruction(ixLabel);
+                    const dynIx = this.getVar(`$${ixLabel}`);
+                    const singleIx = yield dynIx.ix;
+                    const multipleIx = yield dynIx.ixs;
+                    if (singleIx !== undefined) {
+                        dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                    }
+                    else if (multipleIx !== undefined) {
+                        multipleIx.map(ix => {
+                            dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                        });
+                    }
+                    else {
+                        throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+                    }
+                    continue;
+                }
+                ixDef.accounts.map(meta => {
+                    const _meta = meta.split(',');
+                    if (_meta.includes('signer')) {
+                        const [signer] = _meta;
+                        signers.push(signer);
+                    }
+                });
+            }
+            signers.filter((v, i, s) => s.indexOf(v) === i).map(signer => {
+                if (signer.startsWith('$')) {
+                    result.push(this.getVar(signer));
+                }
+                else {
+                    throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
                 }
             });
-        });
-        signers.filter((v, i, s) => s.indexOf(v) === i).map(signer => {
-            if (signer.startsWith('$')) {
-                result.push(this.getVar(signer));
+            for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
+                const kp = this.getVar(`$${testWallet}`);
+                for (const dynIxSigner of dynIxSigners) {
+                    if (kp.publicKey.equals(dynIxSigner)) {
+                        result.push(kp);
+                    }
+                }
             }
-            else {
-                throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
-            }
+            return result.filter((v, i, s) => s.indexOf(v) === i);
         });
-        return result;
     }
     /**
      * @returns accounts from schema
@@ -577,15 +610,17 @@ class Yaml2SolanaClass {
      * @returns available parameters that can be overriden for target instruction
      */
     resolveInstruction(ixLabel) {
-        // Find PDAs involved from given instruction
-        const pdas = this.findPdasInvolvedInInstruction(ixLabel);
-        // Then run resolve function
-        this.resolve({
-            onlyResolve: {
-                thesePdas: pdas,
-                theseInstructions: [ixLabel],
-                theseInstructionBundles: [],
-            }
+        return __awaiter(this, void 0, void 0, function* () {
+            // Find PDAs involved from given instruction
+            const pdas = this.findPdasInvolvedInInstruction(ixLabel);
+            // Then run resolve function
+            yield this.resolve({
+                onlyResolve: {
+                    thesePdas: pdas,
+                    theseInstructions: [ixLabel],
+                    theseInstructionBundles: [],
+                }
+            });
         });
     }
     /**
@@ -997,59 +1032,84 @@ class Yaml2SolanaClass {
      * @param onlyResolve
      */
     resolveInstructionBundles(onlyResolve) {
-        for (const _ixBundle in this._parsedYaml.instructionBundle) {
-            // Skip if not included in onlyResolve
-            if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
-                continue;
-            const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
-            for (const ix of ixBundle.instructions) {
-                const isDynamic = ix.dynamic;
-                if (isDynamic)
-                    continue; // TODO: Implement dynamic instruction
-                // Set global variables
-                for (const key in ix.params) {
-                    let value;
-                    if (typeof ix.params[key] !== 'string') {
-                        value = ix.params[key];
-                    }
-                    else {
-                        const [valueOrVar, type] = ix.params[key].split(':');
-                        if (valueOrVar.startsWith('$')) {
-                            value = this.getVar(valueOrVar);
+        return __awaiter(this, void 0, void 0, function* () {
+            for (const _ixBundle in this._parsedYaml.instructionBundle) {
+                // Skip if not included in onlyResolve
+                if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
+                    continue;
+                const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
+                for (const ix of ixBundle.instructions) {
+                    // Set global variables
+                    for (const key in ix.params) {
+                        let value;
+                        if (typeof ix.params[key] !== 'string') {
+                            value = ix.params[key];
                         }
                         else {
-                            if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
-                                value = parseInt(valueOrVar);
-                            }
-                            else if (['u64', 'usize', 'i64'].includes(type)) {
-                                value = BigInt(valueOrVar);
-                            }
-                            else if (type === 'bool') {
-                                value = valueOrVar === 'true';
-                            }
-                            else if (type === 'pubkey') {
-                                value = new web3.PublicKey(valueOrVar);
+                            const [valueOrVar, type] = ix.params[key].split(':');
+                            if (valueOrVar.startsWith('$')) {
+                                value = this.getVar(valueOrVar);
                             }
                             else {
-                                throw `Type of ${key} is not defined.`;
+                                if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
+                                    value = parseInt(valueOrVar);
+                                }
+                                else if (['u64', 'usize', 'i64'].includes(type)) {
+                                    value = BigInt(valueOrVar);
+                                }
+                                else if (type === 'bool') {
+                                    value = valueOrVar === 'true';
+                                }
+                                else if (type === 'pubkey') {
+                                    value = new web3.PublicKey(valueOrVar);
+                                }
+                                else if (ix.dynamic) {
+                                    const dynamicIx = this.getVar(ix.label);
+                                    if (dynamicIx.varType[`$${key}`].type === 'string') {
+                                        value = valueOrVar;
+                                    }
+                                }
+                                else {
+                                    throw `Type of ${key} is not defined.`;
+                                }
+                                value = valueOrVar;
                             }
-                            value = valueOrVar;
+                        }
+                        this.setVar(key, value);
+                    }
+                    const isDynamic = ix.dynamic;
+                    if (!isDynamic) {
+                        // Assuming here that parameters required by instruction is already set.
+                        this.resolveInstruction(ix.label);
+                    }
+                }
+                // Lastly, store ix bundle in global
+                const ixs = [];
+                for (const ix of ixBundle.instructions) {
+                    const _ix = this.getVar(ix.label);
+                    if (_ix instanceof web3.TransactionInstruction) {
+                        ixs.push(_ix);
+                    }
+                    else if (_ix instanceof DynamicInstruction_1.DynamicInstruction) {
+                        const singleIx = yield _ix.ix;
+                        const multipleIx = yield _ix.ixs;
+                        if (singleIx !== undefined) {
+                            ixs.push(singleIx);
+                        }
+                        else if (multipleIx !== undefined) {
+                            ixs.push(...multipleIx);
+                        }
+                        else {
+                            throw `Dynamic instruction ${ix.label} is not yet defined.`;
                         }
                     }
-                    this.setVar(key, value);
+                    else {
+                        throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
+                    }
                 }
-                // Then resolve instruction
-                // Assuming here that parameters required by instruction is already set.
-                this.resolveInstruction(ix.label);
+                this.setVar(_ixBundle, ixs);
             }
-            // Lastly, store ix bundle in global
-            const ixs = [];
-            for (const ix of ixBundle.instructions) {
-                const _ix = this.getVar(ix.label);
-                ixs.push(_ix);
-            }
-            this.setVar(_ixBundle, ixs);
-        }
+        });
     }
     sanitizeDollar(pattern) {
         return pattern.startsWith('$') ? pattern.substring(1) : pattern;
