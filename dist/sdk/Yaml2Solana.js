@@ -452,7 +452,7 @@ class Yaml2SolanaClass {
             keepRunning = keepRunning === undefined ? true : keepRunning;
             cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
             runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
-            if (!runFromExistingLocalnet) {
+            if (!runFromExistingLocalnet && cluster === 'http://127.0.0.1:8899') {
                 // Step 1: Run test validator
                 yield this.runTestValidator(txns, skipRedownload);
                 yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
@@ -461,32 +461,54 @@ class Yaml2SolanaClass {
             const response = [];
             for (const key in txns) {
                 // Compile tx to versioned transaction
-                const tx = yield txns[key].compileToVersionedTransaction();
                 const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
+                txns[key].connection = connection;
+                const tx = yield txns[key].compileToVersionedTransaction();
                 // If we like to have test validator running, then we want to have skipPreflight enabled
                 if (keepRunning) {
-                    const sig = yield connection.sendTransaction(tx, { skipPreflight: true });
-                    console.log(`TX: ${txns[key].description}`);
-                    console.log(`-------------------------------------------------------------------`);
-                    console.log(`tx sig ${sig}`);
-                    console.log(`localnet explorer: https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`);
-                    console.log(``);
-                    const transactionResponse = (yield connection.getTransaction(sig, {
-                        commitment: "confirmed",
-                        maxSupportedTransactionVersion: 0,
-                    }));
-                    response.push({ txid: sig, transactionResponse });
+                    try {
+                        const sig = yield connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+                        const url = cluster === 'http://127.0.0.1:8899' ?
+                            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
+                            'https://explorer.solana.com/tx/${sig}';
+                        console.log(`TX: ${txns[key].description}`);
+                        console.log(`-------------------------------------------------------------------`);
+                        console.log(`tx sig ${sig}`);
+                        console.log(`Solana Explorer: ${url}`);
+                        console.log(``);
+                        const transactionResponse = (yield connection.getTransaction(sig, {
+                            commitment: "confirmed",
+                            maxSupportedTransactionVersion: 0,
+                        }));
+                        response.push({ txid: sig, transactionResponse });
+                    }
+                    catch (e) {
+                        console.log(e);
+                        console.trace();
+                        process.exit(-1);
+                    }
                 }
                 else {
-                    const sig = yield connection.sendTransaction(tx);
-                    console.log(`TX: ${txns[key].description}`);
-                    console.log(`-------------------------------------------------------------------`);
-                    console.log(`tx sig ${sig}`);
-                    const transactionResponse = (yield connection.getTransaction(sig, {
-                        commitment: "confirmed",
-                        maxSupportedTransactionVersion: 0,
-                    }));
-                    response.push({ txid: sig, transactionResponse });
+                    try {
+                        const sig = yield connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+                        const url = cluster === 'http://127.0.0.1:8899' ?
+                            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
+                            'https://explorer.solana.com/tx/${sig}';
+                        console.log(`TX: ${txns[key].description}`);
+                        console.log(`-------------------------------------------------------------------`);
+                        console.log(`tx sig ${sig}`);
+                        console.log(`Solana Explorer: ${url}`);
+                        const transactionResponse = (yield connection.getTransaction(sig, {
+                            commitment: "confirmed",
+                            maxSupportedTransactionVersion: 0,
+                        }));
+                        response.push({ txid: sig, transactionResponse });
+                    }
+                    catch (e) {
+                        console.log(e);
+                        console.trace();
+                        process.exit(-1);
+                    }
                 }
             }
             // Terminate test validator if specified to die after running transactions

@@ -487,7 +487,7 @@ export class Yaml2SolanaClass {
     cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
     runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
 
-    if (!runFromExistingLocalnet) {
+    if (!runFromExistingLocalnet && cluster === 'http://127.0.0.1:8899') {
       // Step 1: Run test validator
       await this.runTestValidator(txns, skipRedownload);
       await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
@@ -497,32 +497,52 @@ export class Yaml2SolanaClass {
     const response: { txid: string, transactionResponse: web3.VersionedTransactionResponse | null }[] = [];
     for (const key in txns) {
       // Compile tx to versioned transaction
-      const tx = await txns[key].compileToVersionedTransaction();
       const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
+      txns[key].connection = connection;
+      const tx = await txns[key].compileToVersionedTransaction();
 
       // If we like to have test validator running, then we want to have skipPreflight enabled
       if (keepRunning) {
-        const sig = await connection.sendTransaction(tx, { skipPreflight: true });
-        console.log(`TX: ${txns[key].description}`);
-        console.log(`-------------------------------------------------------------------`)
-        console.log(`tx sig ${sig}`);
-        console.log(`localnet explorer: https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`);
-        console.log(``);
-        const transactionResponse = (await connection.getTransaction(sig, {
-          commitment: "confirmed",
-          maxSupportedTransactionVersion: 0,
-        }));
-        response.push({ txid: sig, transactionResponse });
+        try {
+          const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+          const url = cluster === 'http://127.0.0.1:8899' ? 
+            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
+            'https://explorer.solana.com/tx/${sig}';
+          console.log(`TX: ${txns[key].description}`);
+          console.log(`-------------------------------------------------------------------`)
+          console.log(`tx sig ${sig}`);
+          console.log(`Solana Explorer: ${url}`);
+          console.log(``);
+          const transactionResponse = (await connection.getTransaction(sig, {
+            commitment: "confirmed",
+            maxSupportedTransactionVersion: 0,
+          }));
+          response.push({ txid: sig, transactionResponse });
+        } catch (e) {
+          console.log(e);
+          console.trace();
+          process.exit(-1);
+        }
       } else {
-        const sig = await connection.sendTransaction(tx);
-        console.log(`TX: ${txns[key].description}`);
-        console.log(`-------------------------------------------------------------------`)
-        console.log(`tx sig ${sig}`);
-        const transactionResponse = (await connection.getTransaction(sig, {
-          commitment: "confirmed",
-          maxSupportedTransactionVersion: 0,
-        }));
-        response.push({ txid: sig, transactionResponse });
+        try {
+          const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+          const url = cluster === 'http://127.0.0.1:8899' ? 
+            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
+            'https://explorer.solana.com/tx/${sig}';
+          console.log(`TX: ${txns[key].description}`);
+          console.log(`-------------------------------------------------------------------`)
+          console.log(`tx sig ${sig}`);
+          console.log(`Solana Explorer: ${url}`);
+          const transactionResponse = (await connection.getTransaction(sig, {
+            commitment: "confirmed",
+            maxSupportedTransactionVersion: 0,
+          }));
+          response.push({ txid: sig, transactionResponse });
+        } catch (e) {
+          console.log(e);
+          console.trace();
+          process.exit(-1);
+        }
       }
     }
 
@@ -1025,19 +1045,19 @@ export class Yaml2SolanaClass {
    * @param parsedYaml
    */
   private setKnownAccounts() {
-      this.setVar<web3.PublicKey>('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
-      this.setVar<web3.PublicKey>('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
-      this.setVar<web3.PublicKey>('SYSTEM_PROGRAM', web3.SystemProgram.programId);
-      this.setVar<web3.PublicKey>('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
-      this.setVar<web3.PublicKey>('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
-    }
+    this.setVar<web3.PublicKey>('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
+    this.setVar<web3.PublicKey>('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
+    this.setVar<web3.PublicKey>('SYSTEM_PROGRAM', web3.SystemProgram.programId);
+    this.setVar<web3.PublicKey>('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
+    this.setVar<web3.PublicKey>('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
+  }
 
   /**
    * Resolve PDAs
@@ -1246,12 +1266,13 @@ export class Yaml2SolanaClass {
 export class Transaction {
   constructor(
     public readonly description: string,
-    public readonly connection: web3.Connection,
+    public connection: web3.Connection,
     public readonly ixns: web3.TransactionInstruction[],
     public readonly alts: string[],
     public readonly payer: web3.PublicKey,
     public readonly signers: web3.Signer[],
   ) {}
+
   async compileToVersionedTransaction(): Promise<web3.VersionedTransaction> {
     const { blockhash: recentBlockhash } = await this.connection.getLatestBlockhash();
     const alts = [];
@@ -1374,7 +1395,13 @@ export type DynamicInstruction = {
   params: string[],
 }
 
+export type ExecuteTxSettings = {
+  skipPreflight?: boolean,
+}
+
 export type ParsedYaml = {
+  mainnetRpc?: string[],
+  executeTxSettings: ExecuteTxSettings,
   addressLookupTables?: string[],
   computeLimitSettings?: Record<string, ComputeLimitSettings>
   accounts: Record<string, string>,
