@@ -1,17 +1,28 @@
+import * as util from "../util";
 import * as web3 from "@solana/web3.js";
 import { Yaml2SolanaClass } from "./Yaml2Solana";
 import BN from "bn.js";
-export type GenerateIxsFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction[];
-export type GenerateIxFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction;
+type DynamicInstructionVariableType = {
+    id: string;
+    type: util.typeResolver.VariableType;
+};
+export type GenerateIxsFn = (params: any, y2s?: Yaml2SolanaClass) => Promise<web3.TransactionInstruction[]>;
+export type GenerateIxFn = (params: any, y2s?: Yaml2SolanaClass) => Promise<web3.TransactionInstruction>;
 export declare class DynamicInstruction {
     readonly y2s: Yaml2SolanaClass;
     readonly isDynamicInstruction = true;
-    private varType;
+    readonly varType: Record<string, DynamicInstructionVariableType>;
     private _generateIxs?;
     private _generateIx?;
+    private _payer?;
+    private _alts;
     constructor(y2s: Yaml2SolanaClass, params: string[]);
-    get ixs(): web3.TransactionInstruction[] | undefined;
-    get ix(): web3.TransactionInstruction | undefined;
+    setPayer(payer: web3.PublicKey): void;
+    setAlts(alts: web3.PublicKey[]): void;
+    get payer(): web3.PublicKey;
+    get alts(): web3.PublicKey[];
+    get ixs(): Promise<web3.TransactionInstruction[]> | undefined;
+    get ix(): Promise<web3.TransactionInstruction> | undefined;
     extend<T extends GenerateIxsFn>(ixFn: T): void;
     extend<T extends GenerateIxFn>(ixFn: T): void;
     private isGenerateIxsFn;
@@ -32,4 +43,5 @@ export declare class DynamicInstruction {
     getValue(id: string, type: "pubkey"): web3.PublicKey;
     getValue(id: string, type: "string"): string;
 }
+export {};
 //# sourceMappingURL=DynamicInstruction.d.ts.map

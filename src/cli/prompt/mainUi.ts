@@ -4,6 +4,7 @@ import * as web3 from '@solana/web3.js';
 import { utilUi } from "./utilUi";
 import { Yaml2Solana } from "../..";
 import { runInstructionUi } from "./runInstructionUi";
+import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
@@ -11,7 +12,7 @@ const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
 const CHOICE_RUN_TEST = 'Run a test';
 const CHOICE_UTILS = 'Utility / Debugging Tools';
 
-export async function mainUi(schemaFile: string) {
+export async function mainUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
   const { choice } = await inquirer
     .prompt([
       {
@@ -30,18 +31,18 @@ export async function mainUi(schemaFile: string) {
   );
 
   if (choice === DOWNLOAD_SOLANA_ACCOUNTS) {
-    await downloadSolanaAccounts(schemaFile);
+    await downloadSolanaAccounts(schemaFile, y2s);
     return;
   }
 
   if (choice === CHOICE_RUN_TEST_VALIDATOR) {
-    await runTestValidator(schemaFile);
+    await runTestValidator(schemaFile, y2s);
     return;
   }
 
   // Assuming here that test validator is already running.
   if (choice === CHOICE_RUN_INSTRUCTION) {
-    return await runInstructionUi(schemaFile);
+    return await runInstructionUi(schemaFile, y2s);
   }
 
   // Assuming here that test validator is already running.
@@ -65,7 +66,7 @@ export async function mainUi(schemaFile: string) {
 
   // Debugging Tools
   if (choice === CHOICE_UTILS) {
-    await utilUi(schemaFile);
+    await utilUi(schemaFile, y2s);
     return;
   }
 }
@@ -73,10 +74,10 @@ export async function mainUi(schemaFile: string) {
 /**
  * Download solana accounts and update cache
  */
-async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string, string | null>> {
+async function downloadSolanaAccounts(schemaFile: string, y2s?: Yaml2SolanaClass): Promise<Record<string, string | null>> {
 
   // Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
 
   // Download accounts from mainnet
   return await yaml2solana.downloadAccountsFromMainnet([]);
@@ -85,10 +86,10 @@ async function downloadSolanaAccounts(schemaFile: string): Promise<Record<string
 /**
  * Run solana test validator
  */
-async function runTestValidator(schemaFile: string) {
+async function runTestValidator(schemaFile: string, y2s?: Yaml2SolanaClass) {
 
   // Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
 
   // Run test validator using v2
   return await yaml2solana.runTestValidator();

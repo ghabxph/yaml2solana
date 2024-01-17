@@ -25,11 +25,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DynamicInstruction = void 0;
 const util = __importStar(require("../util"));
+const web3 = __importStar(require("@solana/web3.js"));
 class DynamicInstruction {
     constructor(y2s, params) {
         this.y2s = y2s;
         this.isDynamicInstruction = true;
         this.varType = {};
+        this._alts = [];
         for (const param of params) {
             if (!param.startsWith('$')) {
                 throw `${param} must start with '$' dollar symbol.`;
@@ -43,15 +45,28 @@ class DynamicInstruction {
             }
         }
     }
+    setPayer(payer) {
+        this._payer = new web3.PublicKey(payer);
+    }
+    setAlts(alts) {
+        this._alts = [];
+        this._alts = alts.map(p => new web3.PublicKey(p));
+    }
+    get payer() {
+        return this._payer;
+    }
+    get alts() {
+        return this._alts;
+    }
     get ixs() {
         if (this._generateIxs === undefined)
             return undefined;
         const params = {};
         for (const id in this.varType) {
             const _var = this.varType[id];
-            params[id] = this.getValue(_var.id, _var.type);
+            params[id.substring(1)] = this.getValue(_var.id, _var.type);
         }
-        return this._generateIxs(this.y2s, params);
+        return this._generateIxs(params, this.y2s);
     }
     get ix() {
         if (this._generateIx === undefined)
@@ -59,9 +74,9 @@ class DynamicInstruction {
         const params = {};
         for (const id in this.varType) {
             const _var = this.varType[id];
-            params[id] = this.getValue(_var.id, _var.type);
+            params[id.substring(1)] = this.getValue(_var.id, _var.type);
         }
-        return this._generateIx(this.y2s, params);
+        return this._generateIx(params, this.y2s);
     }
     /**
      * Set dynamic instruction function

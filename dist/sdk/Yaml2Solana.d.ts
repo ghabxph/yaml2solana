@@ -42,7 +42,7 @@ export declare class Yaml2SolanaClass {
      * Resolve variables
      * @param params
      */
-    resolve(params: ResolveParams): void;
+    resolve(params: ResolveParams): Promise<void>;
     /**
      * Get accounts from solana instructions
      *
@@ -69,7 +69,7 @@ export declare class Yaml2SolanaClass {
      * @param signers
      * @returns
      */
-    createLocalnetTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Transaction;
+    createTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Promise<Transaction>;
     /**
      * Get signers from given instruction
      *
@@ -97,7 +97,7 @@ export declare class Yaml2SolanaClass {
      * @param label Instruction bundle label
      * @returns
      */
-    resolveInstructionBundleSigners(label: string): web3.Signer[];
+    resolveInstructionBundleSigners(label: string): Promise<web3.Signer[]>;
     /**
      * @returns accounts from schema
      */
@@ -162,7 +162,7 @@ export declare class Yaml2SolanaClass {
      * @param ixLabel Instruction to execute
      * @returns available parameters that can be overriden for target instruction
      */
-    resolveInstruction(ixLabel: string): void;
+    resolveInstruction(ixLabel: string): Promise<void>;
     /**
      * Extract variable info
      *

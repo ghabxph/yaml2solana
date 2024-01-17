@@ -2,11 +2,12 @@ import * as web3 from "@solana/web3.js";
 import * as util from "../../util";
 import inquirer from "inquirer";
 import { Yaml2Solana } from "../..";
+import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 
 const CHOICE_SINGLE = 'Run single instruction';
 const CHOICE_BUNDLE = 'Run bundled instructions';
 
-export async function runInstructionUi(schemaFile: string) {
+export async function runInstructionUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
 
   const yaml2solana = Yaml2Solana(schemaFile);
   if (yaml2solana.parsedYaml.instructionBundle !== undefined) {
@@ -20,19 +21,19 @@ export async function runInstructionUi(schemaFile: string) {
     });
     
     if (choice === CHOICE_SINGLE) {
-      return await runSingleInstruction(schemaFile);
+      return await runSingleInstruction(schemaFile, y2s);
     } else if (choice === CHOICE_BUNDLE) {
-      return await runBundledInstructions(schemaFile);
+      return await runBundledInstructions(schemaFile, y2s);
     }
   } else {
-    runSingleInstruction(schemaFile);
+    runSingleInstruction(schemaFile, y2s);
   }
 }
 
-async function runSingleInstruction(schemaFile: string) {
+async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) {
 
   // 1. Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
 
   // 2. Select what instruction to execute
   const choices = yaml2solana.getInstructions();
@@ -51,7 +52,7 @@ async function runSingleInstruction(schemaFile: string) {
   const ixDef = yaml2solana.getIxDefinition(instructionToExecute);
   for (const param of ixDef.data) {
     try {
-      yaml2solana.resolveInstruction(instructionToExecute);
+      await yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
       const varInfo = yaml2solana.extractVarInfo(param);
       if (varInfo.isVariable) {
@@ -98,7 +99,7 @@ async function runSingleInstruction(schemaFile: string) {
   // 4. Resolve params (from meta)
   for (const param of ixDef.accounts) {
     try {
-      yaml2solana.resolveInstruction(instructionToExecute);
+      await yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
       const [account] = param.split(',');
       let defaultValue = yaml2solana.getParam<web3.PublicKey | web3.Keypair>(account);
@@ -124,7 +125,7 @@ async function runSingleInstruction(schemaFile: string) {
 
   // 5. Resolve transaction payer
   try {
-    yaml2solana.resolveInstruction(instructionToExecute);
+    await yaml2solana.resolveInstruction(instructionToExecute);
   } catch {} finally {
     const account = ixDef.payer;
     const kp = yaml2solana.getParam<web3.Keypair>(account);
@@ -153,14 +154,14 @@ async function runSingleInstruction(schemaFile: string) {
 
   // 5. Resolve instruction
   try {
-    yaml2solana.resolveInstruction(instructionToExecute);
+    await yaml2solana.resolveInstruction(instructionToExecute);
   } catch {}
 
   // 6. Execute instruction
   console.log();
   await yaml2solana.executeTransactionsLocally({
     txns: [
-      yaml2solana.createLocalnetTransaction(
+      await yaml2solana.createTransaction(
         instructionToExecute,
         [`$${instructionToExecute}`],
         [],
@@ -172,9 +173,10 @@ async function runSingleInstruction(schemaFile: string) {
   });
 }
 
-async function runBundledInstructions(schemaFile: string) {
+async function runBundledInstructions(schemaFile: string, y2s?: Yaml2SolanaClass) {
+
   // 1. Create yaml2solana v2 instance
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
 
   // 2. Get choices
   const choices = yaml2solana.getInstructionBundles();
@@ -187,7 +189,7 @@ async function runBundledInstructions(schemaFile: string) {
   });
 
   // 4. Resolve
-  yaml2solana.resolve({
+  await yaml2solana.resolve({
     onlyResolve: {
       thesePdas: [],
       theseInstructions: [],
@@ -199,8 +201,8 @@ async function runBundledInstructions(schemaFile: string) {
   const ixns = yaml2solana.getParam<web3.TransactionInstruction[]>(`$${choice}`);
 
   // 6. Create localnet transaction
-  const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
-  const tx = yaml2solana.createLocalnetTransaction(
+  const signers = await yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
+  const tx = await yaml2solana.createTransaction(
     choice,
     ixns,
     yaml2solana.parsedYaml.instructionBundle![choice].alts,

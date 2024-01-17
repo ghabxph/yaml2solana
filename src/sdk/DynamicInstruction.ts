@@ -8,18 +8,22 @@ type DynamicInstructionVariableType = {
   type: util.typeResolver.VariableType
 }
 
-export type GenerateIxsFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction[];
-export type GenerateIxFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction;
+export type GenerateIxsFn = (params: any, y2s?: Yaml2SolanaClass) => Promise<web3.TransactionInstruction[]>;
+export type GenerateIxFn = (params: any, y2s?: Yaml2SolanaClass) => Promise<web3.TransactionInstruction>;
 
 export class DynamicInstruction {
 
   readonly isDynamicInstruction = true;
 
-  private varType: Record<string, DynamicInstructionVariableType> = {};
+  readonly varType: Record<string, DynamicInstructionVariableType> = {};
 
   private _generateIxs?: GenerateIxsFn;
 
   private _generateIx?: GenerateIxFn;
+
+  private _payer?: web3.PublicKey;
+
+  private _alts: web3.PublicKey[] = [];
 
   constructor(
     public readonly y2s: Yaml2SolanaClass,
@@ -38,24 +42,41 @@ export class DynamicInstruction {
     }
   }
 
-  get ixs(): web3.TransactionInstruction[] | undefined {
+  setPayer(payer: web3.PublicKey) {
+    this._payer = new web3.PublicKey(payer);
+  }
+
+  setAlts(alts: web3.PublicKey[]) {
+    this._alts = [];
+    this._alts = alts.map(p => new web3.PublicKey(p));
+  }
+
+  get payer(): web3.PublicKey {
+    return this._payer as web3.PublicKey;
+  }
+
+  get alts(): web3.PublicKey[] {
+    return this._alts;
+  }
+
+  get ixs(): Promise<web3.TransactionInstruction[]> | undefined {
     if (this._generateIxs === undefined) return undefined;
     const params: Record<string, any> = {};
     for (const id in this.varType) {
       const _var = this.varType[id];
-      params[id] = this.getValue(_var.id, _var.type as any);
+      params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
     }
-    return this._generateIxs(this.y2s, params);
+    return this._generateIxs(params, this.y2s);
   }
 
-  get ix(): web3.TransactionInstruction | undefined {
+  get ix(): Promise<web3.TransactionInstruction> | undefined {
     if (this._generateIx === undefined) return undefined;
     const params: Record<string, any> = {}
     for (const id in this.varType) {
       const _var = this.varType[id];
-      params[id] = this.getValue(_var.id, _var.type as any);
+      params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
     }
-    return this._generateIx(this.y2s, params);
+    return this._generateIx(params, this.y2s);
   }
 
   extend<T extends GenerateIxsFn>(ixFn: T): void;

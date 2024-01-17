@@ -42,7 +42,7 @@ const inquirer_1 = __importDefault(require("inquirer"));
 const __1 = require("../..");
 const CHOICE_SINGLE = 'Run single instruction';
 const CHOICE_BUNDLE = 'Run bundled instructions';
-function runInstructionUi(schemaFile) {
+function runInstructionUi(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
         if (yaml2solana.parsedYaml.instructionBundle !== undefined) {
@@ -55,22 +55,22 @@ function runInstructionUi(schemaFile) {
                 ]
             });
             if (choice === CHOICE_SINGLE) {
-                return yield runSingleInstruction(schemaFile);
+                return yield runSingleInstruction(schemaFile, y2s);
             }
             else if (choice === CHOICE_BUNDLE) {
-                return yield runBundledInstructions(schemaFile);
+                return yield runBundledInstructions(schemaFile, y2s);
             }
         }
         else {
-            runSingleInstruction(schemaFile);
+            runSingleInstruction(schemaFile, y2s);
         }
     });
 }
 exports.runInstructionUi = runInstructionUi;
-function runSingleInstruction(schemaFile) {
+function runSingleInstruction(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         // 1. Create yaml2solana v2 instance
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
+        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
         // 2. Select what instruction to execute
         const choices = yaml2solana.getInstructions();
         const { instructionToExecute } = yield inquirer_1.default
@@ -86,7 +86,7 @@ function runSingleInstruction(schemaFile) {
         const ixDef = yaml2solana.getIxDefinition(instructionToExecute);
         for (const param of ixDef.data) {
             try {
-                yaml2solana.resolveInstruction(instructionToExecute);
+                yield yaml2solana.resolveInstruction(instructionToExecute);
             }
             catch (_a) { }
             finally {
@@ -137,7 +137,7 @@ function runSingleInstruction(schemaFile) {
         // 4. Resolve params (from meta)
         for (const param of ixDef.accounts) {
             try {
-                yaml2solana.resolveInstruction(instructionToExecute);
+                yield yaml2solana.resolveInstruction(instructionToExecute);
             }
             catch (_b) { }
             finally {
@@ -165,7 +165,7 @@ function runSingleInstruction(schemaFile) {
         }
         // 5. Resolve transaction payer
         try {
-            yaml2solana.resolveInstruction(instructionToExecute);
+            yield yaml2solana.resolveInstruction(instructionToExecute);
         }
         catch (_c) { }
         finally {
@@ -188,23 +188,23 @@ function runSingleInstruction(schemaFile) {
         }
         // 5. Resolve instruction
         try {
-            yaml2solana.resolveInstruction(instructionToExecute);
+            yield yaml2solana.resolveInstruction(instructionToExecute);
         }
         catch (_d) { }
         // 6. Execute instruction
         console.log();
         yield yaml2solana.executeTransactionsLocally({
             txns: [
-                yaml2solana.createLocalnetTransaction(instructionToExecute, [`$${instructionToExecute}`], [], ixDef.payer, yaml2solana.getSignersFromIx(instructionToExecute))
+                yield yaml2solana.createTransaction(instructionToExecute, [`$${instructionToExecute}`], [], ixDef.payer, yaml2solana.getSignersFromIx(instructionToExecute))
             ],
             runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning(),
         });
     });
 }
-function runBundledInstructions(schemaFile) {
+function runBundledInstructions(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         // 1. Create yaml2solana v2 instance
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
+        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
         // 2. Get choices
         const choices = yaml2solana.getInstructionBundles();
         // 3. Choose bundle to execute
@@ -214,7 +214,7 @@ function runBundledInstructions(schemaFile) {
             choices,
         });
         // 4. Resolve
-        yaml2solana.resolve({
+        yield yaml2solana.resolve({
             onlyResolve: {
                 thesePdas: [],
                 theseInstructions: [],
@@ -224,8 +224,8 @@ function runBundledInstructions(schemaFile) {
         // 5. Get transaction bundle
         const ixns = yaml2solana.getParam(`$${choice}`);
         // 6. Create localnet transaction
-        const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
-        const tx = yaml2solana.createLocalnetTransaction(choice, ixns, yaml2solana.parsedYaml.instructionBundle[choice].alts, yaml2solana.parsedYaml.instructionBundle[choice].payer, signers);
+        const signers = yield yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
+        const tx = yield yaml2solana.createTransaction(choice, ixns, yaml2solana.parsedYaml.instructionBundle[choice].alts, yaml2solana.parsedYaml.instructionBundle[choice].payer, signers);
         // 7. Execute instruction in localnet
         console.log();
         yield yaml2solana.executeTransactionsLocally({

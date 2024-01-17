@@ -4,6 +4,7 @@ import clear from "ts-clear-screen";
 import { keypairUi } from "./keypairUi";
 import * as util from "../../util";
 import { accountDecoderUi } from "./accountDecoderUi";
+import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
@@ -11,7 +12,7 @@ const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
 const CHOICE_ACCOUNT_DECODER = 'Account Decoder'; 
 
-export async function utilUi(schemaFile: string) {
+export async function utilUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
   clear();
   const { choice } = await inquirer
     .prompt([
@@ -47,7 +48,7 @@ export async function utilUi(schemaFile: string) {
   }
 
   if (choice === CHOICE_ACCOUNT_DECODER) {
-    return await accountDecoderUi(schemaFile);
+    return await accountDecoderUi(schemaFile, y2s);
   }
 }
 

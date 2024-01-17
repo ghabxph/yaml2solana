@@ -46,7 +46,7 @@ const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
 const CHOICE_RUN_TEST = 'Run a test';
 const CHOICE_UTILS = 'Utility / Debugging Tools';
-function mainUi(schemaFile) {
+function mainUi(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         const { choice } = yield inquirer_1.default
             .prompt([
@@ -64,16 +64,16 @@ function mainUi(schemaFile) {
             },
         ]);
         if (choice === DOWNLOAD_SOLANA_ACCOUNTS) {
-            yield downloadSolanaAccounts(schemaFile);
+            yield downloadSolanaAccounts(schemaFile, y2s);
             return;
         }
         if (choice === CHOICE_RUN_TEST_VALIDATOR) {
-            yield runTestValidator(schemaFile);
+            yield runTestValidator(schemaFile, y2s);
             return;
         }
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_INSTRUCTION) {
-            return yield (0, runInstructionUi_1.runInstructionUi)(schemaFile);
+            return yield (0, runInstructionUi_1.runInstructionUi)(schemaFile, y2s);
         }
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_TEST) {
@@ -92,7 +92,7 @@ function mainUi(schemaFile) {
         }
         // Debugging Tools
         if (choice === CHOICE_UTILS) {
-            yield (0, utilUi_1.utilUi)(schemaFile);
+            yield (0, utilUi_1.utilUi)(schemaFile, y2s);
             return;
         }
     });
@@ -101,10 +101,10 @@ exports.mainUi = mainUi;
 /**
  * Download solana accounts and update cache
  */
-function downloadSolanaAccounts(schemaFile) {
+function downloadSolanaAccounts(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         // Create yaml2solana v2 instance
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
+        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
         // Download accounts from mainnet
         return yield yaml2solana.downloadAccountsFromMainnet([]);
     });
@@ -112,10 +112,10 @@ function downloadSolanaAccounts(schemaFile) {
 /**
  * Run solana test validator
  */
-function runTestValidator(schemaFile) {
+function runTestValidator(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         // Create yaml2solana v2 instance
-        const yaml2solana = (0, __1.Yaml2Solana)(schemaFile);
+        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
         // Run test validator using v2
         return yield yaml2solana.runTestValidator();
     });

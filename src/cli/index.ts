@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { Yaml2SolanaClass } from "../sdk/Yaml2Solana";
 import * as util from "../util";
 import * as prompt from "./prompt";
 import clear from "ts-clear-screen";
@@ -9,7 +10,7 @@ const WORK_DIR = process.cwd();
 const ignoreFiles = util.fs.compileIgnoreFiles(WORK_DIR);
 const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', 'yaml2solana.yml'], ['.git', ...ignoreFiles]);
 
-export async function cliEntrypoint() {
+export async function cliEntrypoint(y2s?: Yaml2SolanaClass) {
   clear();
   let schemaFile = '';
   let schemaFiles = find();
@@ -26,7 +27,7 @@ export async function cliEntrypoint() {
   } else {
     schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
   }
-  await prompt.mainUi(schemaFile);
+  await prompt.mainUi(schemaFile, y2s);
 }
 
 if (require.main === module) {

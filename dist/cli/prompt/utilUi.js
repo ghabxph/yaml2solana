@@ -47,7 +47,7 @@ const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
 const CHOICE_ACCOUNT_DECODER = 'Account Decoder';
-function utilUi(schemaFile) {
+function utilUi(schemaFile, y2s) {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
         const { choice } = yield inquirer_1.default
@@ -78,7 +78,7 @@ function utilUi(schemaFile) {
             return yield generateSighash();
         }
         if (choice === CHOICE_ACCOUNT_DECODER) {
-            return yield (0, accountDecoderUi_1.accountDecoderUi)(schemaFile);
+            return yield (0, accountDecoderUi_1.accountDecoderUi)(schemaFile, y2s);
         }
     });
 }
