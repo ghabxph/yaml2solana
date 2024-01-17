@@ -550,11 +550,25 @@ class Yaml2SolanaClass {
                 else {
                     key = testAccount.key;
                 }
+                if (testAccount.createNew) {
+                    util.fs.createEmptyAccount(cacheFolder, key, testAccount.hack.accountSize, new web3.PublicKey(testAccount.hack.owner), testAccount.hack.lamports);
+                    for (const override of testAccount.hack.overrides) {
+                        const account = util.fs.readAccount(cacheFolder, key);
+                        account[key].data.write(override.data, override.offset, 'base64');
+                        util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+                    }
+                }
                 const account = util.fs.readAccount(cacheFolder, key);
                 decoder.data = account[key].data;
                 for (const id in testAccount.params) {
                     const value = testAccount.params[id];
-                    decoder.setValue(`$${id}`, value);
+                    if (typeof value === 'string' && value.startsWith('$')) {
+                        const _value = this.getVar(value);
+                        decoder.setValue(`$${id}`, _value);
+                    }
+                    else {
+                        decoder.setValue(`$${id}`, value);
+                    }
                 }
                 account[key].data = decoder.data;
                 util.fs.writeAccountsToCacheFolder(cacheFolder, account);

@@ -181,6 +181,19 @@ export function readAccount(cacheFolder: string, address: string): FullAccountIn
   return result;
 }
 
+export function createEmptyAccount(cacheFolder: string, address: string, accountSize: number, owner: web3.PublicKey, lamports: number) {
+  cacheFolderMustExist(cacheFolder);
+  const account: FullAccountInfo = {};
+  account[address] = {
+    executable: false,
+    owner,
+    lamports,
+    data: Buffer.alloc(accountSize),
+    rentEpoch: 0,
+  }
+  writeAccountsToCacheFolder(cacheFolder, account);
+}
+
 /**
  * Skip accounts that are already downloaded
  *

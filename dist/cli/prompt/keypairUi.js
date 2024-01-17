@@ -43,6 +43,7 @@ const ed25519_hd_key_1 = require("ed25519-hd-key");
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const CHOICE_RANDOM_KEYPAIR = 'Generate random keypair';
 const CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Generate keypair from given bip39 seedphrase';
+const CHOICE_SHOW_KP_FROM_B64 = 'Generate keypair from secret key (base64 encoded)';
 function keypairUi() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, ts_clear_screen_1.default)();
@@ -55,6 +56,7 @@ function keypairUi() {
                 choices: [
                     CHOICE_RANDOM_KEYPAIR,
                     CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE,
+                    CHOICE_SHOW_KP_FROM_B64,
                 ],
             },
         ]);
@@ -63,6 +65,9 @@ function keypairUi() {
         }
         if (choice === CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE) {
             return yield generateKpFromBip39SeedPhrase();
+        }
+        if (choice === CHOICE_SHOW_KP_FROM_B64) {
+            return yield generateKpFromB64();
         }
     });
 }
@@ -97,5 +102,21 @@ function generateKpFromBip39SeedPhrase() {
         const keypair = web3.Keypair.fromSeed(deriveSeed);
         console.log(`privkey: ${Buffer.from(keypair.secretKey).toString('base64')}`);
         console.log(`pubkey: ${keypair.publicKey}`);
+    });
+}
+function generateKpFromB64() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { b64 } = yield inquirer_1.default.prompt({
+            type: 'input',
+            name: 'b64',
+            message: 'Type base64 secret here',
+            filter: input => {
+                web3.Keypair.fromSecretKey(Buffer.from(input, 'base64'));
+                return input;
+            }
+        });
+        const kp = web3.Keypair.fromSecretKey(Buffer.from(b64, 'base64'));
+        console.log(`privkey: ${Buffer.from(kp.secretKey).toString('base64')}`);
+        console.log(`pubkey: ${kp.publicKey}`);
     });
 }

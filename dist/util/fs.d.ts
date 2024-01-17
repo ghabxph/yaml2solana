@@ -54,6 +54,7 @@ export declare function writeAccountsToCacheFolder(cacheFolder: string, accountI
  * @param address
  */
 export declare function readAccount(cacheFolder: string, address: string): FullAccountInfo;
+export declare function createEmptyAccount(cacheFolder: string, address: string, accountSize: number, owner: web3.PublicKey, lamports: number): void;
 /**
  * Skip accounts that are already downloaded
  *
