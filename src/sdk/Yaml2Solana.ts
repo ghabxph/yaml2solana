@@ -9,6 +9,7 @@ import { spawn } from 'child_process';
 import { AccountDecoder } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 import { cliEntrypoint } from '../cli';
+import { USER_WALLET } from '../cli/prompt/setupUserWalletUi';
 
 export class Yaml2SolanaClass {
 
@@ -819,9 +820,14 @@ export class Yaml2SolanaClass {
   private resolveTestWallets(parsedYaml: ParsedYaml) {
     const testWallets = parsedYaml.localDevelopment.testWallets;
     for (const key in testWallets) {
-      this.setVar<web3.Signer>(key, web3.Keypair.fromSecretKey(Buffer.from(
-        testWallets[key].privateKey, 'base64'
-      )));
+      const testWallet = testWallets[key];
+      if (testWallet.useUserWallet && USER_WALLET !== undefined) {
+        this.setVar<web3.Signer>(key, USER_WALLET);
+      } else {
+        this.setVar<web3.Signer>(key, web3.Keypair.fromSecretKey(Buffer.from(
+          testWallet.privateKey, 'base64'
+        )));
+      }
     }
   }
 
@@ -1018,7 +1024,7 @@ export class Yaml2SolanaClass {
    *
    * @param parsedYaml
    */
-    private setKnownAccounts() {
+  private setKnownAccounts() {
       this.setVar<web3.PublicKey>('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
       this.setVar<web3.PublicKey>('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
       this.setVar<web3.PublicKey>('SYSTEM_PROGRAM', web3.SystemProgram.programId);
@@ -1340,6 +1346,7 @@ export type TestAccount = {
 }
 
 export type TestWallet = {
+  useUserWallet?: boolean,
   privateKey: string,
   solAmount: string
 }

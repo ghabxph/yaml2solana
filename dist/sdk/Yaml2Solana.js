@@ -47,6 +47,7 @@ const child_process_2 = require("child_process");
 const AccountDecoder_1 = require("./AccountDecoder");
 const DynamicInstruction_1 = require("./DynamicInstruction");
 const cli_1 = require("../cli");
+const setupUserWalletUi_1 = require("../cli/prompt/setupUserWalletUi");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
@@ -762,7 +763,13 @@ class Yaml2SolanaClass {
     resolveTestWallets(parsedYaml) {
         const testWallets = parsedYaml.localDevelopment.testWallets;
         for (const key in testWallets) {
-            this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
+            const testWallet = testWallets[key];
+            if (testWallet.useUserWallet && setupUserWalletUi_1.USER_WALLET !== undefined) {
+                this.setVar(key, setupUserWalletUi_1.USER_WALLET);
+            }
+            else {
+                this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallet.privateKey, 'base64')));
+            }
         }
     }
     runTestValidator2(mapping) {
