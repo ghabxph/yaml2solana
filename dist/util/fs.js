@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mapAccountsFromCache = exports.readTestValidatorTemplate = exports.skipDownloadedAccounts = exports.readAccount = exports.writeAccountsToCacheFolder = exports.deleteFolderRecursive = exports.createScript = exports.createFile = exports.findFilesRecursively = exports.compileIgnoreFiles = void 0;
+exports.mapAccountsFromCache = exports.readTestValidatorTemplate = exports.skipDownloadedAccounts = exports.createEmptyAccount = exports.readAccount = exports.writeAccountsToCacheFolder = exports.deleteFolderRecursive = exports.createScript = exports.createFile = exports.findFilesRecursively = exports.compileIgnoreFiles = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const web3 = __importStar(require("@solana/web3.js"));
@@ -182,6 +182,19 @@ function readAccount(cacheFolder, address) {
     return result;
 }
 exports.readAccount = readAccount;
+function createEmptyAccount(cacheFolder, address, accountSize, owner, lamports) {
+    cacheFolderMustExist(cacheFolder);
+    const account = {};
+    account[address] = {
+        executable: false,
+        owner,
+        lamports,
+        data: Buffer.alloc(accountSize),
+        rentEpoch: 0,
+    };
+    writeAccountsToCacheFolder(cacheFolder, account);
+}
+exports.createEmptyAccount = createEmptyAccount;
 /**
  * Skip accounts that are already downloaded
  *

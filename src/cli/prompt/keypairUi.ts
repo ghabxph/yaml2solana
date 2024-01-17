@@ -6,6 +6,7 @@ import clear from "ts-clear-screen";
 
 const CHOICE_RANDOM_KEYPAIR = 'Generate random keypair';
 const CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE = 'Generate keypair from given bip39 seedphrase';
+const CHOICE_SHOW_KP_FROM_B64 = 'Generate keypair from secret key (base64 encoded)';
 
 export async function keypairUi() {
   clear();
@@ -18,6 +19,7 @@ export async function keypairUi() {
         choices: [
           CHOICE_RANDOM_KEYPAIR,
           CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE,
+          CHOICE_SHOW_KP_FROM_B64,
         ],
       },
     ]);
@@ -28,6 +30,10 @@ export async function keypairUi() {
 
   if (choice === CHOICE_SHOW_KP_FROM_BIP39_SEEDPHRASE) {
     return await generateKpFromBip39SeedPhrase();
+  }
+
+  if (choice === CHOICE_SHOW_KP_FROM_B64) {
+    return await generateKpFromB64();
   }
 }
 
@@ -61,4 +67,23 @@ async function generateKpFromBip39SeedPhrase() {
 
   console.log(`privkey: ${Buffer.from(keypair.secretKey).toString('base64')}`);
   console.log(`pubkey: ${keypair.publicKey}`);
+}
+
+async function generateKpFromB64() {
+  const { b64 } = await inquirer.prompt({
+    type: 'input',
+    name: 'b64',
+    message: 'Type base64 secret here',
+    filter: input => {
+      web3.Keypair.fromSecretKey(
+        Buffer.from(input, 'base64')
+      );
+      return input;
+    }
+  });
+  const kp = web3.Keypair.fromSecretKey(
+    Buffer.from(b64, 'base64')
+  );
+  console.log(`privkey: ${Buffer.from(kp.secretKey).toString('base64')}`);
+  console.log(`pubkey: ${kp.publicKey}`);
 }

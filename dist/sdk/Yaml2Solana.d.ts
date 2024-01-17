@@ -326,10 +326,21 @@ export type InstructionDefinition = {
     accounts: string[];
     payer: string;
 };
+export type AccountHacker = {
+    accountSize: number;
+    owner: string;
+    lamports: number;
+    overrides: {
+        offset: number;
+        data: string;
+    }[];
+};
 export type TestAccount = {
     key: string;
     schema: string;
     params: Record<string, string>;
+    createNew: boolean;
+    hack: AccountHacker;
 };
 export type TestWallet = {
     privateKey: string;
