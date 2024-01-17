@@ -1,0 +1,1 @@
+{"version":3,"file":"setupUserWalletUi.d.ts","sourceRoot":"","sources":["../../../src/cli/prompt/setupUserWalletUi.ts"],"names":[],"mappings":"AAIA,OAAO,KAAK,IAAI,MAAM,iBAAiB,CAAC;AAQxC,eAAO,IAAI,WAAW,EAAE,SAAS,GAAG,IAAI,CAAC,OAAO,CAAC;AAEjD,wBAAsB,iBAAiB,kBA8BtC;AAoCD,wBAAgB,SAAS,IAAI,OAAO,CAOnC;AAKD,wBAAsB,eAAe,kBAgCpC"}
