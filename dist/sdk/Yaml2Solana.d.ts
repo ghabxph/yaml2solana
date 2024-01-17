@@ -50,6 +50,16 @@ export declare class Yaml2SolanaClass {
      */
     getAccountsFromInstruction(ixs: web3.TransactionInstruction[]): web3.PublicKey[];
     /**
+     * @param ix
+     * @returns
+     */
+    private isObjectInstruction;
+    /**
+     * @param ix
+     * @returns
+     */
+    private isObjectDynamicInstructionClassInstance;
+    /**
      * Create localnet transaction
      *
      * @param description
@@ -217,12 +227,6 @@ export declare class Yaml2SolanaClass {
      * @param parsedYaml
      */
     private resolveTestWallets;
-    /**
-     * Prints lamports out of thin air in given test wallet key from yaml
-     *
-     * @param key
-     */
-    private fundLocalnetWalletFromYaml;
     private runTestValidator2;
     /**
      * Resolve transaction instructions
@@ -290,6 +294,7 @@ export type ResolveParams = {
         thesePdas?: string[];
         theseInstructions?: string[];
         theseInstructionBundles?: string[];
+        theseDynamicInstructions?: string[];
     };
 };
 export type Account = {

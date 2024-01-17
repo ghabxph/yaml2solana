@@ -5,12 +5,13 @@ export type GenerateIxsFn = (y2s: Yaml2SolanaClass, params: any) => web3.Transac
 export type GenerateIxFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction;
 export declare class DynamicInstruction {
     readonly y2s: Yaml2SolanaClass;
+    readonly isDynamicInstruction = true;
     private varType;
     private _generateIxs?;
     private _generateIx?;
     constructor(y2s: Yaml2SolanaClass, params: string[]);
-    get generateIxs(): GenerateIxsFn | undefined;
-    get generateIx(): GenerateIxFn | undefined;
+    get ixs(): web3.TransactionInstruction[] | undefined;
+    get ix(): web3.TransactionInstruction | undefined;
     extend<T extends GenerateIxsFn>(ixFn: T): void;
     extend<T extends GenerateIxFn>(ixFn: T): void;
     private isGenerateIxsFn;
@@ -29,6 +30,6 @@ export declare class DynamicInstruction {
     getValue(id: string, type: "i64"): BN;
     getValue(id: string, type: "i128"): BN;
     getValue(id: string, type: "pubkey"): web3.PublicKey;
-    getValue(id: string, type: "string"): web3.PublicKey;
+    getValue(id: string, type: "string"): string;
 }
 //# sourceMappingURL=DynamicInstruction.d.ts.map

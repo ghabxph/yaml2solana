@@ -13,6 +13,8 @@ export type GenerateIxFn = (y2s: Yaml2SolanaClass, params: any) => web3.Transact
 
 export class DynamicInstruction {
 
+  readonly isDynamicInstruction = true;
+
   private varType: Record<string, DynamicInstructionVariableType> = {};
 
   private _generateIxs?: GenerateIxsFn;
@@ -36,12 +38,24 @@ export class DynamicInstruction {
     }
   }
 
-  get generateIxs(): GenerateIxsFn | undefined {
-    return this._generateIxs;
+  get ixs(): web3.TransactionInstruction[] | undefined {
+    if (this._generateIxs === undefined) return undefined;
+    const params: Record<string, any> = {};
+    for (const id in this.varType) {
+      const _var = this.varType[id];
+      params[id] = this.getValue(_var.id, _var.type as any);
+    }
+    return this._generateIxs(this.y2s, params);
   }
 
-  get generateIx(): GenerateIxFn | undefined {
-    return this._generateIx;
+  get ix(): web3.TransactionInstruction | undefined {
+    if (this._generateIx === undefined) return undefined;
+    const params: Record<string, any> = {}
+    for (const id in this.varType) {
+      const _var = this.varType[id];
+      params[id] = this.getValue(_var.id, _var.type as any);
+    }
+    return this._generateIx(this.y2s, params);
   }
 
   extend<T extends GenerateIxsFn>(ixFn: T): void;
@@ -84,7 +98,7 @@ export class DynamicInstruction {
   getValue(id: string, type: "i64"): BN;
   getValue(id: string, type: "i128"): BN;
   getValue(id: string, type: "pubkey"): web3.PublicKey;
-  getValue(id: string, type: "string"): web3.PublicKey;
+  getValue(id: string, type: "string"): string;
   getValue(id: string, type: util.typeResolver.VariableType): number | BN | web3.PublicKey | string {
     if (["u8", "u16", "u32", "usize", "i8", "i16", "i32"].includes(type)) {
       return this.y2s.getParam<number>(id);
