@@ -211,6 +211,7 @@ function runBundledInstructions(schemaFile, y2s) {
         const { choice } = yield inquirer_1.default.prompt({
             type: 'list',
             name: 'choice',
+            message: 'Choose bundle to execute:',
             choices,
         });
         // 4. Resolve
@@ -224,11 +225,31 @@ function runBundledInstructions(schemaFile, y2s) {
         // 5. Create localnet transaction
         const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
         const tx = yaml2solana.createTransaction(choice, [`$${choice}`], yaml2solana.parsedYaml.instructionBundle[choice].alts, yaml2solana.parsedYaml.instructionBundle[choice].payer, signers);
+        // 6. Choose whether to execute transaction in localnet or mainnet
+        const cluster = yield getCluster(yaml2solana);
         // 7. Execute instruction in localnet
         console.log();
         yield yaml2solana.executeTransactionsLocally({
             txns: [tx],
-            runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning()
+            runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning(),
+            cluster,
         });
+    });
+}
+function getCluster(y2s) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (y2s.parsedYaml.mainnetRpc) {
+            const { cluster } = yield inquirer_1.default.prompt({
+                type: 'list',
+                name: 'cluster',
+                message: 'Execute transaction in?',
+                choices: [
+                    'http://127.0.0.1:8899',
+                    ...y2s.parsedYaml.mainnetRpc,
+                ],
+            });
+            return cluster;
+        }
+        return 'http://127.0.0.1:8899';
     });
 }

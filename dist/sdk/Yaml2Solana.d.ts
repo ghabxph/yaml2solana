@@ -283,7 +283,7 @@ export declare class Yaml2SolanaClass {
 }
 export declare class Transaction {
     readonly description: string;
-    readonly connection: web3.Connection;
+    connection: web3.Connection;
     readonly ixns: web3.TransactionInstruction[];
     readonly alts: string[];
     readonly payer: web3.PublicKey;
@@ -366,7 +366,12 @@ export type DynamicInstruction = {
     dynamic: true;
     params: string[];
 };
+export type ExecuteTxSettings = {
+    skipPreflight?: boolean;
+};
 export type ParsedYaml = {
+    mainnetRpc?: string[];
+    executeTxSettings: ExecuteTxSettings;
     addressLookupTables?: string[];
     computeLimitSettings?: Record<string, ComputeLimitSettings>;
     accounts: Record<string, string>;
