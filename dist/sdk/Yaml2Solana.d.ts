@@ -58,7 +58,7 @@ export declare class Yaml2SolanaClass {
      * @param ix
      * @returns
      */
-    private isObjectDynamicInstructionClassInstance;
+    private isObjectResolvedInstructionBundles;
     /**
      * Create localnet transaction
      *
@@ -69,7 +69,7 @@ export declare class Yaml2SolanaClass {
      * @param signers
      * @returns
      */
-    createTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Promise<Transaction>;
+    createTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Transaction;
     /**
      * Get signers from given instruction
      *
@@ -97,7 +97,7 @@ export declare class Yaml2SolanaClass {
      * @param label Instruction bundle label
      * @returns
      */
-    resolveInstructionBundleSigners(label: string): Promise<web3.Signer[]>;
+    resolveInstructionBundleSigners(label: string): web3.Signer[];
     /**
      * @returns accounts from schema
      */
@@ -269,6 +269,12 @@ export declare class Yaml2SolanaClass {
      * @param onlyResolve
      */
     private resolveInstructionBundles;
+    /**
+     * Resolve keypair
+     *
+     * @param idOrVal
+     */
+    private resolveKeypair;
     private sanitizeDollar;
     /**
      * Generate dynamic accounts
@@ -289,6 +295,12 @@ export declare class Transaction {
      */
     getAccountsFromInstructions(): web3.PublicKey[];
 }
+export type ResolvedInstructionBundles = {
+    resolvedInstructionBundle: true;
+    alts: web3.PublicKey[];
+    payer: web3.Keypair;
+    ixs: web3.TransactionInstruction[];
+};
 export type ResolveParams = {
     onlyResolve: {
         thesePdas?: string[];

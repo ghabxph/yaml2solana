@@ -22,6 +22,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DynamicInstruction = void 0;
 const util = __importStar(require("../util"));
@@ -58,25 +67,31 @@ class DynamicInstruction {
     get alts() {
         return this._alts;
     }
+    resolve() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._generateIxs !== undefined) {
+                const params = {};
+                for (const id in this.varType) {
+                    const _var = this.varType[id];
+                    params[id.substring(1)] = this.getValue(_var.id, _var.type);
+                }
+                this._ixs = yield this._generateIxs(params, this.y2s);
+            }
+            if (this._generateIx !== undefined) {
+                const params = {};
+                for (const id in this.varType) {
+                    const _var = this.varType[id];
+                    params[id.substring(1)] = this.getValue(_var.id, _var.type);
+                }
+                this._ix = yield this._generateIx(params, this.y2s);
+            }
+        });
+    }
     get ixs() {
-        if (this._generateIxs === undefined)
-            return undefined;
-        const params = {};
-        for (const id in this.varType) {
-            const _var = this.varType[id];
-            params[id.substring(1)] = this.getValue(_var.id, _var.type);
-        }
-        return this._generateIxs(params, this.y2s);
+        return this._ixs;
     }
     get ix() {
-        if (this._generateIx === undefined)
-            return undefined;
-        const params = {};
-        for (const id in this.varType) {
-            const _var = this.varType[id];
-            params[id.substring(1)] = this.getValue(_var.id, _var.type);
-        }
-        return this._generateIx(params, this.y2s);
+        return this._ix;
     }
     /**
      * Set dynamic instruction function
