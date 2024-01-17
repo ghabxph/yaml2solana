@@ -343,6 +343,7 @@ export type TestAccount = {
     hack: AccountHacker;
 };
 export type TestWallet = {
+    useUserWallet?: boolean;
     privateKey: string;
     solAmount: string;
 };
