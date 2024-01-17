@@ -8,9 +8,16 @@ type DynamicInstructionVariableType = {
   type: util.typeResolver.VariableType
 }
 
+export type GenerateIxsFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction[];
+export type GenerateIxFn = (y2s: Yaml2SolanaClass, params: any) => web3.TransactionInstruction;
+
 export class DynamicInstruction {
 
   private varType: Record<string, DynamicInstructionVariableType> = {};
+
+  private _generateIxs?: GenerateIxsFn;
+
+  private _generateIx?: GenerateIxFn;
 
   constructor(
     public readonly y2s: Yaml2SolanaClass,
@@ -27,6 +34,40 @@ export class DynamicInstruction {
         throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
       }
     }
+  }
+
+  get generateIxs(): GenerateIxsFn | undefined {
+    return this._generateIxs;
+  }
+
+  get generateIx(): GenerateIxFn | undefined {
+    return this._generateIx;
+  }
+
+  extend<T extends GenerateIxsFn>(ixFn: T): void;
+  extend<T extends GenerateIxFn>(ixFn: T): void;
+
+  /**
+   * Set dynamic instruction function
+   *
+   * @param ixFn
+   */
+  extend<T extends GenerateIxsFn | GenerateIxFn>(ixFn: T) {
+    if (this.isGenerateIxsFn(ixFn)) {
+      this._generateIxs = ixFn as GenerateIxsFn;
+    } else if (this.isGenerateIxFn(ixFn)) {
+      this._generateIx = ixFn as GenerateIxFn;
+    }
+  }
+
+  // User-defined type guard for GenerateIxsFn
+  private isGenerateIxsFn(fn: GenerateIxsFn | GenerateIxFn): fn is GenerateIxsFn {
+    return 'length' in fn;
+  }
+
+  // User-defined type guard for GenerateIxFn
+  private isGenerateIxFn(fn: GenerateIxsFn | GenerateIxFn): fn is GenerateIxFn {
+    return 'call' in fn;
   }
 
   getValue(id: string, type: "u8"): number;
