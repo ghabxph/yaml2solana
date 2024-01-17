@@ -136,6 +136,20 @@ class Yaml2SolanaClass {
         return result;
     }
     /**
+     * @param ix
+     * @returns
+     */
+    isObjectInstruction(ix) {
+        return typeof ix === 'object' && typeof ix.programId !== 'undefined';
+    }
+    /**
+     * @param ix
+     * @returns
+     */
+    isObjectDynamicInstructionClassInstance(ix) {
+        return ix.isDynamicInstruction === true;
+    }
+    /**
      * Create localnet transaction
      *
      * @param description
@@ -146,16 +160,35 @@ class Yaml2SolanaClass {
      * @returns
      */
     createLocalnetTransaction(description, ixns, alts, payer, signers) {
-        const _ixns = ixns.map(ix => {
-            if (typeof ix === 'object' && typeof ix.data !== 'undefined' && typeof ix.keys !== 'undefined' && typeof ix.programId !== 'undefined') {
-                return ix;
+        const _ixns = [];
+        ixns.map(ix => {
+            if (this.isObjectInstruction(ix)) {
+                _ixns.push(ix);
+                return;
             }
             else if (typeof ix === 'string') {
                 const _ix = this.getVar(ix);
-                if (!(typeof _ix === 'object' && typeof _ix.data !== 'undefined' && typeof _ix.keys !== 'undefined' && typeof _ix.programId !== 'undefined')) {
+                if (this.isObjectInstruction(ix)) {
+                    _ixns.push(_ix);
+                    return;
+                }
+                else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
+                    const singleIx = _ix.ix;
+                    const multipleIx = _ix.ixs;
+                    if (singleIx !== undefined) {
+                        _ixns.push(singleIx);
+                    }
+                    else if (multipleIx !== undefined) {
+                        _ixns.push(...multipleIx);
+                    }
+                    else {
+                        throw `Dynamic instruction ${ix} is not yet defined`;
+                    }
+                    return;
+                }
+                else {
                     throw `Variable ${ix} is not a valid transaction instruction`;
                 }
-                return _ix;
             }
             else {
                 throw 'Invalid solana transaction instruction';
@@ -694,26 +727,6 @@ class Yaml2SolanaClass {
             this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallets[key].privateKey, 'base64')));
         }
     }
-    /**
-     * Prints lamports out of thin air in given test wallet key from yaml
-     *
-     * @param key
-     */
-    fundLocalnetWalletFromYaml(key) {
-        const SOL = 1000000000;
-        const solAmount = parseFloat(this._parsedYaml.localDevelopment.testWallets[key].solAmount);
-        const keypair = this.getVar(key);
-        const account = {};
-        const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
-        account[keypair.publicKey.toString()] = {
-            lamports: Math.floor(solAmount * SOL),
-            data: Buffer.alloc(0),
-            owner: new web3.PublicKey('11111111111111111111111111111111'),
-            executable: false,
-            rentEpoch: 0
-        };
-        util.fs.writeAccountsToCacheFolder(cacheFolder, account);
-    }
     runTestValidator2(mapping) {
         return __awaiter(this, void 0, void 0, function* () {
             // 1. Read solana-test-validator.template.sh to project base folder
@@ -799,7 +812,13 @@ class Yaml2SolanaClass {
             // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
-            const ixDef = this.getIxDefinition(key);
+            let ixDef;
+            try {
+                ixDef = this.getIxDefinition(key);
+            }
+            catch (_a) {
+                continue;
+            }
             let programId;
             if (ixDef.programId.startsWith('$')) {
                 programId = this.getVar(ixDef.programId);
@@ -811,7 +830,7 @@ class Yaml2SolanaClass {
                 try {
                     programId = new web3.PublicKey(ixDef.programId);
                 }
-                catch (_a) {
+                catch (_b) {
                     throw `The program id value: ${ixDef.programId} is not a valid program id base58 string`;
                 }
             }

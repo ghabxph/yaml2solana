@@ -28,6 +28,7 @@ const util = __importStar(require("../util"));
 class DynamicInstruction {
     constructor(y2s, params) {
         this.y2s = y2s;
+        this.isDynamicInstruction = true;
         this.varType = {};
         for (const param of params) {
             if (!param.startsWith('$')) {
@@ -42,11 +43,25 @@ class DynamicInstruction {
             }
         }
     }
-    get generateIxs() {
-        return this._generateIxs;
+    get ixs() {
+        if (this._generateIxs === undefined)
+            return undefined;
+        const params = {};
+        for (const id in this.varType) {
+            const _var = this.varType[id];
+            params[id] = this.getValue(_var.id, _var.type);
+        }
+        return this._generateIxs(this.y2s, params);
     }
-    get generateIx() {
-        return this._generateIx;
+    get ix() {
+        if (this._generateIx === undefined)
+            return undefined;
+        const params = {};
+        for (const id in this.varType) {
+            const _var = this.varType[id];
+            params[id] = this.getValue(_var.id, _var.type);
+        }
+        return this._generateIx(this.y2s, params);
     }
     /**
      * Set dynamic instruction function

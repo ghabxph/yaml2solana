@@ -9,6 +9,7 @@ import { spawn } from 'child_process';
 import { AccountDecoder } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 import { cliEntrypoint } from '../cli';
+import { isArray } from 'lodash';
 
 export class Yaml2SolanaClass {
 
@@ -134,6 +135,22 @@ export class Yaml2SolanaClass {
   }
 
   /**
+   * @param ix
+   * @returns
+   */
+  private isObjectInstruction(ix: any): boolean {
+    return typeof ix === 'object' && typeof ix.programId !== 'undefined';
+  }
+
+  /**
+   * @param ix
+   * @returns
+   */
+  private isObjectDynamicInstructionClassInstance(ix: any) {
+    return (ix as DynamicInstructionClass).isDynamicInstruction === true;
+  }
+
+  /**
    * Create localnet transaction
    *
    * @param description
@@ -150,15 +167,30 @@ export class Yaml2SolanaClass {
     payer: string | web3.PublicKey,
     signers: (string | web3.Signer)[]
   ): Transaction {
-    const _ixns: web3.TransactionInstruction[] = ixns.map(ix => {
-      if (typeof ix === 'object' && typeof ix.data !== 'undefined' && typeof ix.keys !== 'undefined' && typeof ix.programId !== 'undefined') {
-        return ix;
+    const _ixns: web3.TransactionInstruction[] = [];
+    ixns.map(ix => {
+      if (this.isObjectInstruction(ix)) {
+        _ixns.push(ix as web3.TransactionInstruction);
+        return;
       } else if (typeof ix === 'string') {
-        const _ix = this.getVar<web3.TransactionInstruction>(ix);
-        if (!(typeof _ix === 'object' && typeof _ix.data !== 'undefined' && typeof _ix.keys !== 'undefined' && typeof _ix.programId !== 'undefined')) {
+        const _ix = this.getVar<web3.TransactionInstruction | DynamicInstructionClass>(ix);
+        if (this.isObjectInstruction(ix)) {
+          _ixns.push(_ix as web3.TransactionInstruction);
+          return;
+        } else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
+          const singleIx = (_ix as DynamicInstructionClass).ix;
+          const multipleIx = (_ix as DynamicInstructionClass).ixs;
+          if (singleIx !== undefined) {
+            _ixns.push(singleIx);
+          } else if (multipleIx !== undefined) {
+            _ixns.push(...multipleIx);
+          } else {
+            throw `Dynamic instruction ${ix} is not yet defined`;
+          }
+          return;
+        } else {
           throw `Variable ${ix} is not a valid transaction instruction`;
         }
-        return _ix;
       } else {
         throw 'Invalid solana transaction instruction'
       }
@@ -756,27 +788,6 @@ export class Yaml2SolanaClass {
     }
   }
 
-  /**
-   * Prints lamports out of thin air in given test wallet key from yaml
-   *
-   * @param key
-   */
-  private fundLocalnetWalletFromYaml(key: string) {
-    const SOL = 1_000_000_000;
-    const solAmount = parseFloat(this._parsedYaml.localDevelopment.testWallets[key].solAmount);
-    const keypair = this.getVar<web3.Signer>(key);
-    const account: Record<string, web3.AccountInfo<Buffer>> = {};
-    const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
-    account[keypair.publicKey.toString()] = {
-      lamports: Math.floor(solAmount * SOL),
-      data: Buffer.alloc(0),
-      owner: new web3.PublicKey('11111111111111111111111111111111'),
-      executable: false,
-      rentEpoch: 0
-    }
-    util.fs.writeAccountsToCacheFolder(cacheFolder, account);
-  }
-
   private async runTestValidator2(mapping: Record<string, string | null>) {
     // 1. Read solana-test-validator.template.sh to project base folder
     let template = util.fs.readTestValidatorTemplate();
@@ -872,7 +883,12 @@ export class Yaml2SolanaClass {
       // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
       if (onlyResolve !== undefined && !onlyResolve.includes(key)) continue;
 
-      const ixDef = this.getIxDefinition(key);
+      let ixDef: InstructionDefinition;
+      try {
+        ixDef = this.getIxDefinition(key);
+      } catch {
+        continue;
+      }
       let programId;
       if (ixDef.programId.startsWith('$')) {
         programId = this.getVar<web3.PublicKey>(ixDef.programId);
@@ -1189,6 +1205,7 @@ export type ResolveParams = {
     thesePdas?: string[],
     theseInstructions?: string[]
     theseInstructionBundles?: string[],
+    theseDynamicInstructions?: string[],
   }
 }
 
