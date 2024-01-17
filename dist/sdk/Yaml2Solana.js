@@ -148,8 +148,8 @@ class Yaml2SolanaClass {
      * @param ix
      * @returns
      */
-    isObjectDynamicInstructionClassInstance(ix) {
-        return ix.isDynamicInstruction === true;
+    isObjectResolvedInstructionBundles(ix) {
+        return ix.resolvedInstructionBundle === true;
     }
     /**
      * Create localnet transaction
@@ -162,75 +162,66 @@ class Yaml2SolanaClass {
      * @returns
      */
     createTransaction(description, ixns, alts, payer, signers) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const _ixns = [];
-            for (const ix of ixns) {
-                if (this.isObjectInstruction(ix)) {
-                    _ixns.push(ix);
-                }
-                else if (typeof ix === 'string') {
-                    const _ix = this.getVar(ix);
-                    if (this.isObjectInstruction(ix)) {
-                        _ixns.push(_ix);
-                    }
-                    else if (this.isObjectDynamicInstructionClassInstance(_ix)) {
-                        const singleIx = _ix.ix;
-                        const multipleIx = _ix.ixs;
-                        if (singleIx !== undefined) {
-                            _ixns.push(yield singleIx);
-                        }
-                        else if (multipleIx !== undefined) {
-                            _ixns.push(...yield multipleIx);
-                        }
-                        else {
-                            throw `Dynamic instruction ${ix} is not yet defined`;
-                        }
-                    }
-                    else {
-                        throw `Variable ${ix} is not a valid transaction instruction`;
-                    }
-                }
-                else {
-                    throw 'Invalid solana transaction instruction';
-                }
+        const _ixns = [];
+        for (const ix of ixns) {
+            if (this.isObjectInstruction(ix)) {
+                _ixns.push(ix);
             }
-            let _payer;
-            if (typeof payer === 'string') {
-                const __payer = this.getVar(payer);
-                const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
-                const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
-                if (isPublicKey || isKeypair) {
-                    if (isPublicKey) {
-                        _payer = __payer;
-                    }
-                    else {
-                        _payer = __payer.publicKey;
-                    }
+            else if (typeof ix === 'string') {
+                const _ix = this.getVar(ix);
+                if (this.isObjectInstruction(ix)) {
+                    _ixns.push(_ix);
+                }
+                else if (this.isObjectResolvedInstructionBundles(_ix)) {
+                    const bundle = _ix;
+                    _ixns.push(...bundle.ixs);
+                    alts.push(...bundle.alts.map(alt => alt.toString()));
                 }
                 else {
-                    throw `Variable ${payer} is not a valid public key`;
+                    console.log(`${ix}`, _ix);
+                    throw `Variable ${ix} is not a valid transaction instruction`;
                 }
             }
             else {
-                _payer = payer;
+                throw 'Invalid solana transaction instruction';
             }
-            const _signers = signers.map(signer => {
-                if (typeof signer === 'string') {
-                    const _signer = this.getVar(signer);
-                    if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
-                        throw `Variable ${signer} is not a valid Signer instance`;
-                    }
-                    return _signer;
-                }
-                else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
-                    return signer;
+        }
+        let _payer;
+        if (typeof payer === 'string') {
+            const __payer = this.getVar(payer);
+            const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
+            const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
+            if (isPublicKey || isKeypair) {
+                if (isPublicKey) {
+                    _payer = __payer;
                 }
                 else {
-                    throw `Invalid solana signer instance`;
+                    _payer = __payer.publicKey;
                 }
-            });
-            return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
+            }
+            else {
+                throw `Variable ${payer} is not a valid public key`;
+            }
+        }
+        else {
+            _payer = payer;
+        }
+        const _signers = signers.map(signer => {
+            if (typeof signer === 'string') {
+                const _signer = this.getVar(signer);
+                if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
+                    throw `Variable ${signer} is not a valid Signer instance`;
+                }
+                return _signer;
+            }
+            else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
+                return signer;
+            }
+            else {
+                throw `Invalid solana signer instance`;
+            }
         });
+        return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
     }
     /**
      * Get signers from given instruction
@@ -303,61 +294,59 @@ class Yaml2SolanaClass {
      * @returns
      */
     resolveInstructionBundleSigners(label) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const result = [];
-            const signers = [];
-            const dynIxSigners = [];
-            label = label.startsWith('$') ? label.substring(1) : label;
-            const ixLabels = this._parsedYaml.instructionBundle[label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
-            for (const ixLabel of ixLabels) {
-                let ixDef;
-                try {
-                    ixDef = this.getIxDefinition(ixLabel);
-                }
-                catch (_a) {
-                    this.getDynamicInstruction(ixLabel);
-                    const dynIx = this.getVar(`$${ixLabel}`);
-                    const singleIx = yield dynIx.ix;
-                    const multipleIx = yield dynIx.ixs;
-                    if (singleIx !== undefined) {
-                        dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-                    }
-                    else if (multipleIx !== undefined) {
-                        multipleIx.map(ix => {
-                            dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-                        });
-                    }
-                    else {
-                        throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
-                    }
-                    continue;
-                }
-                ixDef.accounts.map(meta => {
-                    const _meta = meta.split(',');
-                    if (_meta.includes('signer')) {
-                        const [signer] = _meta;
-                        signers.push(signer);
-                    }
-                });
+        const result = [];
+        const signers = [];
+        const dynIxSigners = [];
+        label = label.startsWith('$') ? label.substring(1) : label;
+        const ixLabels = this._parsedYaml.instructionBundle[label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
+        for (const ixLabel of ixLabels) {
+            let ixDef;
+            try {
+                ixDef = this.getIxDefinition(ixLabel);
             }
-            signers.filter((v, i, s) => s.indexOf(v) === i).map(signer => {
-                if (signer.startsWith('$')) {
-                    result.push(this.getVar(signer));
+            catch (_a) {
+                this.getDynamicInstruction(ixLabel);
+                const dynIx = this.getVar(`$${ixLabel}`);
+                const singleIx = dynIx.ix;
+                const multipleIx = dynIx.ixs;
+                if (singleIx !== undefined) {
+                    dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                }
+                else if (multipleIx !== undefined) {
+                    multipleIx.map(ix => {
+                        dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                    });
                 }
                 else {
-                    throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
+                    throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+                }
+                continue;
+            }
+            ixDef.accounts.map(meta => {
+                const _meta = meta.split(',');
+                if (_meta.includes('signer')) {
+                    const [signer] = _meta;
+                    signers.push(signer);
                 }
             });
-            for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
-                const kp = this.getVar(`$${testWallet}`);
-                for (const dynIxSigner of dynIxSigners) {
-                    if (kp.publicKey.equals(dynIxSigner)) {
-                        result.push(kp);
-                    }
+        }
+        signers.filter((v, i, s) => s.indexOf(v) === i).map(signer => {
+            if (signer.startsWith('$')) {
+                result.push(this.getVar(signer));
+            }
+            else {
+                throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
+            }
+        });
+        for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
+            const kp = this.getVar(`$${testWallet}`);
+            for (const dynIxSigner of dynIxSigners) {
+                if (kp.publicKey.equals(dynIxSigner)) {
+                    result.push(kp);
                 }
             }
-            return result.filter((v, i, s) => s.indexOf(v) === i);
-        });
+        }
+        return result.filter((v, i, s) => s.indexOf(v) === i);
     }
     /**
      * @returns accounts from schema
@@ -1038,6 +1027,7 @@ class Yaml2SolanaClass {
                 if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
                     continue;
                 const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
+                const alts = ixBundle.alts.map(alt => new web3.PublicKey(alt));
                 for (const ix of ixBundle.instructions) {
                     // Set global variables
                     for (const key in ix.params) {
@@ -1083,7 +1073,6 @@ class Yaml2SolanaClass {
                         this.resolveInstruction(ix.label);
                     }
                 }
-                // Lastly, store ix bundle in global
                 const ixs = [];
                 for (const ix of ixBundle.instructions) {
                     const _ix = this.getVar(ix.label);
@@ -1091,8 +1080,9 @@ class Yaml2SolanaClass {
                         ixs.push(_ix);
                     }
                     else if (_ix instanceof DynamicInstruction_1.DynamicInstruction) {
-                        const singleIx = yield _ix.ix;
-                        const multipleIx = yield _ix.ixs;
+                        yield _ix.resolve();
+                        const singleIx = _ix.ix;
+                        const multipleIx = _ix.ixs;
                         if (singleIx !== undefined) {
                             ixs.push(singleIx);
                         }
@@ -1102,14 +1092,40 @@ class Yaml2SolanaClass {
                         else {
                             throw `Dynamic instruction ${ix.label} is not yet defined.`;
                         }
+                        alts.push(..._ix.alts);
                     }
                     else {
                         throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
                     }
                 }
-                this.setVar(_ixBundle, ixs);
+                // Lastly, store ix bundle in global
+                this.setVar(_ixBundle, {
+                    resolvedInstructionBundle: true,
+                    alts,
+                    payer: this.resolveKeypair(ixBundle.payer),
+                    ixs,
+                });
             }
         });
+    }
+    /**
+     * Resolve keypair
+     *
+     * @param idOrVal
+     */
+    resolveKeypair(idOrVal) {
+        if (idOrVal.startsWith('$')) {
+            const kp = this.getVar(idOrVal);
+            if (typeof kp.publicKey !== 'undefined') {
+                return kp;
+            }
+            else {
+                throw `Cannot resolve keypair: ${idOrVal}`;
+            }
+        }
+        else {
+            return web3.Keypair.fromSecretKey(Buffer.from(idOrVal, 'base64'));
+        }
     }
     sanitizeDollar(pattern) {
         return pattern.startsWith('$') ? pattern.substring(1) : pattern;

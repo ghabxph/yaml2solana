@@ -195,7 +195,7 @@ function runSingleInstruction(schemaFile, y2s) {
         console.log();
         yield yaml2solana.executeTransactionsLocally({
             txns: [
-                yield yaml2solana.createTransaction(instructionToExecute, [`$${instructionToExecute}`], [], ixDef.payer, yaml2solana.getSignersFromIx(instructionToExecute))
+                yaml2solana.createTransaction(instructionToExecute, [`$${instructionToExecute}`], [], ixDef.payer, yaml2solana.getSignersFromIx(instructionToExecute))
             ],
             runFromExistingLocalnet: yield util.test.checkIfLocalnetIsRunning(),
         });
@@ -221,11 +221,9 @@ function runBundledInstructions(schemaFile, y2s) {
                 theseInstructionBundles: [choice]
             }
         });
-        // 5. Get transaction bundle
-        const ixns = yaml2solana.getParam(`$${choice}`);
-        // 6. Create localnet transaction
-        const signers = yield yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
-        const tx = yield yaml2solana.createTransaction(choice, ixns, yaml2solana.parsedYaml.instructionBundle[choice].alts, yaml2solana.parsedYaml.instructionBundle[choice].payer, signers);
+        // 5. Create localnet transaction
+        const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
+        const tx = yaml2solana.createTransaction(choice, [`$${choice}`], yaml2solana.parsedYaml.instructionBundle[choice].alts, yaml2solana.parsedYaml.instructionBundle[choice].payer, signers);
         // 7. Execute instruction in localnet
         console.log();
         yield yaml2solana.executeTransactionsLocally({

@@ -25,6 +25,10 @@ export class DynamicInstruction {
 
   private _alts: web3.PublicKey[] = [];
 
+  private _ixs?: web3.TransactionInstruction[];
+
+  private _ix?: web3.TransactionInstruction;
+
   constructor(
     public readonly y2s: Yaml2SolanaClass,
     params: string[]
@@ -59,24 +63,31 @@ export class DynamicInstruction {
     return this._alts;
   }
 
-  get ixs(): Promise<web3.TransactionInstruction[]> | undefined {
-    if (this._generateIxs === undefined) return undefined;
-    const params: Record<string, any> = {};
-    for (const id in this.varType) {
-      const _var = this.varType[id];
-      params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
+  async resolve() {
+    if (this._generateIxs !== undefined) {
+      const params: Record<string, any> = {};
+      for (const id in this.varType) {
+        const _var = this.varType[id];
+        params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
+      }
+      this._ixs = await this._generateIxs(params, this.y2s);
     }
-    return this._generateIxs(params, this.y2s);
+    if (this._generateIx !== undefined) {
+      const params: Record<string, any> = {}
+      for (const id in this.varType) {
+        const _var = this.varType[id];
+        params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
+      }
+      this._ix = await this._generateIx(params, this.y2s);
+    }
   }
 
-  get ix(): Promise<web3.TransactionInstruction> | undefined {
-    if (this._generateIx === undefined) return undefined;
-    const params: Record<string, any> = {}
-    for (const id in this.varType) {
-      const _var = this.varType[id];
-      params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
-    }
-    return this._generateIx(params, this.y2s);
+  get ixs(): web3.TransactionInstruction[] | undefined {
+    return this._ixs;
+  }
+
+  get ix(): web3.TransactionInstruction | undefined {
+    return this._ix;
   }
 
   extend<T extends GenerateIxsFn>(ixFn: T): void;

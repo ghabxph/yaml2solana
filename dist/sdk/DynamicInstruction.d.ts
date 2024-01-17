@@ -16,13 +16,16 @@ export declare class DynamicInstruction {
     private _generateIx?;
     private _payer?;
     private _alts;
+    private _ixs?;
+    private _ix?;
     constructor(y2s: Yaml2SolanaClass, params: string[]);
     setPayer(payer: web3.PublicKey): void;
     setAlts(alts: web3.PublicKey[]): void;
     get payer(): web3.PublicKey;
     get alts(): web3.PublicKey[];
-    get ixs(): Promise<web3.TransactionInstruction[]> | undefined;
-    get ix(): Promise<web3.TransactionInstruction> | undefined;
+    resolve(): Promise<void>;
+    get ixs(): web3.TransactionInstruction[] | undefined;
+    get ix(): web3.TransactionInstruction | undefined;
     extend<T extends GenerateIxsFn>(ixFn: T): void;
     extend<T extends GenerateIxFn>(ixFn: T): void;
     private isGenerateIxsFn;

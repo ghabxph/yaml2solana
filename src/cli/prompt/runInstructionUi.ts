@@ -161,7 +161,7 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
   console.log();
   await yaml2solana.executeTransactionsLocally({
     txns: [
-      await yaml2solana.createTransaction(
+      yaml2solana.createTransaction(
         instructionToExecute,
         [`$${instructionToExecute}`],
         [],
@@ -197,14 +197,11 @@ async function runBundledInstructions(schemaFile: string, y2s?: Yaml2SolanaClass
     }
   });
 
-  // 5. Get transaction bundle
-  const ixns = yaml2solana.getParam<web3.TransactionInstruction[]>(`$${choice}`);
-
-  // 6. Create localnet transaction
-  const signers = await yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
-  const tx = await yaml2solana.createTransaction(
+  // 5. Create localnet transaction
+  const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
+  const tx = yaml2solana.createTransaction(
     choice,
-    ixns,
+    [`$${choice}`],
     yaml2solana.parsedYaml.instructionBundle![choice].alts,
     yaml2solana.parsedYaml.instructionBundle![choice].payer,
     signers,
