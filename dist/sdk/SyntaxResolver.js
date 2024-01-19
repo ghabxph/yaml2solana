@@ -138,8 +138,26 @@ class ContextResolver {
     }
     resolveBundledInstruction() {
         const ixBundle = this.toResolve;
+        if (ixBundle.vars !== null) {
+            for (const id in ixBundle.vars) {
+                const value = ixBundle.vars[id];
+                if (typeof value !== 'string' && typeof value !== 'boolean' && typeof value !== 'number' && typeof value !== 'bigint') {
+                    (0, error_1.throwErrorWithTrace)(`${id} must be either string, boolean, or numerical value only.`);
+                }
+                let result;
+                if (value.startsWith('$')) {
+                    result = new MainSyntaxResolver(value, this.y2s).resolve(SyntaxContext.VARIABLE_RESOLUTION);
+                }
+                else {
+                    result = new MainSyntaxResolver(value, this.y2s).resolve(SyntaxContext.LITERALS);
+                }
+                this.y2s.setParam(`$${id}`, result);
+            }
+        }
         for (const ix of ixBundle.instructions) {
             const ixDefOrDynIx = this.y2s.parsedYaml.instructionDefinition[ix.label];
+            if (ixDefOrDynIx === undefined)
+                continue;
             const dynIx = ixDefOrDynIx;
             const ixDef = ixDefOrDynIx;
             let declarationSyntaxArr = dynIx.dynamic ? dynIx.params : ixDef.data;
@@ -148,7 +166,26 @@ class ContextResolver {
                 if (resolver.type === 'function_declaration_syntax')
                     continue;
                 else if (resolver.type === 'typed_variable_declaration_syntax') {
-                    const value = ix.params[resolver.value.name];
+                    let value = ix.params[resolver.value.name];
+                    if (typeof value === 'string' && value.startsWith('$') && this.y2s.parsedYaml.pda[value.substring(1)]) {
+                        this.y2s.resolve({
+                            onlyResolve: {
+                                thesePdas: [value.substring(1)],
+                                theseInstructions: [],
+                                theseInstructionBundles: [],
+                                theseDynamicInstructions: [],
+                            }
+                        });
+                    }
+                    try {
+                        const result = new MainSyntaxResolver(value, this.y2s).resolve(SyntaxContext.VARIABLE_RESOLUTION);
+                        value = result.value;
+                    }
+                    catch {
+                        if (value.startsWith('$')) {
+                            (0, error_1.throwErrorWithTrace)(`Cannot resolve variable: ${value}`);
+                        }
+                    }
                     if (value !== undefined) {
                         if (resolver.value.dataType === 'pubkey') {
                             this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(new web3.PublicKey(value)));
@@ -259,6 +296,9 @@ class MainSyntaxResolver {
         }
         else if (context === SyntaxContext.DECLARATION_SYNTAX) {
             return this.basicResolver(new AccountDataSyntaxResolver(this.pattern, this.y2s), `Invalid declaration syntax: ${this.pattern}`);
+        }
+        else if (context === SyntaxContext.LITERALS) {
+            return this.basicResolver(new LiteralSyntaxResolver(this.pattern, this.y2s), `Invalid literal syntax: ${this.pattern}`);
         }
         else {
             return (0, error_1.throwErrorWithTrace)(`Invalid context: ${this.pattern}`);
@@ -488,20 +528,15 @@ class ValueSyntaxResolver extends SyntaxResolver {
      * @returns true or false
      */
     isValid() {
+        const isBigNumber = typeof this.pattern === 'bigint';
         const isNumber = typeof this.pattern === 'number';
         const isBoolean = typeof this.pattern === 'boolean';
         const isString = typeof this.pattern === 'string';
         if (isString && this.pattern.startsWith('$')) {
             const resolver = new VariableSyntaxResolver(this.pattern, this.y2s);
-            if (!resolver.isValid()) {
-                return false;
-            }
-            return [
-                'string', 'pubkey', 'keypair', 'boolean',
-                'u8', 'u16', 'u32', 'i8', 'i16', 'i32'
-            ].includes(resolver.value.type);
+            return resolver.isValid();
         }
-        return isNumber || isBoolean || isString;
+        return isBigNumber || isNumber || isBoolean || isString;
     }
     /**
      * Resolves the variable
@@ -511,7 +546,7 @@ class ValueSyntaxResolver extends SyntaxResolver {
         const isString = typeof this.pattern === 'string';
         if (isString && this.pattern.startsWith('$')) {
             const resolver = new VariableSyntaxResolver(this.pattern, this.y2s);
-            this._value = resolver.value.value;
+            this._value = resolver.value;
         }
         else {
             this._value = this.pattern;
@@ -1172,8 +1207,11 @@ class AccountDataResolver extends SyntaxResolver {
     isValid() {
         const funcResolver = new FunctionResolver(this.pattern, this.y2s);
         const typedVarResolver = new TypedVariableResolver(this.pattern, this.y2s);
-        const supportedTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64', 'boolean', 'pubkey'].includes(typedVarResolver.value.type);
-        return funcResolver.isValid() || typedVarResolver.isValid() && supportedTypes;
+        let supportedTypes = false;
+        if (typedVarResolver.isValid()) {
+            supportedTypes = ['u8', 'u16', 'u32', 'u64', 'usize', 'i8', 'i16', 'i32', 'i64', 'boolean', 'pubkey'].includes(typedVarResolver.value.type);
+        }
+        return funcResolver.isValid() || (typedVarResolver.isValid() && supportedTypes);
     }
     /**
      * Resolves the variable
@@ -1649,12 +1687,81 @@ class AccountDataSyntaxResolver extends SyntaxResolver {
         };
     }
 }
+class LiteralSyntaxResolver extends SyntaxResolver {
+    /**
+     * Resolved value
+     */
+    get value() {
+        return TypeFactory.createValue(this._value);
+    }
+    /**
+     * Checks whether syntax provided is valid
+     *
+     * @returns true or false
+     */
+    isValid() {
+        const isString = typeof this.pattern === 'string';
+        const isNumber = typeof this.pattern === 'number';
+        const isBigNumber = typeof this.pattern === 'bigint';
+        const isBoolean = typeof this.pattern === 'boolean';
+        let isPubkey = false;
+        let isKeypair = false;
+        try {
+            new web3.PublicKey(this.pattern);
+            isPubkey = true;
+        }
+        catch { }
+        try {
+            web3.Keypair.fromSecretKey(Buffer.from(this.pattern, 'base64'));
+            isKeypair = true;
+        }
+        catch { }
+        if (this.pattern.startsWith('$')) {
+            return false;
+        }
+        return isPubkey || isKeypair || isString || isNumber || isBigNumber || isBoolean;
+    }
+    /**
+     * Resolves the variable
+     */
+    resolve() {
+        try {
+            const pubkey = new web3.PublicKey(this.pattern);
+            this._value = TypeFactory.createValue(pubkey);
+            return;
+        }
+        catch { }
+        try {
+            const keypair = web3.Keypair.fromSecretKey(Buffer.from(this.pattern, 'base64'));
+            ;
+            this._value = TypeFactory.createValue(keypair);
+            return;
+        }
+        catch { }
+        if (typeof this.pattern === 'number') {
+            if (Math.floor(this.pattern) === this.pattern) {
+                if (this.pattern > 0) {
+                    this._value = TypeFactory.createValue(this.pattern, 'u32'); // Assumes that it's 32-bit unsigned integer (heuristic)
+                }
+                else {
+                    this._value = TypeFactory.createValue(this.pattern, 'i32'); // Assumes that it's 32-bit signed integer (heuristic)
+                }
+            }
+            else {
+                (0, error_1.throwErrorWithTrace)(`Floats (${this.pattern}) currently not supported by this system.`);
+            }
+        }
+        else if (typeof this.pattern === 'boolean') {
+            this._value = TypeFactory.createValue(this.pattern);
+        }
+        else if (typeof this.pattern === 'string' && !this.pattern.startsWith('$')) {
+            this._value = TypeFactory.createValue(this.pattern);
+        }
+    }
+}
 class TypeFactory {
     static createValue(value, type) {
-        if (TypeFactory.isType(value)) {
-            return value;
-        }
-        else if (TypeFactory.isPubkey(value)) {
+        if (TypeFactory.isPubkey(value)) {
             return { value: value, type: "pubkey" };
         }
         else if (TypeFactory.isKeypair(value)) {
@@ -1667,10 +1774,10 @@ class TypeFactory {
             return { value: value, type: "boolean" };
         }
         else if (TypeFactory.isInteger(value)) {
-            return { value: value, type: type };
+            return { value: value, type: type }; // buggy code (TODO: Should write a resolver for this.)
         }
         else if (TypeFactory.isBigInteger(value)) {
-            return { value: value, type: type };
+            return { value: value, type: type }; // buggy code (TODO: Should write a resolver for this.)
         }
         else if (TypeFactory.isAccountSyntax(value)) {
             return { value: value, type: "account_syntax" };
@@ -1681,6 +1788,9 @@ class TypeFactory {
         else if (TypeFactory.isAccountDecoderClassSyntax(value)) {
             return { value: value, type: "account_decoder_syntax" };
         }
+        else if (TypeFactory.isInstruction(value)) {
+            return { value: value, type: "instruction" };
+        }
         else if (TypeFactory.isAccountDecoderClass(value)) {
             return { value: value, type: "account_decoder" };
         }
@@ -1690,9 +1800,6 @@ class TypeFactory {
         else if (TypeFactory.isBuffer(value)) {
             return { value: value, type: "buffer" };
         }
-        else if (TypeFactory.isInstruction(value)) {
-            return { value: value, type: "instruction" };
-        }
         else if (TypeFactory.isTypedVariableDeclarationSyntax(value)) {
             return { value: value, type: "typed_variable_declaration_syntax" };
         }
@@ -1701,6 +1808,9 @@ class TypeFactory {
         }
         else if (TypeFactory.isResolvedInstructionBundles(value)) {
             return { value: value, type: "resolved_instruction_bundles" };
+        }
+        else if (TypeFactory.isType(value)) {
+            return value;
         }
         else {
             return (0, error_1.throwErrorWithTrace)(`Unsupported value.`);
@@ -1780,4 +1890,5 @@ var SyntaxContext;
     SyntaxContext[SyntaxContext["IX_BUNDLE_RESOLUTION"] = 10] = "IX_BUNDLE_RESOLUTION";
     SyntaxContext[SyntaxContext["DECLARATION_SYNTAX"] = 11] = "DECLARATION_SYNTAX";
     SyntaxContext[SyntaxContext["SET_VALUE_SYNTAX"] = 12] = "SET_VALUE_SYNTAX";
+    SyntaxContext[SyntaxContext["LITERALS"] = 13] = "LITERALS";
 })(SyntaxContext || (exports.SyntaxContext = SyntaxContext = {}));

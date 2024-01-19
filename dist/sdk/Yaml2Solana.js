@@ -134,13 +134,6 @@ class Yaml2SolanaClass {
         return typeof ix === 'object' && typeof ix.programId !== 'undefined';
     }
     /**
-     * @param ix
-     * @returns
-     */
-    isObjectResolvedInstructionBundles(ix) {
-        return ix.resolvedInstructionBundle === true;
-    }
-    /**
      * Create localnet transaction
      *
      * @param description
@@ -167,7 +160,6 @@ class Yaml2SolanaClass {
                     alts.push(...bundle.alts.map(alt => alt.toString()));
                 }
                 else {
-                    console.log(`${ix}`, _ix);
                     return (0, error_1.throwErrorWithTrace)(`Variable ${ix} is not a valid transaction instruction`);
                 }
             }
@@ -695,6 +687,38 @@ class Yaml2SolanaClass {
         }
     }
     /**
+     * Find PDAs involved from given instruction
+     *
+     * @param ixLabel
+     */
+    findPdasInvolvedInInstruction(ixLabel) {
+        ixLabel = ixLabel.startsWith('$') ? ixLabel.substring(1) : ixLabel;
+        const result = [];
+        try {
+            const ixDef = this.getIxDefinition(ixLabel);
+            for (const accountMeta of ixDef.accounts) {
+                let [account] = accountMeta.split(',');
+                if (!account.startsWith('$'))
+                    continue;
+                account = account.substring(1);
+                if (typeof this._parsedYaml.pda[account] !== 'undefined') {
+                    result.push(account);
+                }
+            }
+        }
+        catch {
+            const dynIx = this.getDynamicInstruction(ixLabel);
+            for (const param of dynIx.params) {
+                const [_account] = param.split(':');
+                const account = _account.substring(1);
+                if (typeof this._parsedYaml.pda[account] !== 'undefined') {
+                    result.push(account);
+                }
+            }
+        }
+        return result;
+    }
+    /**
      * Get ix definition
      *
      * @param ixLabel
@@ -705,7 +729,7 @@ class Yaml2SolanaClass {
         if ('dynamic' in ixDef && 'params' in ixDef) {
             return ixDef;
         }
-        return (0, error_1.throwErrorWithTrace)(`${ixLabel} is not an InstructionDefinition`);
+        return (0, error_1.throwErrorWithTrace)(`${ixLabel} is not a DynamicInstruction`);
     }
     /**
      * Store value to global variable
@@ -730,26 +754,6 @@ class Yaml2SolanaClass {
         else {
             return (0, error_1.throwErrorWithTrace)('Variable should begin with dollar symbol `$`');
         }
-    }
-    /**
-     * Find PDAs involved from given instruction
-     *
-     * @param ixLabel
-     */
-    findPdasInvolvedInInstruction(ixLabel) {
-        ixLabel = ixLabel.startsWith('$') ? ixLabel.substring(1) : ixLabel;
-        const result = [];
-        const ixDef = this.getIxDefinition(ixLabel);
-        for (const accountMeta of ixDef.accounts) {
-            let [account] = accountMeta.split(',');
-            if (!account.startsWith('$'))
-                continue;
-            account = account.substring(1);
-            if (typeof this._parsedYaml.pda[account] !== 'undefined') {
-                result.push(account);
-            }
-        }
-        return result;
     }
     /**
      * @param extension File extension to check
@@ -878,6 +882,15 @@ class Yaml2SolanaClass {
             // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
+            // Resolve first the necessary PDA required by the instruction
+            this.resolve({
+                onlyResolve: {
+                    thesePdas: this.findPdasInvolvedInInstruction(key),
+                    theseInstructions: [],
+                    theseInstructionBundles: [],
+                    theseDynamicInstructions: [],
+                }
+            });
             let ixDef;
             try {
                 ixDef = this.getIxDefinition(key);
@@ -888,6 +901,9 @@ class Yaml2SolanaClass {
             const resolver = new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.IX_RESOLUTION, ixDef).resolve();
             if (resolver !== undefined && resolver.type === 'instruction') {
                 this.setVar(key, resolver.value);
+            }
+            else {
+                return (0, error_1.throwErrorWithTrace)(`Cannot resolve ${key} instruction from schema`);
             }
         }
     }
@@ -907,12 +923,15 @@ class Yaml2SolanaClass {
             new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.IX_BUNDLE_RESOLUTION, ixBundle).resolve();
             // Resolve instructions (generate / re-generate isntruction after variable setting)
             for (const ix of ixBundle.instructions) {
+                const _ix = this._parsedYaml.instructionDefinition[ix.label];
+                if (_ix.dynamic !== undefined && _ix.dynamic)
+                    continue;
                 this.resolveInstruction(ix.label);
             }
             // Get instructions from instruction definition or dynamic instruction
             const ixs = [];
             for (const ix of ixBundle.instructions) {
-                const _ix = this.getVar(ix.label);
+                const _ix = this.getVar(`$${ix.label}`);
                 if (_ix.type === 'instruction') {
                     ixs.push(_ix.value);
                 }
