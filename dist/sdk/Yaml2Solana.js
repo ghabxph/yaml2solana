@@ -22,15 +22,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -44,10 +35,9 @@ const util = __importStar(require("../util"));
 const find_process_1 = __importDefault(require("find-process"));
 const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
-const AccountDecoder_1 = require("./AccountDecoder");
 const DynamicInstruction_1 = require("./DynamicInstruction");
 const cli_1 = require("../cli");
-const setupUserWalletUi_1 = require("../cli/prompt/setupUserWalletUi");
+const SyntaxResolver_1 = require("./SyntaxResolver");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
@@ -56,11 +46,14 @@ class Yaml2SolanaClass {
         this._global = {};
         this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
         // Read the YAML file.
-        const yamlFile = fs.readFileSync(config, 'utf8');
+        const _path = path.resolve(config);
+        const yamlFile = fs.readFileSync(_path, 'utf8');
         this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
         this._parsedYaml = yaml.parse(yamlFile);
+        // Resolve test wallets
+        this.resolveTestWallets();
         // Set named accounts to global variable
-        this.setNamedAccountsToGlobal(this._parsedYaml);
+        this.setNamedAccountsToGlobal();
         // Set known solana accounts (not meant to be downloaded)
         this.setKnownAccounts();
         // Generate account decoders
@@ -77,10 +70,8 @@ class Yaml2SolanaClass {
     /**
      * Start CLI
      */
-    cli() {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield (0, cli_1.cliEntrypoint)(this);
-        });
+    async cli() {
+        await (0, cli_1.cliEntrypoint)(this);
     }
     /**
      * Parsed yaml file
@@ -102,22 +93,18 @@ class Yaml2SolanaClass {
      * Resolve variables
      * @param params
      */
-    resolve(params) {
+    async resolve(params) {
         var _a, _b, _c;
-        return __awaiter(this, void 0, void 0, function* () {
-            let onlyResolve;
-            // Resolve test wallets
-            this.resolveTestWallets(this._parsedYaml);
-            // Resolve PDAs
-            onlyResolve = (_a = params.onlyResolve.thesePdas) === null || _a === void 0 ? void 0 : _a.map(v => this.sanitizeDollar(v));
-            this.resolvePda(onlyResolve);
-            // Resolve instructions
-            onlyResolve = (_b = params.onlyResolve.theseInstructions) === null || _b === void 0 ? void 0 : _b.map(v => this.sanitizeDollar(v));
-            this.resolveInstructions(onlyResolve);
-            // Resolve instruction bundles
-            onlyResolve = (_c = params.onlyResolve.theseInstructionBundles) === null || _c === void 0 ? void 0 : _c.map(v => this.sanitizeDollar(v));
-            yield this.resolveInstructionBundles(onlyResolve);
-        });
+        let onlyResolve;
+        // Resolve PDAs
+        onlyResolve = (_a = params.onlyResolve.thesePdas) === null || _a === void 0 ? void 0 : _a.map(v => this.sanitizeDollar(v));
+        this.resolvePda(onlyResolve);
+        // Resolve instructions
+        onlyResolve = (_b = params.onlyResolve.theseInstructions) === null || _b === void 0 ? void 0 : _b.map(v => this.sanitizeDollar(v));
+        this.resolveInstructions(onlyResolve);
+        // Resolve instruction bundles
+        onlyResolve = (_c = params.onlyResolve.theseInstructionBundles) === null || _c === void 0 ? void 0 : _c.map(v => this.sanitizeDollar(v));
+        await this.resolveInstructionBundles(onlyResolve);
     }
     /**
      * Get accounts from solana instructions
@@ -170,11 +157,11 @@ class Yaml2SolanaClass {
             }
             else if (typeof ix === 'string') {
                 const _ix = this.getVar(ix);
-                if (this.isObjectInstruction(ix)) {
-                    _ixns.push(_ix);
+                if (_ix.type === 'instruction') {
+                    _ixns.push(_ix.value);
                 }
-                else if (this.isObjectResolvedInstructionBundles(_ix)) {
-                    const bundle = _ix;
+                else if (_ix.type === 'resolved_instruction_bundles') {
+                    const bundle = _ix.value;
                     _ixns.push(...bundle.ixs);
                     alts.push(...bundle.alts.map(alt => alt.toString()));
                 }
@@ -190,15 +177,11 @@ class Yaml2SolanaClass {
         let _payer;
         if (typeof payer === 'string') {
             const __payer = this.getVar(payer);
-            const isPublicKey = typeof __payer === 'object' && typeof __payer.toBuffer === 'function' && __payer.toBuffer().length === 32;
-            const isKeypair = typeof __payer === 'object' && typeof __payer.publicKey !== undefined && typeof __payer.secretKey !== undefined;
-            if (isPublicKey || isKeypair) {
-                if (isPublicKey) {
-                    _payer = __payer;
-                }
-                else {
-                    _payer = __payer.publicKey;
-                }
+            if (__payer.type === 'pubkey') {
+                _payer = __payer.value;
+            }
+            else if (__payer.type === 'keypair') {
+                _payer = __payer.value.publicKey;
             }
             else {
                 throw `Variable ${payer} is not a valid public key`;
@@ -210,10 +193,10 @@ class Yaml2SolanaClass {
         const _signers = signers.map(signer => {
             if (typeof signer === 'string') {
                 const _signer = this.getVar(signer);
-                if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
+                if (_signer.type !== 'keypair') {
                     throw `Variable ${signer} is not a valid Signer instance`;
                 }
-                return _signer;
+                return _signer.value;
             }
             else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
                 return signer;
@@ -232,15 +215,27 @@ class Yaml2SolanaClass {
     getSignersFromIx(ixLabel) {
         const result = [];
         const ixDef = this.getIxDefinition(ixLabel);
-        const payer = this.getVar(ixDef.payer);
+        let payer;
+        const p = this.getVar(ixDef.payer);
+        if (p.type === 'keypair') {
+            payer = p.value;
+        }
+        else {
+            throw `Cannot resolve payer: ${ixDef.payer}`;
+        }
         let isPayerSigner = false;
         for (const meta of ixDef.accounts) {
             const _meta = meta.split(',');
             const [account] = _meta;
             if (_meta.includes('signer')) {
                 const signer = this.getVar(account);
-                result.push(signer);
-                if (Buffer.from(signer.secretKey).equals(Buffer.from(payer.secretKey))) {
+                if (signer.type === 'keypair') {
+                    result.push(signer.value);
+                }
+                else {
+                    throw `Cannot resolve signer account: ${account}`;
+                }
+                if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
                     isPayerSigner = true;
                 }
             }
@@ -280,7 +275,13 @@ class Yaml2SolanaClass {
         const payer = this._parsedYaml.instructionBundle[label].payer;
         let kp;
         if (payer.startsWith('$')) {
-            kp = this.getVar(payer);
+            const _kp = this.getVar(payer);
+            if (_kp.type === 'keypair') {
+                kp = _kp.value;
+            }
+            else {
+                throw `${payer} is not a valid keypair.`;
+            }
         }
         else {
             // Assume that value is base64 encoded keypair
@@ -305,21 +306,26 @@ class Yaml2SolanaClass {
             try {
                 ixDef = this.getIxDefinition(ixLabel);
             }
-            catch (_a) {
+            catch {
                 this.getDynamicInstruction(ixLabel);
                 const dynIx = this.getVar(`$${ixLabel}`);
-                const singleIx = dynIx.ix;
-                const multipleIx = dynIx.ixs;
-                if (singleIx !== undefined) {
-                    dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-                }
-                else if (multipleIx !== undefined) {
-                    multipleIx.map(ix => {
-                        dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-                    });
+                if (dynIx.type === 'dynamic_instruction') {
+                    const singleIx = dynIx.value.ix;
+                    const multipleIx = dynIx.value.ixs;
+                    if (singleIx !== undefined) {
+                        dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                    }
+                    else if (multipleIx !== undefined) {
+                        multipleIx.map(ix => {
+                            dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+                        });
+                    }
+                    else {
+                        throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+                    }
                 }
                 else {
-                    throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+                    throw `${dynIx.type} is not dynamic instruction`;
                 }
                 continue;
             }
@@ -332,21 +338,11 @@ class Yaml2SolanaClass {
             });
         }
         signers.filter((v, i, s) => s.indexOf(v) === i).map(signer => {
-            if (signer.startsWith('$')) {
-                result.push(this.getVar(signer));
-            }
-            else {
-                throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
-            }
+            result.push(this.findSigner(signer));
         });
-        for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
-            const kp = this.getVar(`$${testWallet}`);
-            for (const dynIxSigner of dynIxSigners) {
-                if (kp.publicKey.equals(dynIxSigner)) {
-                    result.push(kp);
-                }
-            }
-        }
+        dynIxSigners.map(p => {
+            result.push(this.findSigner(p));
+        });
         return result.filter((v, i, s) => s.indexOf(v) === i);
     }
     /**
@@ -381,62 +377,58 @@ class Yaml2SolanaClass {
      *
      * @param forceDownload
      */
-    downloadAccountsFromMainnet(forceDownload) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log();
-            console.log('Downloading solana accounts:');
-            console.log('--------------------------------------------------------------');
-            const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
-            // 1. Get accounts from schema
-            let accounts = this.getAccounts();
-            // 2. Skip accounts that are already downloaded
-            accounts = util.fs.skipDownloadedAccounts(cacheFolder, accounts);
-            // 3. Force include accounts that are in forceDownloaded
-            accounts.push(...forceDownload);
-            accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
-            // 4. Skip accounts that are defined in localDevelopment.skipCache
-            accounts = accounts.filter((v, i) => !this._parsedYaml.localDevelopment.skipCache.includes(v.toString()));
-            // 5. Fetch multiple accounts from mainnet at batches of 100
-            const accountInfos = yield util.solana.getMultipleAccountsInfo(accounts);
-            // 6. Find programs that are executable within account infos
-            const executables = [];
-            for (const key in accountInfos) {
-                const accountInfo = accountInfos[key];
-                if (accountInfo === null)
-                    continue;
-                if (accountInfo.executable) {
-                    const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
-                    try {
-                        fs.accessSync(path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
-                    }
-                    catch (_a) {
-                        executables.push(executable);
-                    }
+    async downloadAccountsFromMainnet(forceDownload) {
+        console.log();
+        console.log('Downloading solana accounts:');
+        console.log('--------------------------------------------------------------');
+        const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
+        // 1. Get accounts from schema
+        let accounts = this.getAccounts();
+        // 2. Skip accounts that are already downloaded
+        accounts = util.fs.skipDownloadedAccounts(cacheFolder, accounts);
+        // 3. Force include accounts that are in forceDownloaded
+        accounts.push(...forceDownload);
+        accounts = accounts.filter((v, i, s) => s.indexOf(v) === i);
+        // 4. Skip accounts that are defined in localDevelopment.skipCache
+        accounts = accounts.filter((v, i) => !this._parsedYaml.localDevelopment.skipCache.includes(v.toString()));
+        // 5. Fetch multiple accounts from mainnet at batches of 100
+        const accountInfos = await util.solana.getMultipleAccountsInfo(accounts);
+        // 6. Find programs that are executable within account infos
+        const executables = [];
+        for (const key in accountInfos) {
+            const accountInfo = accountInfos[key];
+            if (accountInfo === null)
+                continue;
+            if (accountInfo.executable) {
+                const executable = new web3.PublicKey(accountInfo.data.subarray(4, 36));
+                try {
+                    fs.accessSync(path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder, `${executable}.json`));
+                }
+                catch {
+                    executables.push(executable);
                 }
             }
-            const executableData = yield util.solana.getMultipleAccountsInfo(executables);
-            for (const key in executableData) {
-                accountInfos[key] = executableData[key];
-            }
-            // 7. Write downloaded account infos from mainnet in designated cache folder
-            util.fs.writeAccountsToCacheFolder(cacheFolder, accountInfos);
-            // 8. Map accounts to downloaded to .accounts
-            return util.fs.mapAccountsFromCache(cacheFolder, this.getAccounts());
-        });
+        }
+        const executableData = await util.solana.getMultipleAccountsInfo(executables);
+        for (const key in executableData) {
+            accountInfos[key] = executableData[key];
+        }
+        // 7. Write downloaded account infos from mainnet in designated cache folder
+        util.fs.writeAccountsToCacheFolder(cacheFolder, accountInfos);
+        // 8. Map accounts to downloaded to .accounts
+        return util.fs.mapAccountsFromCache(cacheFolder, this.getAccounts());
     }
     /**
      * Find running instance of solana-test-validator and get its PID
      */
-    findTestValidatorProcess() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const list = yield (0, find_process_1.default)('name', 'solana-test-validator');
-            for (const item of list) {
-                if (item.name === 'solana-test-validator') {
-                    return item.pid;
-                }
+    async findTestValidatorProcess() {
+        const list = await (0, find_process_1.default)('name', 'solana-test-validator');
+        for (const item of list) {
+            if (item.name === 'solana-test-validator') {
+                return item.pid;
             }
-            throw `Cannot find process named \'solana-test-validator\'`;
-        });
+        }
+        throw `Cannot find process named \'solana-test-validator\'`;
     }
     /**
      * Execute transactions locally
@@ -445,78 +437,76 @@ class Yaml2SolanaClass {
      * @param skipRedownload Skip these accounts for re-download
      * @param keepRunning Whether to keep test validator running
      */
-    executeTransactionsLocally(params) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let { txns, skipRedownload, keepRunning, cluster, runFromExistingLocalnet, } = params;
-            skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
-            keepRunning = keepRunning === undefined ? true : keepRunning;
-            cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
-            runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
-            if (!runFromExistingLocalnet && cluster === 'http://127.0.0.1:8899') {
-                // Step 1: Run test validator
-                yield this.runTestValidator(txns, skipRedownload);
-                yield (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
-            }
-            // Step 2: Execute transactions
-            const response = [];
-            for (const key in txns) {
-                // Compile tx to versioned transaction
-                const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
-                txns[key].connection = connection;
-                const tx = yield txns[key].compileToVersionedTransaction();
-                // If we like to have test validator running, then we want to have skipPreflight enabled
-                if (keepRunning) {
-                    try {
-                        const sig = yield connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
-                        const url = cluster === 'http://127.0.0.1:8899' ?
-                            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
-                            'https://explorer.solana.com/tx/${sig}';
-                        console.log(`TX: ${txns[key].description}`);
-                        console.log(`-------------------------------------------------------------------`);
-                        console.log(`tx sig ${sig}`);
-                        console.log(`Solana Explorer: ${url}`);
-                        console.log(``);
-                        const transactionResponse = (yield connection.getTransaction(sig, {
-                            commitment: "confirmed",
-                            maxSupportedTransactionVersion: 0,
-                        }));
-                        response.push({ txid: sig, transactionResponse });
-                    }
-                    catch (e) {
-                        console.log(e);
-                        console.trace();
-                        process.exit(-1);
-                    }
+    async executeTransactionsLocally(params) {
+        let { txns, skipRedownload, keepRunning, cluster, runFromExistingLocalnet, } = params;
+        skipRedownload = skipRedownload === undefined ? [] : skipRedownload;
+        keepRunning = keepRunning === undefined ? true : keepRunning;
+        cluster = cluster === undefined ? 'http://127.0.0.1:8899' : cluster;
+        runFromExistingLocalnet = runFromExistingLocalnet === undefined ? false : runFromExistingLocalnet;
+        if (!runFromExistingLocalnet && cluster === 'http://127.0.0.1:8899') {
+            // Step 1: Run test validator
+            await this.runTestValidator(txns, skipRedownload);
+            await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+        }
+        // Step 2: Execute transactions
+        const response = [];
+        for (const key in txns) {
+            // Compile tx to versioned transaction
+            const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
+            txns[key].connection = connection;
+            const tx = await txns[key].compileToVersionedTransaction();
+            // If we like to have test validator running, then we want to have skipPreflight enabled
+            if (keepRunning) {
+                try {
+                    const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+                    const url = cluster === 'http://127.0.0.1:8899' ?
+                        `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
+                        `https://explorer.solana.com/tx/${sig}`;
+                    console.log(`TX: ${txns[key].description}`);
+                    console.log(`-------------------------------------------------------------------`);
+                    console.log(`tx sig ${sig}`);
+                    console.log(`Solana Explorer: ${url}`);
+                    console.log(``);
+                    const transactionResponse = (await connection.getTransaction(sig, {
+                        commitment: "confirmed",
+                        maxSupportedTransactionVersion: 0,
+                    }));
+                    response.push({ txid: sig, transactionResponse });
                 }
-                else {
-                    try {
-                        const sig = yield connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
-                        const url = cluster === 'http://127.0.0.1:8899' ?
-                            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
-                            'https://explorer.solana.com/tx/${sig}';
-                        console.log(`TX: ${txns[key].description}`);
-                        console.log(`-------------------------------------------------------------------`);
-                        console.log(`tx sig ${sig}`);
-                        console.log(`Solana Explorer: ${url}`);
-                        const transactionResponse = (yield connection.getTransaction(sig, {
-                            commitment: "confirmed",
-                            maxSupportedTransactionVersion: 0,
-                        }));
-                        response.push({ txid: sig, transactionResponse });
-                    }
-                    catch (e) {
-                        console.log(e);
-                        console.trace();
-                        process.exit(-1);
-                    }
+                catch (e) {
+                    console.log(e);
+                    console.trace();
+                    process.exit(-1);
                 }
             }
-            // Terminate test validator if specified to die after running transactions
-            if (!keepRunning) {
-                this.killTestValidator();
+            else {
+                try {
+                    const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
+                    const url = cluster === 'http://127.0.0.1:8899' ?
+                        `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
+                        `https://explorer.solana.com/tx/${sig}`;
+                    console.log(`TX: ${txns[key].description}`);
+                    console.log(`-------------------------------------------------------------------`);
+                    console.log(`tx sig ${sig}`);
+                    console.log(`Solana Explorer: ${url}`);
+                    const transactionResponse = (await connection.getTransaction(sig, {
+                        commitment: "confirmed",
+                        maxSupportedTransactionVersion: 0,
+                    }));
+                    response.push({ txid: sig, transactionResponse });
+                }
+                catch (e) {
+                    console.log(e);
+                    console.trace();
+                    process.exit(-1);
+                }
             }
-            return response;
-        });
+        }
+        // Terminate test validator if specified to die after running transactions
+        if (!keepRunning) {
+            this.killTestValidator();
+        }
+        return response;
     }
     /**
      * Run test validator
@@ -525,82 +515,80 @@ class Yaml2SolanaClass {
      * @param skipRedownload
      * @returns
      */
-    runTestValidator(txns = [], skipRedownload = []) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Step 1: Force download accounts from instructions on mainnet
-            let accountsToDownload = [];
-            txns.map(tx => {
-                accountsToDownload.push(...tx.getAccountsFromInstructions());
-                accountsToDownload.push(...tx.alts.map(alt => new web3.PublicKey(alt)));
-            });
-            accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
-            const mapping = yield this.downloadAccountsFromMainnet(accountsToDownload);
-            // Step 2: Override lamport amount from test wallet
-            const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
-            for (const walletId in this._parsedYaml.localDevelopment.testWallets) {
-                const testWallet = this._parsedYaml.localDevelopment.testWallets[walletId];
-                const kp = web3.Keypair.fromSecretKey(Buffer.from(testWallet.privateKey, 'base64'));
-                const pubkey = kp.publicKey;
-                const account = {};
-                const lamports = parseInt((parseFloat(testWallet.solAmount) * 1000000000).toString());
-                account[`${pubkey}`] = {
-                    executable: false,
-                    owner: web3.SystemProgram.programId,
-                    lamports,
-                    data: Buffer.alloc(0),
-                    rentEpoch: 0,
-                };
-                util.fs.writeAccountsToCacheFolder(cacheFolder, account);
-                const walletPath = path.resolve(cacheFolder, `${pubkey}.json`);
-                mapping[`${pubkey}`] = walletPath;
-            }
-            // Step 3: Override account data
-            for (const testAccount of this._parsedYaml.localDevelopment.testAccounts) {
-                const decoder = this.getVar(`$${testAccount.schema}`);
-                let key;
-                if (testAccount.key.startsWith('$')) {
-                    const pubkeyOrKp = this.getVar(testAccount.key);
-                    if (typeof pubkeyOrKp.publicKey !== 'undefined') {
-                        key = pubkeyOrKp.publicKey.toBase58();
-                    }
-                    else if (typeof pubkeyOrKp.toBase58 === 'function') {
-                        key = pubkeyOrKp.toBase58();
-                    }
-                    else {
-                        throw `Cannot resolve ${testAccount.key}`;
-                    }
+    async runTestValidator(txns = [], skipRedownload = []) {
+        // Step 1: Force download accounts from instructions on mainnet
+        let accountsToDownload = [];
+        txns.map(tx => {
+            accountsToDownload.push(...tx.getAccountsFromInstructions());
+            accountsToDownload.push(...tx.alts.map(alt => new web3.PublicKey(alt)));
+        });
+        accountsToDownload = accountsToDownload.filter((v, i, s) => s.indexOf(v) === i && !skipRedownload.includes(v));
+        const mapping = await this.downloadAccountsFromMainnet(accountsToDownload);
+        // Step 2: Override lamport amount from test wallet
+        const cacheFolder = path.resolve(this.projectDir, this._parsedYaml.localDevelopment.accountsFolder);
+        for (const walletId in this._parsedYaml.localDevelopment.testWallets) {
+            const testWallet = this._parsedYaml.localDevelopment.testWallets[walletId];
+            const kp = web3.Keypair.fromSecretKey(Buffer.from(testWallet.privateKey, 'base64'));
+            const pubkey = kp.publicKey;
+            const account = {};
+            const lamports = parseInt((parseFloat(testWallet.solAmount) * 1000000000).toString());
+            account[`${pubkey}`] = {
+                executable: false,
+                owner: web3.SystemProgram.programId,
+                lamports,
+                data: Buffer.alloc(0),
+                rentEpoch: 0,
+            };
+            util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+            const walletPath = path.resolve(cacheFolder, `${pubkey}.json`);
+            mapping[`${pubkey}`] = walletPath;
+        }
+        // Step 3: Override account data
+        for (const testAccount of this._parsedYaml.localDevelopment.testAccounts) {
+            let key;
+            if (testAccount.key.startsWith('$')) {
+                const pubkeyOrKp = this.getVar(testAccount.key);
+                if (pubkeyOrKp.type === 'pubkey') {
+                    key = pubkeyOrKp.value.toBase58();
+                }
+                else if (pubkeyOrKp.type === 'keypair') {
+                    key = pubkeyOrKp.value.publicKey.toBase58();
                 }
                 else {
-                    key = testAccount.key;
+                    throw `Cannot resolve ${testAccount.key}`;
                 }
-                if (testAccount.createNew) {
-                    util.fs.createEmptyAccount(cacheFolder, key, testAccount.hack.accountSize, new web3.PublicKey(testAccount.hack.owner), testAccount.hack.lamports);
-                    for (const override of testAccount.hack.overrides) {
-                        const account = util.fs.readAccount(cacheFolder, key);
-                        account[key].data.write(override.data, override.offset, 'base64');
-                        util.fs.writeAccountsToCacheFolder(cacheFolder, account);
-                    }
-                }
-                const account = util.fs.readAccount(cacheFolder, key);
-                decoder.data = account[key].data;
-                for (const id in testAccount.params) {
-                    const value = testAccount.params[id];
-                    if (typeof value === 'string' && value.startsWith('$')) {
-                        const _value = this.getVar(value);
-                        decoder.setValue(`$${id}`, _value);
-                    }
-                    else {
-                        decoder.setValue(`$${id}`, value);
-                    }
-                }
-                account[key].data = decoder.data;
-                util.fs.writeAccountsToCacheFolder(cacheFolder, account);
-                const accountPath = path.resolve(cacheFolder, `${key}.json`);
-                mapping[`${key}`] = accountPath;
             }
-            // Step 4: Run test validator
-            return yield this.runTestValidator2(mapping);
-        });
+            else {
+                key = testAccount.key;
+            }
+            if (testAccount.createNew) {
+                util.fs.createEmptyAccount(cacheFolder, key, testAccount.hack.accountSize, new web3.PublicKey(testAccount.hack.owner), testAccount.hack.lamports);
+                for (const override of testAccount.hack.overrides) {
+                    const account = util.fs.readAccount(cacheFolder, key);
+                    account[key].data.write(override.data, override.offset, 'base64');
+                    util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+                }
+            }
+            const account = util.fs.readAccount(cacheFolder, key);
+            const decoder = this.getAccountDecoder(`$${testAccount.schema}`);
+            decoder.data = account[key].data;
+            for (const id in testAccount.params) {
+                const value = testAccount.params[id];
+                if (typeof value === 'string' && value.startsWith('$')) {
+                    const _value = this.getVar(value);
+                    decoder.setValue(`$${id}`, _value);
+                }
+                else {
+                    decoder.setValue(`$${id}`, value);
+                }
+            }
+            account[key].data = decoder.data;
+            util.fs.writeAccountsToCacheFolder(cacheFolder, account);
+            const accountPath = path.resolve(cacheFolder, `${key}.json`);
+            mapping[`${key}`] = accountPath;
+        }
+        // Step 4: Run test validator
+        return await this.runTestValidator2(mapping);
     }
     /**
      * Kill test validator
@@ -627,7 +615,13 @@ class Yaml2SolanaClass {
      * @returns
      */
     getInstruction(name) {
-        return this.getVar(name);
+        const v = this.getVar(name);
+        if (v.type === 'instruction') {
+            return v.value;
+        }
+        else {
+            throw `${name} is not a valid web3.TransactionInstruction instance`;
+        }
     }
     /**
      * Resolve given instruction
@@ -635,18 +629,16 @@ class Yaml2SolanaClass {
      * @param ixLabel Instruction to execute
      * @returns available parameters that can be overriden for target instruction
      */
-    resolveInstruction(ixLabel) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Find PDAs involved from given instruction
-            const pdas = this.findPdasInvolvedInInstruction(ixLabel);
-            // Then run resolve function
-            yield this.resolve({
-                onlyResolve: {
-                    thesePdas: pdas,
-                    theseInstructions: [ixLabel],
-                    theseInstructionBundles: [],
-                }
-            });
+    async resolveInstruction(ixLabel) {
+        // Find PDAs involved from given instruction
+        const pdas = this.findPdasInvolvedInInstruction(ixLabel);
+        // Then run resolve function
+        await this.resolve({
+            onlyResolve: {
+                thesePdas: pdas,
+                theseInstructions: [ixLabel],
+                theseInstructionBundles: [],
+            }
         });
     }
     /**
@@ -712,7 +704,7 @@ class Yaml2SolanaClass {
      * @param value
      */
     setVar(name, value) {
-        this._global[name] = value;
+        this._global[name] = SyntaxResolver_1.TypeFactory.createValue(value);
     }
     /**
      * Retrieve value from global variable
@@ -782,91 +774,88 @@ class Yaml2SolanaClass {
      *
      * @param parsedYaml
      */
-    resolveTestWallets(parsedYaml) {
-        const testWallets = parsedYaml.localDevelopment.testWallets;
+    resolveTestWallets() {
+        const testWallets = this._parsedYaml.localDevelopment.testWallets;
         for (const key in testWallets) {
             const testWallet = testWallets[key];
-            if (testWallet.useUserWallet && setupUserWalletUi_1.USER_WALLET !== undefined) {
-                this.setVar(key, setupUserWalletUi_1.USER_WALLET);
-            }
-            else {
-                this.setVar(key, web3.Keypair.fromSecretKey(Buffer.from(testWallet.privateKey, 'base64')));
+            const resolver = new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.TEST_WALLET_DECLARATION, testWallet);
+            const kp = resolver.resolve();
+            if (kp !== undefined && kp.type === 'keypair') {
+                this.setVar(key, kp.value);
             }
         }
     }
-    runTestValidator2(mapping) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // 1. Read solana-test-validator.template.sh to project base folder
-            let template = util.fs.readTestValidatorTemplate();
-            // 2. Update accounts and replace ==ACCOUNTS==
-            const accounts = [];
-            for (const account in mapping) {
-                accounts.push(mapping[account] ?
-                    // If has mapping, then use cached account
-                    `\t--account ${account} ${mapping[account]} \\` :
-                    // Otherwise, clone account from target cluster
-                    `\t--maybe-clone ${account} \\`);
+    async runTestValidator2(mapping) {
+        // 1. Read solana-test-validator.template.sh to project base folder
+        let template = util.fs.readTestValidatorTemplate();
+        // 2. Update accounts and replace ==ACCOUNTS==
+        const accounts = [];
+        for (const account in mapping) {
+            accounts.push(mapping[account] ?
+                // If has mapping, then use cached account
+                `\t--account ${account} ${mapping[account]} \\` :
+                // Otherwise, clone account from target cluster
+                `\t--maybe-clone ${account} \\`);
+        }
+        if (accounts.length === 0) {
+            template = template.replace('==ACCOUNTS==\n', '');
+        }
+        else {
+            template = template.replace('==ACCOUNTS==', accounts.join('\n')) + '\n';
+        }
+        // 3. Update programs and replace ==PROGRAMS==
+        const programAccounts = [];
+        for (let account of this.getProgramAccounts()) {
+            programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
+        }
+        if (programAccounts.length === 0) {
+            template = template.replace('==PROGRAMS==\n', '');
+        }
+        else {
+            template = template.replace('==PROGRAMS==', programAccounts.join('\n')) + '\n';
+        }
+        // 3. Update json accounts and replace ==JSON_ACCOUNTS==
+        const jsonAccounts = [];
+        for (let account of this.getJsonAccounts()) {
+            jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
+        }
+        if (jsonAccounts.length === 0) {
+            template = template.replace('==JSON_ACCOUNTS==\n', '');
+        }
+        else {
+            template = template.replace('==JSON_ACCOUNTS==', programAccounts.join('\n')) + '\n';
+        }
+        // 4. Update ==WARP_SLOT==
+        template = template.replace('==WARP_SLOT==', `${await util.solana.getSlot()}`);
+        // 5. Update ==CLUSTER==
+        template = template.replace('==CLUSTER==', 'https://api.mainnet-beta.solana.com');
+        // 6. Create solana-test-validator.ingnore.sh file
+        util.fs.createScript(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), template);
+        // 7. Remove test-ledger folder first
+        util.fs.deleteFolderRecursive(path.resolve(this.projectDir, 'test-ledger'));
+        // 8. Run solana-test-validator.ignore.sh
+        const test_validator = (0, child_process_2.spawn)(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), [], { shell: true, cwd: this.projectDir });
+        test_validator.stderr.on('data', data => console.log(`${data}`));
+        let state = 'init';
+        test_validator.stdout.on('data', data => {
+            if (state === 'init') {
+                console.log(`${data}`);
             }
-            if (accounts.length === 0) {
-                template = template.replace('==ACCOUNTS==\n', '');
+            if (data.includes('Genesis Hash') && state === 'init') {
+                state = 'done';
+                console.log(`Solana test validator is now running!`);
             }
-            else {
-                template = template.replace('==ACCOUNTS==', accounts.join('\n')) + '\n';
-            }
-            // 3. Update programs and replace ==PROGRAMS==
-            const programAccounts = [];
-            for (let account of this.getProgramAccounts()) {
-                programAccounts.push(`\t--bpf-program ${account.key} ${account.path} \\`);
-            }
-            if (programAccounts.length === 0) {
-                template = template.replace('==PROGRAMS==\n', '');
-            }
-            else {
-                template = template.replace('==PROGRAMS==', programAccounts.join('\n')) + '\n';
-            }
-            // 3. Update json accounts and replace ==JSON_ACCOUNTS==
-            const jsonAccounts = [];
-            for (let account of this.getJsonAccounts()) {
-                jsonAccounts.push(`\t--account ${account.key} ${account.path} \\`);
-            }
-            if (jsonAccounts.length === 0) {
-                template = template.replace('==JSON_ACCOUNTS==\n', '');
-            }
-            else {
-                template = template.replace('==JSON_ACCOUNTS==', programAccounts.join('\n')) + '\n';
-            }
-            // 4. Update ==WARP_SLOT==
-            template = template.replace('==WARP_SLOT==', `${yield util.solana.getSlot()}`);
-            // 5. Update ==CLUSTER==
-            template = template.replace('==CLUSTER==', 'https://api.mainnet-beta.solana.com');
-            // 6. Create solana-test-validator.ingnore.sh file
-            util.fs.createScript(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), template);
-            // 7. Remove test-ledger folder first
-            util.fs.deleteFolderRecursive(path.resolve(this.projectDir, 'test-ledger'));
-            // 8. Run solana-test-validator.ignore.sh
-            const test_validator = (0, child_process_2.spawn)(path.resolve(this.projectDir, 'solana-test-validator.ignore.sh'), [], { shell: true, cwd: this.projectDir });
-            test_validator.stderr.on('data', data => console.log(`${data}`));
-            let state = 'init';
-            test_validator.stdout.on('data', data => {
-                if (state === 'init') {
-                    console.log(`${data}`);
-                }
-                if (data.includes('Genesis Hash') && state === 'init') {
-                    state = 'done';
-                    console.log(`Solana test validator is now running!`);
-                }
-            });
-            const waitToBeDone = new Promise(resolve => {
-                const interval = setInterval(() => {
-                    if (state === 'done') {
-                        clearInterval(interval);
-                        resolve(0);
-                    }
-                }, 500);
-            });
-            yield waitToBeDone;
-            this.testValidatorPid = yield this.findTestValidatorProcess();
         });
+        const waitToBeDone = new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (state === 'done') {
+                    clearInterval(interval);
+                    resolve(0);
+                }
+            }, 500);
+        });
+        await waitToBeDone;
+        this.testValidatorPid = await this.findTestValidatorProcess();
     }
     /**
      * Resolve transaction instructions
@@ -883,89 +872,77 @@ class Yaml2SolanaClass {
             try {
                 ixDef = this.getIxDefinition(key);
             }
-            catch (_a) {
+            catch {
                 continue;
             }
-            let programId;
-            if (ixDef.programId.startsWith('$')) {
-                programId = this.getVar(ixDef.programId);
-                if (typeof programId === undefined) {
-                    throw `The programId ${ixDef.programId} variable is not defined`;
-                }
+            const resolver = new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.IX_RESOLUTION, ixDef).resolve();
+            if (resolver !== undefined && resolver.type === 'instruction') {
+                this.setVar(key, resolver.value);
             }
-            else {
-                try {
-                    programId = new web3.PublicKey(ixDef.programId);
-                }
-                catch (_b) {
-                    throw `The program id value: ${ixDef.programId} is not a valid program id base58 string`;
-                }
-            }
-            const data = this.resolveInstructionData(ixDef.data);
-            const keys = this.resolveInstructionAccounts(ixDef.accounts);
-            // Store transaction instruction to global variable
-            this.setVar(key, new web3.TransactionInstruction({ programId, data, keys }));
         }
     }
     /**
-     * Resolve instruction data
+     * Resolve instruction bundles
      *
-     * @param data
+     * @param onlyResolve
      */
-    resolveInstructionData(data) {
-        const dataArray = [];
-        for (const dataStr of data) {
-            dataArray.push(util.typeResolver.resolveType2(dataStr, this._global));
-        }
-        return Buffer.concat(dataArray);
-    }
-    resolveInstructionAccounts(accounts) {
-        const accountMetas = [];
-        for (const account of accounts) {
-            const arr = account.split(',');
-            const key = arr[0];
-            let pubkey;
-            if (key.startsWith('$')) {
-                pubkey = this.getVar(key);
-                if (typeof pubkey === 'undefined') {
-                    throw `Cannot resolve public key variable ${key}.`;
+    async resolveInstructionBundles(onlyResolve) {
+        for (const _ixBundle in this._parsedYaml.instructionBundle) {
+            // Skip if not included in onlyResolve
+            if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
+                continue;
+            const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
+            const alts = ixBundle.alts.map(alt => new web3.PublicKey(alt));
+            // Resolve variables from bundle using context resolver
+            new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.IX_BUNDLE_RESOLUTION, ixBundle).resolve();
+            // Resolve instructions (generate / re-generate isntruction after variable setting)
+            for (const ix of ixBundle.instructions) {
+                this.resolveInstruction(ix.label);
+            }
+            // Get instructions from instruction definition or dynamic instruction
+            const ixs = [];
+            for (const ix of ixBundle.instructions) {
+                const _ix = this.getVar(ix.label);
+                if (_ix.type === 'instruction') {
+                    ixs.push(_ix.value);
                 }
-                else if (typeof pubkey.publicKey !== 'undefined') {
-                    pubkey = pubkey.publicKey;
+                else if (_ix.type === 'dynamic_instruction') {
+                    await _ix.value.resolve();
+                    const singleIx = _ix.value.ix;
+                    const multipleIx = _ix.value.ixs;
+                    if (singleIx !== undefined) {
+                        ixs.push(singleIx);
+                    }
+                    else if (multipleIx !== undefined) {
+                        ixs.push(...multipleIx);
+                    }
+                    else {
+                        throw `Dynamic instruction ${ix.label} is not yet defined.`;
+                    }
+                    alts.push(..._ix.value.alts);
+                }
+                else {
+                    throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
                 }
             }
-            else {
-                try {
-                    pubkey = new web3.PublicKey(key);
-                }
-                catch (_a) {
-                    throw `Public key value: ${key} is not a valid base58 solana public key string`;
-                }
-            }
-            const isSigner = arr.includes('signer');
-            const isWritable = arr.includes('mut');
-            accountMetas.push({ pubkey: pubkey, isSigner, isWritable });
+            // Lastly, store ix bundle in global
+            this.setVar(_ixBundle, {
+                resolvedInstructionBundle: true,
+                alts,
+                payer: this.resolveKeypair(ixBundle.payer),
+                ixs,
+            });
         }
-        return accountMetas;
     }
     /**
      * Set named accounts to global variable
      *
      * @param parsedYaml
      */
-    setNamedAccountsToGlobal(parsedYaml) {
+    setNamedAccountsToGlobal() {
         // Loop through accounts
-        for (const key in parsedYaml.accounts) {
-            const split = parsedYaml.accounts[key].split(',');
-            const address = split[0];
-            const file = split[1];
-            // Set named account in global
-            this.setVar(key, new web3.PublicKey(address));
-            // Set file if 2nd parameter defined is valid (should be .so or .json)
-            if (file !== undefined && typeof file === 'string' && ['json', 'so'].includes(file.split('.')[file.split('.').length - 1])) {
-                this.setVar(address, { file });
-            }
-        }
+        const resolver = new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.ACCOUNT_DECLARATION, this._parsedYaml.accounts);
+        resolver.resolve();
     }
     /**
      * Set known solana accounts
@@ -997,55 +974,15 @@ class Yaml2SolanaClass {
             // If onlyResolve is defined, skip PDAs that aren't defined in onlyResolve
             if (onlyResolve !== undefined && !onlyResolve.includes(key))
                 continue;
-            const pda = this.parsedYaml.pda[key];
-            let programId;
-            if (pda.programId.startsWith('$')) {
-                programId = this.getVar(pda.programId);
-                if (typeof programId === undefined) {
-                    throw `The programId ${pda.programId} variable is not defined`;
-                }
+            // Resolve PDA using context resolver
+            const resolver = new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.PDA_RESOLUTION, this.parsedYaml.pda[key]);
+            const resolved = resolver.resolve();
+            if (resolved !== undefined && resolved.type === 'pubkey') {
+                this.setVar(key, resolved);
             }
             else {
-                try {
-                    programId = new web3.PublicKey(pda.programId);
-                }
-                catch (_a) {
-                    throw `The program id value: ${pda.programId} is not a valid program id base58 string`;
-                }
+                throw `Cannot resolve PDA: ${key}`;
             }
-            const seeds = [];
-            for (const seed of pda.seeds) {
-                if (seed.startsWith('$')) {
-                    const p = this.getVar(seed);
-                    if (typeof p === 'undefined') {
-                        throw `The public key ${seed} variable is not defined`;
-                    }
-                    else if (typeof p.publicKey !== 'undefined') {
-                        seeds.push(p.publicKey.toBuffer());
-                    }
-                    else {
-                        try {
-                            new web3.PublicKey(p);
-                            seeds.push(p.toBuffer());
-                        }
-                        catch (_b) {
-                            throw `The variable ${seed} is not a valid public key`;
-                        }
-                    }
-                }
-                else {
-                    const _seed = Buffer.from(seed, 'utf-8');
-                    if (_seed.length > 32) {
-                        throw `The given seed: ${_seed} exceeds 32 bytes`;
-                    }
-                    else {
-                        seeds.push(_seed);
-                    }
-                }
-            }
-            // Generate PDA
-            const [_pda] = web3.PublicKey.findProgramAddressSync(seeds, programId);
-            this.setVar(key, _pda);
         }
     }
     /**
@@ -1054,102 +991,10 @@ class Yaml2SolanaClass {
     generateAccountDecoders() {
         if (this._parsedYaml.accountDecoder !== undefined) {
             for (const name in this._parsedYaml.accountDecoder) {
-                this.setVar(name, new AccountDecoder_1.AccountDecoder(name, this._parsedYaml.accountDecoder[name]));
+                // Resolve accont decoders using context resolver
+                new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.ACCOUNT_DECODER_DECLARATION, this._parsedYaml.accountDecoder[name]).resolve();
             }
         }
-    }
-    /**
-     * Resolve instruction bundles
-     *
-     * @param onlyResolve
-     */
-    resolveInstructionBundles(onlyResolve) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const _ixBundle in this._parsedYaml.instructionBundle) {
-                // Skip if not included in onlyResolve
-                if (onlyResolve !== undefined && !onlyResolve.includes(_ixBundle))
-                    continue;
-                const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
-                const alts = ixBundle.alts.map(alt => new web3.PublicKey(alt));
-                for (const ix of ixBundle.instructions) {
-                    // Set global variables
-                    for (const key in ix.params) {
-                        let value;
-                        if (typeof ix.params[key] !== 'string') {
-                            value = ix.params[key];
-                        }
-                        else {
-                            const [valueOrVar, type] = ix.params[key].split(':');
-                            if (valueOrVar.startsWith('$')) {
-                                value = this.getVar(valueOrVar);
-                            }
-                            else {
-                                if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
-                                    value = parseInt(valueOrVar);
-                                }
-                                else if (['u64', 'usize', 'i64'].includes(type)) {
-                                    value = BigInt(valueOrVar);
-                                }
-                                else if (type === 'bool') {
-                                    value = valueOrVar === 'true';
-                                }
-                                else if (type === 'pubkey') {
-                                    value = new web3.PublicKey(valueOrVar);
-                                }
-                                else if (ix.dynamic) {
-                                    const dynamicIx = this.getVar(ix.label);
-                                    if (dynamicIx.varType[`$${key}`].type === 'string') {
-                                        value = valueOrVar;
-                                    }
-                                }
-                                else {
-                                    throw `Type of ${key} is not defined.`;
-                                }
-                                value = valueOrVar;
-                            }
-                        }
-                        this.setVar(key, value);
-                    }
-                    const isDynamic = ix.dynamic;
-                    if (!isDynamic) {
-                        // Assuming here that parameters required by instruction is already set.
-                        this.resolveInstruction(ix.label);
-                    }
-                }
-                const ixs = [];
-                for (const ix of ixBundle.instructions) {
-                    const _ix = this.getVar(ix.label);
-                    if (_ix instanceof web3.TransactionInstruction) {
-                        ixs.push(_ix);
-                    }
-                    else if (_ix instanceof DynamicInstruction_1.DynamicInstruction) {
-                        yield _ix.resolve();
-                        const singleIx = _ix.ix;
-                        const multipleIx = _ix.ixs;
-                        if (singleIx !== undefined) {
-                            ixs.push(singleIx);
-                        }
-                        else if (multipleIx !== undefined) {
-                            ixs.push(...multipleIx);
-                        }
-                        else {
-                            throw `Dynamic instruction ${ix.label} is not yet defined.`;
-                        }
-                        alts.push(..._ix.alts);
-                    }
-                    else {
-                        throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
-                    }
-                }
-                // Lastly, store ix bundle in global
-                this.setVar(_ixBundle, {
-                    resolvedInstructionBundle: true,
-                    alts,
-                    payer: this.resolveKeypair(ixBundle.payer),
-                    ixs,
-                });
-            }
-        });
     }
     /**
      * Resolve keypair
@@ -1159,8 +1004,8 @@ class Yaml2SolanaClass {
     resolveKeypair(idOrVal) {
         if (idOrVal.startsWith('$')) {
             const kp = this.getVar(idOrVal);
-            if (typeof kp.publicKey !== 'undefined') {
-                return kp;
+            if (kp.type === 'keypair') {
+                return kp.value;
             }
             else {
                 throw `Cannot resolve keypair: ${idOrVal}`;
@@ -1182,12 +1027,72 @@ class Yaml2SolanaClass {
             try {
                 dynamicIx = this.getDynamicInstruction(ixLabel);
             }
-            catch (_a) {
+            catch {
                 continue;
             }
             if (dynamicIx.dynamic) {
-                this.setVar(ixLabel, new DynamicInstruction_1.DynamicInstruction(this, dynamicIx.params));
+                this.setVar(ixLabel, SyntaxResolver_1.TypeFactory.createValue(new DynamicInstruction_1.DynamicInstruction(this, dynamicIx.params)));
             }
+        }
+    }
+    /**
+     * Find signer from global variable
+     *
+     * @param idOrValue
+     */
+    findSigner(idOrValue) {
+        let signerPubkey;
+        if (typeof idOrValue !== 'string') {
+            try {
+                new web3.PublicKey(idOrValue);
+                signerPubkey = idOrValue.toBase58();
+            }
+            catch {
+                throw `${idOrValue} is not a valid public key instance.`;
+            }
+        }
+        else if (idOrValue.startsWith('$')) {
+            const pubkeyOrKp = this.getVar(idOrValue);
+            if (pubkeyOrKp.type === 'keypair') {
+                return pubkeyOrKp.value;
+            }
+            else if (pubkeyOrKp.type === 'pubkey') {
+                signerPubkey = pubkeyOrKp.value.toBase58();
+            }
+            else {
+                throw `Variable ${idOrValue} is not a valid public key or keypair instance`;
+            }
+        }
+        else {
+            try {
+                new web3.PublicKey(idOrValue);
+                signerPubkey = idOrValue;
+            }
+            catch {
+                throw `${idOrValue} is not a valid base58 public key string.`;
+            }
+        }
+        for (const id in this._global) {
+            const keypair = this.getVar(`$${id}`);
+            if (keypair.type === 'keypair' && keypair.value.publicKey.toBase58() === signerPubkey) {
+                return keypair.value;
+            }
+        }
+        throw `Cannot find keypair ${idOrValue}`;
+    }
+    /**
+     * Get account decoder instance from global
+     *
+     * @param key
+     * @returns
+     */
+    getAccountDecoder(key) {
+        const v = this.getVar(key);
+        if (v.type === 'account_decoder') {
+            return v.value;
+        }
+        else {
+            throw `${key} is not an AccountDecoder class instance`;
         }
     }
 }
@@ -1201,21 +1106,19 @@ class Transaction {
         this.payer = payer;
         this.signers = signers;
     }
-    compileToVersionedTransaction() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { blockhash: recentBlockhash } = yield this.connection.getLatestBlockhash();
-            const alts = [];
-            for (const alt of this.alts) {
-                alts.push((yield this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value);
-            }
-            const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
-                payerKey: this.payer,
-                instructions: this.ixns,
-                recentBlockhash,
-            }).compileToV0Message(alts));
-            tx.sign(this.signers);
-            return tx;
-        });
+    async compileToVersionedTransaction() {
+        const { blockhash: recentBlockhash } = await this.connection.getLatestBlockhash();
+        const alts = [];
+        for (const alt of this.alts) {
+            alts.push((await this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value);
+        }
+        const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
+            payerKey: this.payer,
+            instructions: this.ixns,
+            recentBlockhash,
+        }).compileToV0Message(alts));
+        tx.sign(this.signers);
+        return tx;
     }
     /**
      * Get all accounts from instructions

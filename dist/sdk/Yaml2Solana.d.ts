@@ -1,5 +1,6 @@
 import * as web3 from '@solana/web3.js';
 import * as util from '../util';
+import { Type } from './SyntaxResolver';
 export declare class Yaml2SolanaClass {
     /**
      * Localnet connection instance
@@ -175,13 +176,13 @@ export declare class Yaml2SolanaClass {
      * @param name
      * @param value
      */
-    setParam<T>(name: string, value: T): void;
+    setParam(name: string, value: any): void;
     /**
      * Alias to getVar
      *
      * @param name
      */
-    getParam<T>(name: string): T;
+    getParam(name: string): Type;
     /**
      * Get ix definition
      *
@@ -235,12 +236,11 @@ export declare class Yaml2SolanaClass {
      */
     private resolveInstructions;
     /**
-     * Resolve instruction data
+     * Resolve instruction bundles
      *
-     * @param data
+     * @param onlyResolve
      */
-    private resolveInstructionData;
-    private resolveInstructionAccounts;
+    private resolveInstructionBundles;
     /**
      * Set named accounts to global variable
      *
@@ -264,12 +264,6 @@ export declare class Yaml2SolanaClass {
      */
     private generateAccountDecoders;
     /**
-     * Resolve instruction bundles
-     *
-     * @param onlyResolve
-     */
-    private resolveInstructionBundles;
-    /**
      * Resolve keypair
      *
      * @param idOrVal
@@ -280,6 +274,19 @@ export declare class Yaml2SolanaClass {
      * Generate dynamic accounts
      */
     private generateDynamicAccounts;
+    /**
+     * Find signer from global variable
+     *
+     * @param idOrValue
+     */
+    private findSigner;
+    /**
+     * Get account decoder instance from global
+     *
+     * @param key
+     * @returns
+     */
+    private getAccountDecoder;
 }
 export declare class Transaction {
     readonly description: string;
@@ -369,16 +376,18 @@ export type DynamicInstruction = {
 export type ExecuteTxSettings = {
     skipPreflight?: boolean;
 };
+export type Accounts = Record<string, string>;
+export type AccountDecoder = string[];
 export type ParsedYaml = {
     mainnetRpc?: string[];
     executeTxSettings: ExecuteTxSettings;
     addressLookupTables?: string[];
     computeLimitSettings?: Record<string, ComputeLimitSettings>;
-    accounts: Record<string, string>;
+    accounts: Accounts;
     accountsNoLabel: string[];
     pda: Record<string, Pda>;
     instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>;
-    accountDecoder?: Record<string, string[]>;
+    accountDecoder?: Record<string, AccountDecoder>;
     instructionBundle?: Record<string, InstructionBundle>;
     localDevelopment: {
         accountsFolder: string;

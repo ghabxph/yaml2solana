@@ -22,15 +22,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -47,139 +38,133 @@ const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
 const CHOICE_ACCOUNT_DECODER = 'Account Decoder';
-function utilUi(schemaFile, y2s) {
-    return __awaiter(this, void 0, void 0, function* () {
-        (0, ts_clear_screen_1.default)();
-        const { choice } = yield inquirer_1.default
-            .prompt([
-            {
-                type: 'list',
-                name: 'choice',
-                message: '-=[Utility/Debugging Tools UI]=-\n\n [Choose Action]',
-                choices: [
-                    CHOICE_GENERATE_PDA,
-                    CHOICE_ANALYZE_TRANSACTION,
-                    CHOICE_KEYPAIR_GENERATION,
-                    CHOICE_SIGHASH,
-                    CHOICE_ACCOUNT_DECODER,
-                ],
-            },
-        ]);
-        if (choice === CHOICE_GENERATE_PDA) {
-            return yield generatePda();
-        }
-        if (choice === CHOICE_ANALYZE_TRANSACTION) {
-            // do something
-        }
-        if (choice === CHOICE_KEYPAIR_GENERATION) {
-            return yield (0, keypairUi_1.keypairUi)();
-        }
-        if (choice === CHOICE_SIGHASH) {
-            return yield generateSighash();
-        }
-        if (choice === CHOICE_ACCOUNT_DECODER) {
-            return yield (0, accountDecoderUi_1.accountDecoderUi)(schemaFile, y2s);
-        }
-    });
+async function utilUi(schemaFile, y2s) {
+    (0, ts_clear_screen_1.default)();
+    const { choice } = await inquirer_1.default
+        .prompt([
+        {
+            type: 'list',
+            name: 'choice',
+            message: '-=[Utility/Debugging Tools UI]=-\n\n [Choose Action]',
+            choices: [
+                CHOICE_GENERATE_PDA,
+                CHOICE_ANALYZE_TRANSACTION,
+                CHOICE_KEYPAIR_GENERATION,
+                CHOICE_SIGHASH,
+                CHOICE_ACCOUNT_DECODER,
+            ],
+        },
+    ]);
+    if (choice === CHOICE_GENERATE_PDA) {
+        return await generatePda();
+    }
+    if (choice === CHOICE_ANALYZE_TRANSACTION) {
+        // do something
+    }
+    if (choice === CHOICE_KEYPAIR_GENERATION) {
+        return await (0, keypairUi_1.keypairUi)();
+    }
+    if (choice === CHOICE_SIGHASH) {
+        return await generateSighash();
+    }
+    if (choice === CHOICE_ACCOUNT_DECODER) {
+        return await (0, accountDecoderUi_1.accountDecoderUi)(schemaFile, y2s);
+    }
 }
 exports.utilUi = utilUi;
 /**
  * Generate PDA CLI
  */
-function generatePda() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { programId, numSeeds } = yield inquirer_1.default
+async function generatePda() {
+    const { programId, numSeeds } = await inquirer_1.default
+        .prompt([
+        {
+            type: 'input',
+            name: 'programId',
+            message: 'Program ID:',
+            filter: programId => new web3.PublicKey(programId)
+        },
+        {
+            type: 'input',
+            name: 'numSeeds',
+            message: 'Enter number of seeds:',
+            filter: numSeeds => parseInt(numSeeds)
+        }
+    ]);
+    const CHOICE_STRING = 'String (utf-8, max 32 bytes)';
+    const CHOICE_PUBLIC_KEY = 'Solana Public Key (32-byte base58 string)';
+    const CHOICE_RAW_BYTES = 'Raw bytes (base64 encoded, max 32 bytes)';
+    const CHOICE_MAP = {};
+    CHOICE_MAP[CHOICE_STRING] = 'String (utf-8)';
+    CHOICE_MAP[CHOICE_PUBLIC_KEY] = 'Solana Public Key';
+    CHOICE_MAP[CHOICE_RAW_BYTES] = 'Raw Bytes, base64 encoded';
+    const seeds = [];
+    for (let i = 0; i < numSeeds; i++) {
+        const { seedType } = await inquirer_1.default
+            .prompt([
+            {
+                type: 'list',
+                name: 'seedType',
+                message: 'Type of seed',
+                choices: [
+                    CHOICE_STRING,
+                    CHOICE_PUBLIC_KEY,
+                    CHOICE_RAW_BYTES,
+                ],
+            }
+        ]);
+        const { seedValue } = await inquirer_1.default
             .prompt([
             {
                 type: 'input',
-                name: 'programId',
-                message: 'Program ID:',
-                filter: programId => new web3.PublicKey(programId)
-            },
-            {
-                type: 'input',
-                name: 'numSeeds',
-                message: 'Enter number of seeds:',
-                filter: numSeeds => parseInt(numSeeds)
-            }
-        ]);
-        const CHOICE_STRING = 'String (utf-8, max 32 bytes)';
-        const CHOICE_PUBLIC_KEY = 'Solana Public Key (32-byte base58 string)';
-        const CHOICE_RAW_BYTES = 'Raw bytes (base64 encoded, max 32 bytes)';
-        const CHOICE_MAP = {};
-        CHOICE_MAP[CHOICE_STRING] = 'String (utf-8)';
-        CHOICE_MAP[CHOICE_PUBLIC_KEY] = 'Solana Public Key';
-        CHOICE_MAP[CHOICE_RAW_BYTES] = 'Raw Bytes, base64 encoded';
-        const seeds = [];
-        for (let i = 0; i < numSeeds; i++) {
-            const { seedType } = yield inquirer_1.default
-                .prompt([
-                {
-                    type: 'list',
-                    name: 'seedType',
-                    message: 'Type of seed',
-                    choices: [
-                        CHOICE_STRING,
-                        CHOICE_PUBLIC_KEY,
-                        CHOICE_RAW_BYTES,
-                    ],
-                }
-            ]);
-            const { seedValue } = yield inquirer_1.default
-                .prompt([
-                {
-                    type: 'input',
-                    name: 'seedValue',
-                    message: `Enter seed value (${CHOICE_MAP[seedType]})`,
-                    filter: seedValue => {
-                        if (seedType === CHOICE_STRING) {
-                            const seed = Buffer.from(seedValue, 'utf-8');
-                            if (seed.length > 32) {
-                                throw 'String seed cannot be greater than 32 bytes';
-                            }
-                            return seedValue;
+                name: 'seedValue',
+                message: `Enter seed value (${CHOICE_MAP[seedType]})`,
+                filter: seedValue => {
+                    if (seedType === CHOICE_STRING) {
+                        const seed = Buffer.from(seedValue, 'utf-8');
+                        if (seed.length > 32) {
+                            throw 'String seed cannot be greater than 32 bytes';
                         }
-                        else if (seedType === CHOICE_PUBLIC_KEY) {
-                            new web3.PublicKey(seedValue);
-                            return seedValue;
+                        return seedValue;
+                    }
+                    else if (seedType === CHOICE_PUBLIC_KEY) {
+                        new web3.PublicKey(seedValue);
+                        return seedValue;
+                    }
+                    else {
+                        const seed = Buffer.from(seedValue, 'base64');
+                        if (seed.length > 32) {
+                            throw 'String seed cannot be greater than 32 bytes';
                         }
-                        else {
-                            const seed = Buffer.from(seedValue, 'base64');
-                            if (seed.length > 32) {
-                                throw 'String seed cannot be greater than 32 bytes';
-                            }
-                            return seedValue;
-                        }
+                        return seedValue;
                     }
                 }
-            ]);
-            if (seedType === CHOICE_STRING) {
-                seeds.push(Buffer.from(seedValue, 'utf-8'));
             }
-            else if (seedType === CHOICE_PUBLIC_KEY) {
-                seeds.push(new web3.PublicKey(seedValue).toBuffer());
-            }
-            else {
-                seeds.push(Buffer.from(seedValue, 'base64'));
-            }
+        ]);
+        if (seedType === CHOICE_STRING) {
+            seeds.push(Buffer.from(seedValue, 'utf-8'));
         }
-        const [pda, bump] = web3.PublicKey.findProgramAddressSync(seeds, programId);
-        console.log(`PDA: ${pda}`);
-        console.log(`Bump: ${bump}`);
-    });
+        else if (seedType === CHOICE_PUBLIC_KEY) {
+            seeds.push(new web3.PublicKey(seedValue).toBuffer());
+        }
+        else {
+            seeds.push(Buffer.from(seedValue, 'base64'));
+        }
+    }
+    const [pda, bump] = web3.PublicKey.findProgramAddressSync(seeds, programId);
+    console.log(`PDA: ${pda}`);
+    console.log(`Bump: ${bump}`);
 }
 /**
  * Generate sighash
  */
-function generateSighash() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { value } = yield inquirer_1.default
-            .prompt({
-            type: 'input',
-            name: 'value',
-            message: 'Enter value:'
-        });
-        const hexValue = util.typeResolver.sighash(value).toString('hex');
-        console.log(`Hex value: ${hexValue}`);
+async function generateSighash() {
+    const { value } = await inquirer_1.default
+        .prompt({
+        type: 'input',
+        name: 'value',
+        message: 'Enter value:'
     });
+    const hexValue = util.typeResolver.sighash(value).toString('hex');
+    console.log(`Hex value: ${hexValue}`);
 }

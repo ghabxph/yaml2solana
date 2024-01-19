@@ -13,19 +13,21 @@ const find = () => util.fs.findFilesRecursively(WORK_DIR, ['yaml2solana.yaml', '
 export async function cliEntrypoint(y2s?: Yaml2SolanaClass) {
   clear();
   let schemaFile = '';
-  let schemaFiles = find();
-  if (schemaFiles.length === 0) {
-    if (await prompt.createInitialYaml(BASE_DIR) === false) {
-      return;
-    } else {
-      schemaFiles = find();
+  if (y2s === undefined) {
+    let schemaFiles = find();
+    if (schemaFiles.length === 0) {
+      if (await prompt.createInitialYaml(BASE_DIR) === false) {
+        return;
+      } else {
+        schemaFiles = find();
+      }
     }
-  }
-  if (schemaFiles.length > 1) {
-    const {targetFile} = await prompt.chooseYaml(WORK_DIR, schemaFiles);
-    schemaFile = targetFile;
-  } else {
-    schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
+    if (schemaFiles.length > 1) {
+      const {targetFile} = await prompt.chooseYaml(WORK_DIR, schemaFiles);
+      schemaFile = targetFile;
+    } else {
+      schemaFile = schemaFiles[0].replace(`${WORK_DIR}/`, '');
+    }
   }
   await prompt.mainUi(schemaFile, y2s);
 }

@@ -81,7 +81,7 @@ class AccountDecoder {
                 try {
                     result[offset.label] = _result.toNumber();
                 }
-                catch (_a) {
+                catch {
                     result[offset.label] = BigInt(_result.toString());
                 }
             }

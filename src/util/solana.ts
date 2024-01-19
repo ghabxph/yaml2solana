@@ -61,6 +61,7 @@ export async function getMultipleAccountsInfo(accounts: web3.PublicKey[]): Promi
 
   // Wait for all promises to resolve and flatten the results
   const results = (await Promise.all(promises)).flat();
+  // const results = ([] as typeof promises[number][]).concat(...promises);
 
   // Transform the array of results into a record (map) of PublicKey to AccountInfo
   const record: Record<string, web3.AccountInfo<Buffer> | null> = {};

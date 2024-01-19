@@ -32,7 +32,13 @@ export async function accountDecoderUi(schemaFile: string, y2s?: Yaml2SolanaClas
     message: 'Choose account decoder',
     choices: yaml2solana.accountDecoders,
   });
-  const decoder = yaml2solana.getParam<AccountDecoder>(`$${_decoder}`);
+  const v = yaml2solana.getParam(`$${_decoder}`);
+  let decoder: AccountDecoder;
+  if (v.type === 'account_decoder') {
+    decoder = v.value
+  } else {
+    throw `Unexpected error`;
+  }
 
   // 3. Choose whether to decode account from mainnet or local storage
   const { where } = await inquirer

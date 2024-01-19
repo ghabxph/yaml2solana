@@ -22,19 +22,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DynamicInstruction = void 0;
 const util = __importStar(require("../util"));
 const web3 = __importStar(require("@solana/web3.js"));
+const bn_js_1 = __importDefault(require("bn.js"));
 class DynamicInstruction {
     constructor(y2s, params) {
         this.y2s = y2s;
@@ -67,25 +62,23 @@ class DynamicInstruction {
     get alts() {
         return this._alts;
     }
-    resolve() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this._generateIxs !== undefined) {
-                const params = {};
-                for (const id in this.varType) {
-                    const _var = this.varType[id];
-                    params[id.substring(1)] = this.getValue(_var.id, _var.type);
-                }
-                this._ixs = yield this._generateIxs(params, this.y2s);
+    async resolve() {
+        if (this._generateIxs !== undefined) {
+            const params = {};
+            for (const id in this.varType) {
+                const _var = this.varType[id];
+                params[id.substring(1)] = this.getValue(_var.id, _var.type);
             }
-            if (this._generateIx !== undefined) {
-                const params = {};
-                for (const id in this.varType) {
-                    const _var = this.varType[id];
-                    params[id.substring(1)] = this.getValue(_var.id, _var.type);
-                }
-                this._ix = yield this._generateIx(params, this.y2s);
+            this._ixs = await this._generateIxs(params, this.y2s);
+        }
+        if (this._generateIx !== undefined) {
+            const params = {};
+            for (const id in this.varType) {
+                const _var = this.varType[id];
+                params[id.substring(1)] = this.getValue(_var.id, _var.type);
             }
-        });
+            this._ix = await this._generateIx(params, this.y2s);
+        }
     }
     get ixs() {
         return this._ixs;
@@ -115,21 +108,42 @@ class DynamicInstruction {
         return 'call' in fn;
     }
     getValue(id, type) {
-        if (["u8", "u16", "u32", "usize", "i8", "i16", "i32"].includes(type)) {
-            return this.y2s.getParam(id);
+        const INTEGERS = ["u8", "u16", "u32", "usize", "i8", "i16", "i32"];
+        const BIG_INTEGERS = ["u64", "u128", "i64", "i128"];
+        if (INTEGERS.includes(type)) {
+            const v = this.y2s.getParam(id);
+            if (INTEGERS.includes(v.type))
+                return v.value;
+            else if (BIG_INTEGERS.includes(v.type))
+                return v.value.toNumber();
+            else
+                throw `${id} is not a valid integer.`;
         }
         else if (["u64", "u128", "i64", "i128"].includes(type)) {
-            return this.y2s.getParam(id);
+            const v = this.y2s.getParam(id);
+            if (INTEGERS.includes(v.type))
+                return new bn_js_1.default(v.value);
+            else if (BIG_INTEGERS.includes(v.type))
+                return v.value;
+            else
+                throw `${id} is not a valid integer.`;
         }
         else if (type === "pubkey") {
-            return this.y2s.getParam(id);
+            const v = this.y2s.getParam(id);
+            if (v.type === 'pubkey')
+                return v.value;
+            else
+                throw `${id} is not a valid pubkey.`;
         }
         else if (type === "string") {
-            return this.y2s.getParam(id);
+            const v = this.y2s.getParam(id);
+            if (v.type === 'string')
+                return v.value;
+            else
+                throw `${id} is not a valid string.`;
         }
-        else {
+        else
             throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
-        }
     }
 }
 exports.DynamicInstruction = DynamicInstruction;
