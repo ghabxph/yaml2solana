@@ -132,16 +132,26 @@ export class DynamicInstruction {
   getValue(id: string, type: "pubkey"): web3.PublicKey;
   getValue(id: string, type: "string"): string;
   getValue(id: string, type: util.typeResolver.VariableType): number | BN | web3.PublicKey | string {
-    if (["u8", "u16", "u32", "usize", "i8", "i16", "i32"].includes(type)) {
-      return this.y2s.getParam<number>(id);
+    const INTEGERS = ["u8", "u16", "u32", "usize", "i8", "i16", "i32"];
+    const BIG_INTEGERS = ["u64", "u128", "i64", "i128"];
+    if (INTEGERS.includes(type)) {
+      const v = this.y2s.getParam(id);
+      if (INTEGERS.includes(v.type)) return v.value as number;
+      else if (BIG_INTEGERS.includes(v.type)) return (v.value as BN).toNumber();
+      else throw `${id} is not a valid integer.`;
     } else if (["u64", "u128", "i64", "i128"].includes(type)) {
-      return this.y2s.getParam<BN>(id);
+      const v = this.y2s.getParam(id);
+      if (INTEGERS.includes(v.type)) return new BN(v.value as number);
+      else if (BIG_INTEGERS.includes(v.type)) return v.value as BN;
+      else throw `${id} is not a valid integer.`;
     } else if (type === "pubkey") {
-      return this.y2s.getParam<web3.PublicKey>(id);
+      const v = this.y2s.getParam(id);
+      if (v.type === 'pubkey') return v.value;
+      else throw `${id} is not a valid pubkey.`
     } else if (type === "string") {
-      return this.y2s.getParam<string>(id);
-    } else {
-      throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
-    }
+      const v = this.y2s.getParam(id);
+      if (v.type === 'string') return v.value;
+      else throw `${id} is not a valid string.`
+    } else throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
   }
 }

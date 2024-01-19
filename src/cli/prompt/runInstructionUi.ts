@@ -9,7 +9,7 @@ const CHOICE_BUNDLE = 'Run bundled instructions';
 
 export async function runInstructionUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
 
-  const yaml2solana = Yaml2Solana(schemaFile);
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
   if (yaml2solana.parsedYaml.instructionBundle !== undefined) {
     const { choice } = await inquirer.prompt({
       type: 'list',
@@ -102,9 +102,14 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
       await yaml2solana.resolveInstruction(instructionToExecute);
     } catch {} finally {
       const [account] = param.split(',');
-      let defaultValue = yaml2solana.getParam<web3.PublicKey | web3.Keypair>(account);
-      if (defaultValue !== undefined && (defaultValue as web3.Keypair).publicKey !== undefined) {
-        defaultValue = (defaultValue as web3.Keypair).publicKey;
+      let defaultValue: web3.PublicKey;
+      let v = yaml2solana.getParam(account);
+      if (v.type === 'keypair') {
+        defaultValue = v.value.publicKey
+      } else if (v.type === 'pubkey') {
+        defaultValue = v.value
+      } else {
+        throw `${account} is not a valid public key.`;
       }
       const { value } = await inquirer.prompt({
         type: 'input',
@@ -119,7 +124,7 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
           }
         }
       });
-      yaml2solana.setParam<web3.PublicKey>(account, value);
+      yaml2solana.setParam(account, value);
     }
   }
 
@@ -128,7 +133,7 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
     await yaml2solana.resolveInstruction(instructionToExecute);
   } catch {} finally {
     const account = ixDef.payer;
-    const kp = yaml2solana.getParam<web3.Keypair>(account);
+    const kp = yaml2solana.getParam(account);
     let defaultValue: string | undefined;
     if (kp === undefined) {
       const { value } = await inquirer.prompt({
@@ -143,7 +148,7 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
           return input;
         }
       });
-      yaml2solana.setParam<web3.Keypair>(
+      yaml2solana.setParam(
         account,
         web3.Keypair.fromSecretKey(
           Buffer.from(value, 'base64')
@@ -208,30 +213,30 @@ async function runBundledInstructions(schemaFile: string, y2s?: Yaml2SolanaClass
     signers,
   );
 
-  // 6. Choose whether to execute transaction in localnet or mainnet
-  const cluster = await getCluster(yaml2solana);
+//   // 6. Choose whether to execute transaction in localnet or mainnet
+//   const cluster = await getCluster(yaml2solana);
 
-  // 7. Execute instruction in localnet
-  console.log();
-  await yaml2solana.executeTransactionsLocally({
-    txns: [tx],
-    runFromExistingLocalnet: await util.test.checkIfLocalnetIsRunning(),
-    cluster,
-  });
-}
+//   // 7. Execute instruction in localnet
+//   console.log();
+//   await yaml2solana.executeTransactionsLocally({
+//     txns: [tx],
+//     runFromExistingLocalnet: await util.test.checkIfLocalnetIsRunning(),
+//     cluster,
+//   });
+// }
 
-async function getCluster(y2s: Yaml2SolanaClass): Promise<string> {
-  if (y2s.parsedYaml.mainnetRpc) {
-    const { cluster } = await inquirer.prompt({
-      type: 'list',
-      name: 'cluster',
-      message: 'Execute transaction in?',
-      choices: [
-        'http://127.0.0.1:8899',
-        ...y2s.parsedYaml.mainnetRpc,
-      ],
-    });
-    return cluster;
-  }
-  return 'http://127.0.0.1:8899';
+// async function getCluster(y2s: Yaml2SolanaClass): Promise<string> {
+//   if (y2s.parsedYaml.mainnetRpc) {
+//     const { cluster } = await inquirer.prompt({
+//       type: 'list',
+//       name: 'cluster',
+//       message: 'Execute transaction in?',
+//       choices: [
+//         'http://127.0.0.1:8899',
+//         ...y2s.parsedYaml.mainnetRpc,
+//       ],
+//     });
+//     return cluster;
+//   }
+//   return 'http://127.0.0.1:8899';
 }

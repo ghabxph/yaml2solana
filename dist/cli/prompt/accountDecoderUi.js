@@ -22,15 +22,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -44,71 +35,74 @@ const __1 = require("../..");
 const path_1 = __importDefault(require("path"));
 const CHOICE_MAINNET = 'Decode account from mainnet';
 const CHOICE_LOCAL = 'Decode account from local machine';
-function accountDecoderUi(schemaFile, y2s) {
-    return __awaiter(this, void 0, void 0, function* () {
-        (0, ts_clear_screen_1.default)();
-        // 1. Enter address to decode
-        const { address } = yield inquirer_1.default.prompt({
-            type: 'input',
-            name: 'address',
-            message: '-=[Account Decoder]=-\n\n Enter solana address (account to decode)',
-            filter: input => {
-                new web3.PublicKey(input);
-                return input;
-            }
-        });
-        // 2. Choose decoder:
-        const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
-        const { _decoder } = yield inquirer_1.default.prompt({
-            type: 'list',
-            name: '_decoder',
-            message: 'Choose account decoder',
-            choices: yaml2solana.accountDecoders,
-        });
-        const decoder = yaml2solana.getParam(`$${_decoder}`);
-        // 3. Choose whether to decode account from mainnet or local storage
-        const { where } = yield inquirer_1.default
-            .prompt([
-            {
-                type: 'list',
-                name: 'where',
-                message: 'Mainnet or local?',
-                choices: [
-                    CHOICE_MAINNET,
-                    CHOICE_LOCAL,
-                ],
-            },
-        ]);
-        let accountData;
-        if (where === CHOICE_MAINNET) {
-            accountData = yield readFromMainnet(address);
+async function accountDecoderUi(schemaFile, y2s) {
+    (0, ts_clear_screen_1.default)();
+    // 1. Enter address to decode
+    const { address } = await inquirer_1.default.prompt({
+        type: 'input',
+        name: 'address',
+        message: '-=[Account Decoder]=-\n\n Enter solana address (account to decode)',
+        filter: input => {
+            new web3.PublicKey(input);
+            return input;
         }
-        else if (where === CHOICE_LOCAL) {
-            const cacheFolder = path_1.default.resolve(yaml2solana.projectDir, yaml2solana.parsedYaml.localDevelopment.accountsFolder);
-            accountData = decodeFromLocalStorage(cacheFolder, address);
-        }
-        else {
-            throw 'Invalid choice (unexpected error)';
-        }
-        // 4. Decode and print result
-        decoder.data = accountData;
-        console.log(`Decoder result: `, decoder.values);
     });
+    // 2. Choose decoder:
+    const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
+    const { _decoder } = await inquirer_1.default.prompt({
+        type: 'list',
+        name: '_decoder',
+        message: 'Choose account decoder',
+        choices: yaml2solana.accountDecoders,
+    });
+    const v = yaml2solana.getParam(`$${_decoder}`);
+    let decoder;
+    if (v.type === 'account_decoder') {
+        decoder = v.value;
+    }
+    else {
+        throw `Unexpected error`;
+    }
+    // 3. Choose whether to decode account from mainnet or local storage
+    const { where } = await inquirer_1.default
+        .prompt([
+        {
+            type: 'list',
+            name: 'where',
+            message: 'Mainnet or local?',
+            choices: [
+                CHOICE_MAINNET,
+                CHOICE_LOCAL,
+            ],
+        },
+    ]);
+    let accountData;
+    if (where === CHOICE_MAINNET) {
+        accountData = await readFromMainnet(address);
+    }
+    else if (where === CHOICE_LOCAL) {
+        const cacheFolder = path_1.default.resolve(yaml2solana.projectDir, yaml2solana.parsedYaml.localDevelopment.accountsFolder);
+        accountData = decodeFromLocalStorage(cacheFolder, address);
+    }
+    else {
+        throw 'Invalid choice (unexpected error)';
+    }
+    // 4. Decode and print result
+    decoder.data = accountData;
+    console.log(`Decoder result: `, decoder.values);
 }
 exports.accountDecoderUi = accountDecoderUi;
 /**
  * Read account from mainnet
  */
-function readFromMainnet(address) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const connection = new web3.Connection('https://api.mainnet-beta.solana.com');
-        const accountInfo = yield connection.getAccountInfo(new web3.PublicKey(address));
-        const data = accountInfo === null || accountInfo === void 0 ? void 0 : accountInfo.data;
-        if (data === undefined) {
-            throw 'Target account does not exist.';
-        }
-        return data;
-    });
+async function readFromMainnet(address) {
+    const connection = new web3.Connection('https://api.mainnet-beta.solana.com');
+    const accountInfo = await connection.getAccountInfo(new web3.PublicKey(address));
+    const data = accountInfo === null || accountInfo === void 0 ? void 0 : accountInfo.data;
+    if (data === undefined) {
+        throw 'Target account does not exist.';
+    }
+    return data;
 }
 /**
  * Read account from local storage

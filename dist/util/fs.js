@@ -133,7 +133,7 @@ function cacheFolderMustExist(cacheFolder) {
     try {
         fs.accessSync(cacheFolder);
     }
-    catch (_a) {
+    catch {
         fs.mkdirSync(cacheFolder, { recursive: true });
     }
 }
@@ -178,7 +178,11 @@ function readAccount(cacheFolder, address) {
     const file = fs.readFileSync(filePath).toString('utf-8');
     const json = JSON.parse(file);
     const result = {};
-    result[json.pubkey] = Object.assign(Object.assign({}, json.account), { data: Buffer.from(json.account.data[0], 'base64'), owner: new web3.PublicKey(json.account.owner) });
+    result[json.pubkey] = {
+        ...json.account,
+        data: Buffer.from(json.account.data[0], 'base64'),
+        owner: new web3.PublicKey(json.account.owner),
+    };
     return result;
 }
 exports.readAccount = readAccount;

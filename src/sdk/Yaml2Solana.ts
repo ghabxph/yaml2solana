@@ -6,10 +6,10 @@ import * as util from '../util';
 import find from 'find-process';
 import { exec } from 'child_process';
 import { spawn } from 'child_process';
-import { AccountDecoder } from './AccountDecoder';
+import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 import { cliEntrypoint } from '../cli';
-import { USER_WALLET } from '../cli/prompt/setupUserWalletUi';
+import { ContextResolver, MainSyntaxResolver, SyntaxContext, Type, TypeFactory } from './SyntaxResolver';
 
 export class Yaml2SolanaClass {
 
@@ -26,7 +26,7 @@ export class Yaml2SolanaClass {
   /**
    * Global variable
    */
-  private _global: Record<string, any> = {};
+  private _global: Record<string, Type> = {};
 
   /**
    * Parsed yaml
@@ -42,12 +42,16 @@ export class Yaml2SolanaClass {
     this.localnetConnection = new web3.Connection("http://127.0.0.1:8899");
 
     // Read the YAML file.
-    const yamlFile = fs.readFileSync(config, 'utf8');
+    const _path = path.resolve(config);
+    const yamlFile = fs.readFileSync(_path, 'utf8');
     this.projectDir = path.resolve(config).split('/').slice(0, -1).join('/');
     this._parsedYaml = yaml.parse(yamlFile);
 
+    // Resolve test wallets
+    this.resolveTestWallets();
+
     // Set named accounts to global variable
-    this.setNamedAccountsToGlobal(this._parsedYaml);
+    this.setNamedAccountsToGlobal();
 
     // Set known solana accounts (not meant to be downloaded)
     this.setKnownAccounts();
@@ -97,9 +101,6 @@ export class Yaml2SolanaClass {
    */
   async resolve(params: ResolveParams) {
     let onlyResolve: string[] | undefined;
-
-    // Resolve test wallets
-    this.resolveTestWallets(this._parsedYaml);
 
     // Resolve PDAs
     onlyResolve = params.onlyResolve.thesePdas?.map(v => this.sanitizeDollar(v));
@@ -172,11 +173,11 @@ export class Yaml2SolanaClass {
       if (this.isObjectInstruction(ix)) {
         _ixns.push(ix as web3.TransactionInstruction);
       } else if (typeof ix === 'string') {
-        const _ix = this.getVar<web3.TransactionInstruction | ResolvedInstructionBundles>(ix);
-        if (this.isObjectInstruction(ix)) {
-          _ixns.push(_ix as web3.TransactionInstruction);
-        } else if (this.isObjectResolvedInstructionBundles(_ix)) {
-          const bundle = _ix as ResolvedInstructionBundles;
+        const _ix = this.getVar(ix);
+        if (_ix.type === 'instruction') {
+          _ixns.push(_ix.value);
+        } else if (_ix.type === 'resolved_instruction_bundles') {
+          const bundle = _ix.value;
           _ixns.push(...bundle.ixs);
           alts.push(...bundle.alts.map(alt => alt.toString()));
         } else {
@@ -189,15 +190,11 @@ export class Yaml2SolanaClass {
     }
     let _payer: web3.PublicKey;
     if (typeof payer === 'string') {
-      const __payer = this.getVar<web3.PublicKey | web3.Keypair>(payer);
-      const isPublicKey = typeof __payer === 'object' && typeof (__payer as web3.PublicKey).toBuffer === 'function' && (__payer as web3.PublicKey).toBuffer().length === 32;
-      const isKeypair = typeof __payer === 'object' && typeof (__payer as web3.Keypair).publicKey !== undefined && typeof (__payer as web3.Keypair).secretKey !== undefined;
-      if (isPublicKey || isKeypair) {
-        if (isPublicKey) {
-          _payer = __payer as web3.PublicKey;
-        } else {
-          _payer = (__payer as web3.Keypair).publicKey;
-        }
+      const __payer = this.getVar(payer);
+      if (__payer.type === 'pubkey') {
+        _payer = __payer.value;
+      } else if (__payer.type === 'keypair') {
+        _payer = __payer.value.publicKey;
       } else {
         throw `Variable ${payer} is not a valid public key`;
       }
@@ -206,11 +203,11 @@ export class Yaml2SolanaClass {
     }
     const _signers: web3.Signer[] = signers.map(signer => {
       if (typeof signer === 'string') {
-        const _signer = this.getVar<web3.Signer>(signer)
-        if (typeof _signer === 'undefined' || typeof _signer !== 'object') {
+        const _signer = this.getVar(signer)
+        if (_signer.type !== 'keypair') {
           throw `Variable ${signer} is not a valid Signer instance`;
         }
-        return _signer;
+        return _signer.value as web3.Signer;
       } else if (typeof signer === 'object' && typeof signer.publicKey !== 'undefined' && typeof signer.secretKey !== 'undefined') {
         return signer;
       } else {
@@ -235,15 +232,25 @@ export class Yaml2SolanaClass {
   getSignersFromIx(ixLabel: string): web3.Signer[] {
     const result: web3.Signer[] = [];
     const ixDef = this.getIxDefinition(ixLabel);
-    const payer = this.getVar<web3.Signer>(ixDef.payer);
+    let payer: web3.Signer;
+    const p = this.getVar(ixDef.payer);
+    if (p.type === 'keypair') {
+      payer = p.value;
+    } else {
+      throw `Cannot resolve payer: ${ixDef.payer}`;
+    }
     let isPayerSigner = false;
     for (const meta of ixDef.accounts) {
       const _meta = meta.split(',');
       const [account] = _meta;
       if (_meta.includes('signer')) {
-        const signer = this.getVar<web3.Signer>(account);
-        result.push(signer);
-        if (Buffer.from(signer.secretKey).equals(Buffer.from(payer.secretKey))) {
+        const signer = this.getVar(account);
+        if (signer.type === 'keypair') {
+          result.push(signer.value);
+        } else {
+          throw `Cannot resolve signer account: ${account}`;
+        }
+        if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
           isPayerSigner = true;
         }
       }
@@ -287,7 +294,12 @@ export class Yaml2SolanaClass {
     const payer = this._parsedYaml.instructionBundle![label].payer;
     let kp: web3.Keypair;
     if (payer.startsWith('$')) {
-      kp = this.getVar<web3.Keypair>(payer);
+      const _kp = this.getVar(payer);
+      if (_kp.type === 'keypair') {
+        kp = _kp.value;
+      } else {
+        throw `${payer} is not a valid keypair.`;
+      }
     } else {
       // Assume that value is base64 encoded keypair
       kp = web3.Keypair.fromSecretKey(
@@ -315,17 +327,21 @@ export class Yaml2SolanaClass {
         ixDef = this.getIxDefinition(ixLabel);
       } catch {
         this.getDynamicInstruction(ixLabel);
-        const dynIx = this.getVar<DynamicInstructionClass>(`$${ixLabel}`);
-        const singleIx = dynIx.ix;
-        const multipleIx = dynIx.ixs;
-        if (singleIx !== undefined) {
-          dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-        } else if (multipleIx !== undefined) {
-          multipleIx.map(ix => {
-            dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
-          });
+        const dynIx = this.getVar(`$${ixLabel}`);
+        if (dynIx.type === 'dynamic_instruction') {
+          const singleIx = dynIx.value.ix;
+          const multipleIx = dynIx.value.ixs;
+          if (singleIx !== undefined) {
+            dynIxSigners.push(...singleIx.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+          } else if (multipleIx !== undefined) {
+            multipleIx.map(ix => {
+              dynIxSigners.push(...ix.keys.filter(meta => meta.isSigner).map(meta => meta.pubkey));
+            });
+          } else {
+            throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+          }
         } else {
-          throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+          throw `${dynIx.type} is not dynamic instruction`;
         }
         continue;
       }
@@ -338,20 +354,11 @@ export class Yaml2SolanaClass {
       });
     }
     signers.filter((v,i,s) => s.indexOf(v) === i).map(signer => {
-      if (signer.startsWith('$')) {
-        result.push(this.getVar<web3.Signer>(signer));
-      } else {
-        throw `Signer ${signer} must be a variable (starts with '$' symbol)`;
-      }
+      result.push(this.findSigner(signer));
     });
-    for (const testWallet in this._parsedYaml.localDevelopment.testWallets) {
-      const kp = this.getVar<web3.Signer>(`$${testWallet}`);
-      for (const dynIxSigner of dynIxSigners) {
-        if (kp.publicKey.equals(dynIxSigner)) {
-          result.push(kp);
-        }
-      }
-    }
+    dynIxSigners.map(p => {
+      result.push(this.findSigner(p));
+    });
     return result.filter((v,i,s) => s.indexOf(v) === i);
   }
 
@@ -506,8 +513,8 @@ export class Yaml2SolanaClass {
         try {
           const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
           const url = cluster === 'http://127.0.0.1:8899' ? 
-            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
-            'https://explorer.solana.com/tx/${sig}';
+            `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
+            `https://explorer.solana.com/tx/${sig}`;
           console.log(`TX: ${txns[key].description}`);
           console.log(`-------------------------------------------------------------------`)
           console.log(`tx sig ${sig}`);
@@ -527,8 +534,8 @@ export class Yaml2SolanaClass {
         try {
           const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
           const url = cluster === 'http://127.0.0.1:8899' ? 
-            'https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899' :
-            'https://explorer.solana.com/tx/${sig}';
+            `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
+            `https://explorer.solana.com/tx/${sig}`;
           console.log(`TX: ${txns[key].description}`);
           console.log(`-------------------------------------------------------------------`)
           console.log(`tx sig ${sig}`);
@@ -598,14 +605,13 @@ export class Yaml2SolanaClass {
 
     // Step 3: Override account data
     for (const testAccount of this._parsedYaml.localDevelopment.testAccounts) {
-      const decoder = this.getVar<AccountDecoder>(`$${testAccount.schema}`);
       let key: string;
       if (testAccount.key.startsWith('$')) {
-        const pubkeyOrKp = this.getVar<web3.PublicKey | web3.Keypair>(testAccount.key);
-        if (typeof (pubkeyOrKp as web3.Keypair).publicKey !== 'undefined') {
-          key = (pubkeyOrKp as web3.Keypair).publicKey.toBase58();
-        } else if (typeof (pubkeyOrKp as web3.PublicKey).toBase58 === 'function') {
-          key = (pubkeyOrKp as web3.PublicKey).toBase58();
+        const pubkeyOrKp = this.getVar(testAccount.key);
+        if (pubkeyOrKp.type === 'pubkey') {
+          key = pubkeyOrKp.value.toBase58();
+        } else if (pubkeyOrKp.type === 'keypair') {
+          key = pubkeyOrKp.value.publicKey.toBase58();
         } else {
           throw `Cannot resolve ${testAccount.key}`;
         }
@@ -627,6 +633,7 @@ export class Yaml2SolanaClass {
         }
       }
       const account = util.fs.readAccount(cacheFolder, key);
+      const decoder = this.getAccountDecoder(`$${testAccount.schema}`);
       decoder.data = account[key]!.data;
       for (const id in testAccount.params) {
         const value = testAccount.params[id];
@@ -674,7 +681,12 @@ export class Yaml2SolanaClass {
    * @returns
    */
   getInstruction(name: string): web3.TransactionInstruction {
-    return this.getVar<web3.TransactionInstruction>(name);
+    const v = this.getVar(name);
+    if (v.type === 'instruction') {
+      return v.value;
+    } else {
+      throw `${name} is not a valid web3.TransactionInstruction instance`;
+    }
   }
 
   /**
@@ -714,7 +726,7 @@ export class Yaml2SolanaClass {
    * @param name
    * @param value
    */
-  setParam<T>(name: string, value: T) {
+  setParam(name: string, value: any) {
     if (name.startsWith('$')) {
       this.setVar(name.substring(1), value);
     } else {
@@ -727,8 +739,8 @@ export class Yaml2SolanaClass {
    *
    * @param name 
    */
-  getParam<T>(name: string): T {
-    return this.getVar<T>(name);
+  getParam(name: string): Type {
+    return this.getVar(name);
   }
 
 
@@ -766,8 +778,8 @@ export class Yaml2SolanaClass {
    * @param name 
    * @param value 
    */
-  private setVar<T>(name: string, value: T) {
-    this._global[name] = value;
+  private setVar(name: string, value: any) {
+    this._global[name] = TypeFactory.createValue(value);
   }
 
   /**
@@ -776,7 +788,7 @@ export class Yaml2SolanaClass {
    * @param name
    * @returns
    */
-  private getVar<T>(name: string): T {
+  private getVar(name: string): Type {
     if (name.startsWith('$')) {
       const result = this._global[name.substring(1)]
       return result;
@@ -837,16 +849,14 @@ export class Yaml2SolanaClass {
    *
    * @param parsedYaml
    */
-  private resolveTestWallets(parsedYaml: ParsedYaml) {
-    const testWallets = parsedYaml.localDevelopment.testWallets;
+  private resolveTestWallets() {
+    const testWallets = this._parsedYaml.localDevelopment.testWallets;
     for (const key in testWallets) {
       const testWallet = testWallets[key];
-      if (testWallet.useUserWallet && USER_WALLET !== undefined) {
-        this.setVar<web3.Signer>(key, USER_WALLET);
-      } else {
-        this.setVar<web3.Signer>(key, web3.Keypair.fromSecretKey(Buffer.from(
-          testWallet.privateKey, 'base64'
-        )));
+      const resolver = new ContextResolver(this, SyntaxContext.TEST_WALLET_DECLARATION, testWallet);
+      const kp = resolver.resolve();
+      if (kp !== undefined && kp.type === 'keypair') {
+        this.setVar(key, kp.value)
       }
     }
   }
@@ -942,192 +952,13 @@ export class Yaml2SolanaClass {
   private resolveInstructions(onlyResolve?: string[]) {
     // Loop through instructions
     for (const key in this.parsedYaml.instructionDefinition) {
-
       // If onlyResolve is defined, skip instructions that aren't defined in onlyResolve
       if (onlyResolve !== undefined && !onlyResolve.includes(key)) continue;
-
       let ixDef: InstructionDefinition;
-      try {
-        ixDef = this.getIxDefinition(key);
-      } catch {
-        continue;
-      }
-      let programId;
-      if (ixDef.programId.startsWith('$')) {
-        programId = this.getVar<web3.PublicKey>(ixDef.programId);
-        if (typeof programId === undefined) {
-          throw `The programId ${ixDef.programId} variable is not defined`;
-        }
-      } else {
-        try {
-          programId = new web3.PublicKey(ixDef.programId);
-        } catch {
-          throw `The program id value: ${ixDef.programId} is not a valid program id base58 string`;
-        }
-      }
-
-      const data: Buffer = this.resolveInstructionData(ixDef.data);
-      const keys: web3.AccountMeta[] = this.resolveInstructionAccounts(ixDef.accounts);
-
-      // Store transaction instruction to global variable
-      this.setVar<web3.TransactionInstruction>(
-        key, new web3.TransactionInstruction({ programId, data, keys })
-      );
-    }
-  }
-
-  /**
-   * Resolve instruction data
-   *
-   * @param data
-   */
-  private resolveInstructionData(data: string[]): Buffer {
-    const dataArray: Buffer[] = [];
-    for (const dataStr of data) {
-      dataArray.push(util.typeResolver.resolveType2(dataStr, this._global));
-    }
-    return Buffer.concat(dataArray);
-  }
-
-  private resolveInstructionAccounts(accounts: string[]): web3.AccountMeta[] {
-    const accountMetas: web3.AccountMeta[] = [];
-    for (const account of accounts) {
-      const arr = account.split(',');
-      const key = arr[0];
-      let pubkey: web3.PublicKey | web3.Keypair;
-      if (key.startsWith('$')) {
-        pubkey = this.getVar<web3.PublicKey | web3.Keypair>(key);
-        if (typeof pubkey === 'undefined') {
-          throw `Cannot resolve public key variable ${key}.`
-        } else if (typeof (pubkey as web3.Keypair).publicKey !== 'undefined') {
-          pubkey = (pubkey as web3.Keypair).publicKey;
-        }
-      } else {
-        try {
-          pubkey = new web3.PublicKey(key);
-        } catch {
-          throw `Public key value: ${key} is not a valid base58 solana public key string`;
-        }
-      }
-      const isSigner = arr.includes('signer');
-      const isWritable = arr.includes('mut');
-      accountMetas.push({ pubkey: pubkey as web3.PublicKey, isSigner, isWritable });
-    }
-    return accountMetas;
-  }
-
-  /**
-   * Set named accounts to global variable
-   *
-   * @param parsedYaml
-   */
-  private setNamedAccountsToGlobal(parsedYaml: ParsedYaml) {
-    // Loop through accounts
-    for (const key in parsedYaml.accounts) {
-
-      const split = parsedYaml.accounts[key].split(',');
-      const address = split[0];
-      const file = split[1];
-
-      // Set named account in global
-      this.setVar<web3.PublicKey>(key, new web3.PublicKey(address));
-
-      // Set file if 2nd parameter defined is valid (should be .so or .json)
-      if (file !== undefined && typeof file === 'string' && ['json', 'so'].includes(file.split('.')[file.split('.').length - 1])) {
-        this.setVar<Account>(address, { file });
-      }
-    }
-  }
-
-  /**
-   * Set known solana accounts
-   *
-   * @param parsedYaml
-   */
-  private setKnownAccounts() {
-    this.setVar<web3.PublicKey>('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
-    this.setVar<web3.PublicKey>('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
-    this.setVar<web3.PublicKey>('SYSTEM_PROGRAM', web3.SystemProgram.programId);
-    this.setVar<web3.PublicKey>('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
-    this.setVar<web3.PublicKey>('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
-  }
-
-  /**
-   * Resolve PDAs
-   * 
-   * @param onlyResolve Only resolve these PDAs
-   */
-  private resolvePda(onlyResolve?: string[]) {
-    // Loop through PDA
-    for (const key in this.parsedYaml.pda) {
-
-      // If onlyResolve is defined, skip PDAs that aren't defined in onlyResolve
-      if (onlyResolve !== undefined && !onlyResolve.includes(key)) continue;
-
-      const pda = this.parsedYaml.pda[key];
-      let programId;
-      if (pda.programId.startsWith('$')) {
-        programId = this.getVar<web3.PublicKey>(pda.programId);
-        if (typeof programId === undefined) {
-          throw `The programId ${pda.programId} variable is not defined`;
-        }
-      } else {
-        try {
-          programId = new web3.PublicKey(pda.programId);
-        } catch {
-          throw `The program id value: ${pda.programId} is not a valid program id base58 string`;
-        }
-      }
-
-      const seeds: Buffer[] = [];
-      for (const seed of pda.seeds) {
-        if (seed.startsWith('$')) {
-          const p = this.getVar<web3.PublicKey | web3.Signer>(seed);
-          if (typeof p === 'undefined') {
-            throw `The public key ${seed} variable is not defined`;
-          } else if (typeof (p as web3.Signer).publicKey !== 'undefined') {
-            seeds.push((p as web3.Signer).publicKey.toBuffer());
-          } else {
-            try {
-              new web3.PublicKey(p);
-              seeds.push((p as web3.PublicKey).toBuffer())
-            } catch {
-              throw `The variable ${seed} is not a valid public key`
-            }
-          }
-        } else {
-          const _seed = Buffer.from(seed, 'utf-8');
-          if (_seed.length > 32) {
-            throw `The given seed: ${_seed} exceeds 32 bytes`;
-          } else {
-            seeds.push(_seed);
-          }
-        }
-      }
-
-      // Generate PDA
-      const [_pda] = web3.PublicKey.findProgramAddressSync(seeds, programId);
-      this.setVar<web3.PublicKey>(key, _pda);
-    }
-  }
-
-  /**
-   * Generate account decoder instances
-   */
-  private generateAccountDecoders() {
-    if (this._parsedYaml.accountDecoder !== undefined) {
-      for (const name in this._parsedYaml.accountDecoder) {
-        this.setVar<AccountDecoder>(
-          name,
-          new AccountDecoder(name, this._parsedYaml.accountDecoder[name])
-        );
+      try { ixDef = this.getIxDefinition(key) } catch { continue }
+      const resolver = new ContextResolver(this, SyntaxContext.IX_RESOLUTION, ixDef).resolve();
+      if (resolver !== undefined && resolver.type === 'instruction') {
+        this.setVar(key, resolver.value);
       }
     }
   }
@@ -1146,55 +977,24 @@ export class Yaml2SolanaClass {
       const ixBundle = this._parsedYaml.instructionBundle[_ixBundle];
       const alts: web3.PublicKey[] = ixBundle.alts.map(alt => new web3.PublicKey(alt));
 
-      for (const ix of ixBundle.instructions) {
-        // Set global variables
-        for (const key in ix.params) {
-          let value;
-          if (typeof ix.params[key] !== 'string') {
-            value = ix.params[key];
-          } else {
-            const [valueOrVar, type] = ix.params[key].split(':');
-            if (valueOrVar.startsWith('$')) {
-              value = this.getVar(valueOrVar);
-            } else {
-              if (['u8', 'u16', 'u32', 'i8', 'i16', 'i32'].includes(type)) {
-                value = parseInt(valueOrVar);
-              } else if (['u64', 'usize', 'i64'].includes(type)) {
-                value = BigInt(valueOrVar);
-              } else if (type === 'bool') {
-                value = valueOrVar === 'true';
-              } else if (type === 'pubkey') {
-                value = new web3.PublicKey(valueOrVar);
-              } else if (ix.dynamic) {
-                const dynamicIx = this.getVar<DynamicInstructionClass>(ix.label);
-                if (dynamicIx.varType[`$${key}`].type === 'string') {
-                  value = valueOrVar as string;
-                }
-              } else {
-                throw `Type of ${key} is not defined.`
-              }
-              value = valueOrVar;
-            }
-          }
-          this.setVar(key, value);
-        }
+      // Resolve variables from bundle using context resolver
+      new ContextResolver(this, SyntaxContext.IX_BUNDLE_RESOLUTION, ixBundle).resolve();
 
-        const isDynamic = ix.dynamic;
-        if (!isDynamic) {
-          // Assuming here that parameters required by instruction is already set.
-          this.resolveInstruction(ix.label);
-        }
+      // Resolve instructions (generate / re-generate isntruction after variable setting)
+      for (const ix of ixBundle.instructions) {
+        this.resolveInstruction(ix.label)
       }
 
+      // Get instructions from instruction definition or dynamic instruction
       const ixs: web3.TransactionInstruction[] = [];
       for (const ix of ixBundle.instructions) {
-        const _ix = this.getVar<web3.TransactionInstruction | DynamicInstructionClass>(ix.label);
-        if (_ix instanceof web3.TransactionInstruction) {
-          ixs.push(_ix);
-        } else if (_ix instanceof DynamicInstructionClass) {
-          await _ix.resolve();
-          const singleIx = _ix.ix;
-          const multipleIx = _ix.ixs;
+        const _ix = this.getVar(ix.label);
+        if (_ix.type === 'instruction') {
+          ixs.push(_ix.value);
+        } else if (_ix.type === 'dynamic_instruction') {
+          await _ix.value.resolve();
+          const singleIx = _ix.value.ix;
+          const multipleIx = _ix.value.ixs;
           if (singleIx !== undefined) {
             ixs.push(singleIx);
           } else if (multipleIx !== undefined) {
@@ -1202,19 +1002,85 @@ export class Yaml2SolanaClass {
           } else {
             throw `Dynamic instruction ${ix.label} is not yet defined.`;
           }
-          alts.push(..._ix.alts);
+          alts.push(..._ix.value.alts);
         } else {
           throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
         }
       }
 
       // Lastly, store ix bundle in global
-      this.setVar<ResolvedInstructionBundles>(_ixBundle, {
+      this.setVar(_ixBundle, {
         resolvedInstructionBundle: true,
         alts,
         payer: this.resolveKeypair(ixBundle.payer),
         ixs,
       });
+    }
+  }
+
+  /**
+   * Set named accounts to global variable
+   *
+   * @param parsedYaml
+   */
+  private setNamedAccountsToGlobal() {
+    // Loop through accounts
+    const resolver = new ContextResolver(this, SyntaxContext.ACCOUNT_DECLARATION, this._parsedYaml.accounts);
+    resolver.resolve();
+  }
+
+  /**
+   * Set known solana accounts
+   *
+   * @param parsedYaml
+   */
+  private setKnownAccounts() {
+    this.setVar('TOKEN_PROGRAM', new web3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
+    this.setVar('ASSOCIATED_TOKEN_PROGRAM', new web3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'));
+    this.setVar('SYSTEM_PROGRAM', web3.SystemProgram.programId);
+    this.setVar('SYSVAR_CLOCK', web3.SYSVAR_CLOCK_PUBKEY);
+    this.setVar('SYSVAR_EPOCH_SCHEDULE', web3.SYSVAR_EPOCH_SCHEDULE_PUBKEY);
+    this.setVar('SYSVAR_INSTRUCTIONS', web3.SYSVAR_INSTRUCTIONS_PUBKEY);
+    this.setVar('SYSVAR_RECENT_BLOCKHASHES', web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY);
+    this.setVar('SYSVAR_RENT', web3.SYSVAR_RENT_PUBKEY);
+    this.setVar('SYSVAR_REWARDS', web3.SYSVAR_REWARDS_PUBKEY);
+    this.setVar('SYSVAR_SLOT_HASHES', web3.SYSVAR_SLOT_HASHES_PUBKEY);
+    this.setVar('SYSVAR_SLOT_HISTORY', web3.SYSVAR_SLOT_HISTORY_PUBKEY);
+    this.setVar('SYSVAR_STAKE_HISTORY', web3.SYSVAR_STAKE_HISTORY_PUBKEY);
+  }
+
+  /**
+   * Resolve PDAs
+   * 
+   * @param onlyResolve Only resolve these PDAs
+   */
+  private resolvePda(onlyResolve?: string[]) {
+    // Loop through PDA
+    for (const key in this.parsedYaml.pda) {
+
+      // If onlyResolve is defined, skip PDAs that aren't defined in onlyResolve
+      if (onlyResolve !== undefined && !onlyResolve.includes(key)) continue;
+
+      // Resolve PDA using context resolver
+      const resolver = new ContextResolver(this, SyntaxContext.PDA_RESOLUTION, this.parsedYaml.pda[key])
+      const resolved = resolver.resolve();
+      if (resolved !== undefined && resolved.type === 'pubkey') {
+        this.setVar(key, resolved);
+      } else {
+        throw `Cannot resolve PDA: ${key}`;
+      }
+    }
+  }
+
+  /**
+   * Generate account decoder instances
+   */
+  private generateAccountDecoders() {
+    if (this._parsedYaml.accountDecoder !== undefined) {
+      for (const name in this._parsedYaml.accountDecoder) {
+        // Resolve accont decoders using context resolver
+        new ContextResolver(this, SyntaxContext.ACCOUNT_DECODER_DECLARATION, this._parsedYaml.accountDecoder[name]).resolve();
+      }
     }
   }
 
@@ -1225,9 +1091,9 @@ export class Yaml2SolanaClass {
    */
   private resolveKeypair(idOrVal: string): web3.Keypair {
     if (idOrVal.startsWith('$')) {
-      const kp = this.getVar<web3.Keypair>(idOrVal);
-      if (typeof kp.publicKey !== 'undefined') {
-        return kp;
+      const kp = this.getVar(idOrVal);
+      if (kp.type === 'keypair') {
+        return kp.value;
       } else {
         throw `Cannot resolve keypair: ${idOrVal}`;
       }
@@ -1254,11 +1120,66 @@ export class Yaml2SolanaClass {
         continue;
       }
       if (dynamicIx.dynamic) {
-        this.setVar<DynamicInstructionClass>(
+        this.setVar(
           ixLabel,
-          new DynamicInstructionClass(this, dynamicIx.params)
-        );
+          TypeFactory.createValue(new DynamicInstructionClass(this, dynamicIx.params))
+        )
       }
+    }
+  }
+
+  /**
+   * Find signer from global variable
+   *
+   * @param idOrValue
+   */
+  private findSigner(idOrValue: string | web3.PublicKey): web3.Signer {
+    let signerPubkey: string;
+    if (typeof idOrValue !== 'string') {
+      try {
+        new web3.PublicKey(idOrValue);
+        signerPubkey = (idOrValue as web3.PublicKey).toBase58();
+      } catch {
+        throw `${idOrValue} is not a valid public key instance.`;
+      }
+    } else if (idOrValue.startsWith('$')) {
+      const pubkeyOrKp = this.getVar(idOrValue);
+      if (pubkeyOrKp.type === 'keypair') {
+        return pubkeyOrKp.value;
+      } else if (pubkeyOrKp.type === 'pubkey') {
+        signerPubkey = pubkeyOrKp.value.toBase58()
+      } else {
+        throw `Variable ${idOrValue} is not a valid public key or keypair instance`;
+      }
+    } else {
+      try {
+        new web3.PublicKey(idOrValue);
+        signerPubkey = idOrValue;
+      } catch {
+        throw `${idOrValue} is not a valid base58 public key string.`;
+      }
+    }
+    for (const id in this._global) {
+      const keypair = this.getVar(`$${id}`);
+      if (keypair.type === 'keypair' && keypair.value.publicKey.toBase58() === signerPubkey) {
+        return keypair.value;
+      }
+    }
+    throw `Cannot find keypair ${idOrValue}`;
+  }
+
+  /**
+   * Get account decoder instance from global
+   *
+   * @param key
+   * @returns
+   */
+  private getAccountDecoder(key: string): AccountDecoderClass {
+    const v = this.getVar(key)
+    if (v.type === 'account_decoder') {
+      return v.value;
+    } else {
+      throw `${key} is not an AccountDecoder class instance`;
     }
   }
 }
@@ -1399,16 +1320,19 @@ export type ExecuteTxSettings = {
   skipPreflight?: boolean,
 }
 
+export type Accounts = Record<string, string>;
+export type AccountDecoder = string[];
+
 export type ParsedYaml = {
   mainnetRpc?: string[],
   executeTxSettings: ExecuteTxSettings,
   addressLookupTables?: string[],
   computeLimitSettings?: Record<string, ComputeLimitSettings>
-  accounts: Record<string, string>,
+  accounts: Accounts,
   accountsNoLabel: string[],
   pda: Record<string, Pda>,
   instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>,
-  accountDecoder?: Record<string, string[]>
+  accountDecoder?: Record<string, AccountDecoder>
   instructionBundle?: Record<string, InstructionBundle>,
   localDevelopment: {
     accountsFolder: string,

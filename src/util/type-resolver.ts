@@ -266,6 +266,8 @@ export function resolveType2(
   const _bytes = /bytes\((\s*\d+\s*,\s*)*\s*\d+\s*\)/;
   const _fromBase64 = /fromBase64\([^)]*\)/g;
   const _hex = /hex\([a-fA-F0-9_]+\)/;
+  const __usize = /usize\([^)]*\)/g;
+  const __u32 = /u32\([^)]*\)/g;
 
   // Resolve sighash
   if (_sighash.test(data)) {
@@ -338,6 +340,14 @@ export function resolveType2(
 
   else if (_hex.test(data)) {
     return resolveHex(data);
+  }
+
+  else if (__usize.test(data)) {
+    return resolveUsizeFunc(data)
+  }
+
+  else if (__u32.test(data)) {
+    return resolveU32Func(data)
   }
 
   // Variable syntax is not correct.
@@ -715,4 +725,38 @@ function resolveBase64(data: string): Buffer {
 function resolveHex(data: string): Buffer {
   const bytes = data.replace(/hex\((.*?)\)/g, '$1');
   return Buffer.from(bytes, "hex");
+}
+
+/**
+ * Resolve hex encoded string to raw bytes
+ *
+ * @param data
+ */
+function resolveUsizeFunc(data: string): Buffer {
+  const value = data.replace(/usize\((.*?)\)/g, '$1');
+  const number = BigInt(value);
+  if (number >= BigInt("0") && number <= BigInt("18446744073709551615")) { // 2^64 - 1
+    const buffer = Buffer.alloc(8);
+    buffer.writeBigUInt64LE(number); // Write as little-endian
+    return buffer;
+  } else {
+    throw `Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+  }
+}
+
+/**
+ * Resolve hex encoded string to raw bytes
+ *
+ * @param data
+ */
+function resolveU32Func(data: string): Buffer {
+  const value = data.replace(/u32\((.*?)\)/g, '$1');
+  const number = parseInt(value);
+  if (number >= 0 && number <= 4294967295) { // 2^32 - 1
+    const buffer = Buffer.alloc(4);
+    buffer.writeUInt32LE(number); // Write as little-endian
+    return buffer;
+  } else {
+    throw `Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`;
+  }
 }
