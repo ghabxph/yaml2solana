@@ -3,6 +3,7 @@ import * as util from "../../util";
 import inquirer from "inquirer";
 import { Yaml2Solana } from "../..";
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
+import { throwErrorWithTrace } from "../../error";
 
 const CHOICE_SINGLE = 'Run single instruction';
 const CHOICE_BUNDLE = 'Run bundled instructions';
@@ -84,10 +85,10 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
               if (numberTypes.includes(varInfo.type)) {
                 if (Math.round(Number(input)) === Number(input)) {
                   return Number(input)
-                } else {
-                  throw `${varInfo.name} is not a valid integer value.`
+                } else 
+                  throwErrorWithTrace(`${varInfo.name} is not a valid integer value.`);
+                  return;
                 }
-              }
               return input;
             }
           })
@@ -109,7 +110,8 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
       } else if (v.type === 'pubkey') {
         defaultValue = v.value
       } else {
-        throw `${account} is not a valid public key.`;
+        throwErrorWithTrace(`${account} is not a valid public key.`);
+        return;
       }
       const { value } = await inquirer.prompt({
         type: 'input',

@@ -7,6 +7,7 @@ import BN from 'bn.js';
 import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 import { USER_WALLET } from '../cli/prompt/setupUserWalletUi';
+import { throwErrorWithTrace } from '../error';
 
 export class ContextResolver {
   constructor (
@@ -32,13 +33,14 @@ export class ContextResolver {
     } else if (this.context === SyntaxContext.ACCOUNT_DECODER_DECLARATION) {
       this.accountDecoderClassContext();
     } else {
-      throw `Invalid context.`;
+      return throwErrorWithTrace(`Invalid context.`);
     }
   }
 
   private accountDeclarationContext() {
-    for (const key in this.toResolve) {
-      const resolver = new MainSyntaxResolver(key, this.y2s);
+    const accounts = this.toResolve as Accounts;
+    for (const key in accounts) {
+      const resolver = new MainSyntaxResolver(accounts[key], this.y2s);
       resolver.resolve(this.context, key);
     }
   }
@@ -67,14 +69,14 @@ export class ContextResolver {
       const [pda2] = web3.PublicKey.findProgramAddressSync(seeds, programId);
       return TypeFactory.createValue(pda2);
     } else {
-      throw `Cannot resolve program id: ${pda.programId}`;
+      return throwErrorWithTrace(`Cannot resolve program id: ${pda.programId}`);
     }
   }
   private resolveInstruction() {
     const ixDef = this.toResolve as InstructionDefinition;
     const _programId = new MainSyntaxResolver(ixDef.programId, this.y2s).resolve(SyntaxContext.ADDRESS_RESOLUTION);
     if (_programId.type !== 'pubkey') {
-      throw `Cannot resolve program id: ${ixDef.programId}`;
+      return throwErrorWithTrace(`Cannot resolve program id: ${ixDef.programId}`);
     }
     const dataArray: Buffer[] = [];
     for (const dataStr of ixDef.data) {
@@ -82,7 +84,7 @@ export class ContextResolver {
       if (dataResolver.type === 'buffer') {
         dataArray.push(dataResolver.value);
       } else {
-        throw `Invalid resolution. Should resolve to Buffer.`;
+        return throwErrorWithTrace(`Invalid resolution. Should resolve to Buffer.`);
       }
     }
     const accountMetas: web3.AccountMeta[] = [];
@@ -142,13 +144,13 @@ export class ContextResolver {
                 if (['true', 'false'].includes(value)) {
                   this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(value === 'true'));
                 } else {
-                  throw `${resolver.value.name} supports only boolean value.`
+                  return throwErrorWithTrace(`${resolver.value.name} supports only boolean value.`);
                 }
               }
             }
           }
         } else {
-          throw `Invalid declaration syntax: ${declarationSyntax}`;
+          return throwErrorWithTrace(`Invalid declaration syntax: ${declarationSyntax}`);
         }
       }
     }
@@ -160,11 +162,11 @@ export class ContextResolver {
     const accountDecoder = this.toResolve as AccountDecoder;
     for (const item of accountDecoder) {
       const resolver = new MainSyntaxResolver(item, this.y2s).resolve(SyntaxContext.ACCOUNT_DECODER_DECLARATION);
-      if (resolver.type !== 'account_decoder') {
-        throw `Invalid syntax: ${item}`;
+      if (resolver.type !== 'account_decoder_syntax') {
+        return throwErrorWithTrace(`Invalid syntax: ${item}`);
       }
     }
-    const name = this.extra;
+    const name = `$${this.extra}`;
     const decoder = TypeFactory.createValue(new AccountDecoderClass(name, accountDecoder));
     this.y2s.setParam(name, decoder);
   }
@@ -196,13 +198,13 @@ export class MainSyntaxResolver {
     } else if (context === SyntaxContext.VARIABLE_RESOLUTION) {
       return this.basicResolver(new ValueSyntaxResolver(this.pattern, this.y2s), `Cannot resolve ${this.pattern} variable.`);
     } else if (context === SyntaxContext.ACCOUNT_DECODER_DECLARATION) {
-      return this.basicResolver(new AccountDecoderClassSyntaxResolver(this.pattern, this.y2s), `Cannot resolve ${this.pattern} account decoder.`);
+      return this.basicResolver(new AccountDecoderClassSyntaxResolver(this.pattern, this.y2s), `Invalid syntax: ${this.pattern}`);
     } else if (context === SyntaxContext.DYNAMIC_IX_DECLARATION) {
       return this.basicResolver(new DynamicIxSyntaxResolver(this.pattern, this.y2s), `Invalid dynamic ix declaration syntax: ${this.pattern}`);
     } else if (context === SyntaxContext.DECLARATION_SYNTAX) {
       return this.basicResolver(new AccountDataSyntaxResolver(this.pattern, this.y2s), `Invalid declaration syntax: ${this.pattern}`);
     } else {
-      throw `Invalid context.`;
+      return throwErrorWithTrace(`Invalid context: ${this.pattern}`);
     }
   }
 
@@ -212,7 +214,7 @@ export class MainSyntaxResolver {
       this.y2s.setParam(`$${param}`, syntax.value.value.account);
       return this.y2s.getParam(`$${param}`);
     } else {
-      throw `Account declaration syntax is invalid.`;
+      return throwErrorWithTrace(`Account declaration syntax is invalid: ${this.pattern}`);
     }
   }
   private addressResolver() {
@@ -227,17 +229,18 @@ export class MainSyntaxResolver {
           new web3.PublicKey(syntax.value.value)
         );
       } else {
-        throw `${this.pattern} is not a valid keypair or public key instance`
+        return throwErrorWithTrace(`${this.pattern} is not a valid keypair or public key instance`);
       }
     } else {
-      throw `Cannot resolve ${this.pattern}.`;
+
+      return throwErrorWithTrace(`Cannot resolve ${this.pattern}.`);
     }
   }
   private basicResolver(syntax: SyntaxResolver, errorMessage: string) {
     if (syntax.isValid()) {
       return syntax.value;
     } else {
-      throw errorMessage;
+      return throwErrorWithTrace(errorMessage);
     }
   }
 }
@@ -304,7 +307,7 @@ class AccountSyntaxResolver extends SyntaxResolver {
         const split = filePath.split('.');
         const extension = split[split.length - 1];
         if (!['so', 'json'].includes(extension.toLocaleLowerCase())) {
-          throw false;
+          return throwErrorWithTrace(false);
         }
       }
     } catch {
@@ -366,7 +369,7 @@ class VariableSyntaxResolver extends SyntaxResolver {
   protected resolve(): void {
     this._value = this.y2s.getParam(this.pattern);
     if (this._value === undefined) {
-      throw `Cannot resolve ${this.value} variable.`
+      return throwErrorWithTrace(`Cannot resolve ${this.value} variable.`);
     }
   }
 }
@@ -535,6 +538,7 @@ class AccountDecoderClassSyntaxResolver extends SyntaxResolver {
     const validType = [
       "u8", "u16", "u32", "u64", "u128", "usize",
       "i8", "i16", "i32", "i64", "i128", "pubkey",
+      "bool"
     ].includes(type);
     return startsWithDollar && offsetIsInteger && validType
   }
@@ -596,7 +600,7 @@ class PdaSeedSyntaxResolver extends SyntaxResolver {
       this.seed = Buffer.from(this.pattern, 'utf-8');
     }
     if (this.seed!.length > 32) {
-      throw `Seed cannot exceed 32 bytes.`;
+      return throwErrorWithTrace(`Seed cannot exceed 32 bytes.`);
     }
   }
 }
@@ -667,7 +671,7 @@ class FunctionResolver extends SyntaxResolver {
     }
 
     else {
-      throw `$${this.pattern} is not a valid function syntax.`;
+      return throwErrorWithTrace(`$${this.pattern} is not a valid function syntax.`);
     }
   }
 
@@ -727,7 +731,7 @@ class FunctionResolver extends SyntaxResolver {
       buffer.writeBigUInt64LE(number); // Write as little-endian
       return buffer;
     } else {
-      throw `Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+      return throwErrorWithTrace(`Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
     }
   }
 
@@ -744,7 +748,7 @@ class FunctionResolver extends SyntaxResolver {
       buffer.writeUInt32LE(number); // Write as little-endian
       return buffer;
     } else {
-      throw `Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`;
+      return throwErrorWithTrace(`Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`);
     }
   }
 }
@@ -857,7 +861,7 @@ class TypedVariableResolver extends SyntaxResolver {
 
     // Variable syntax is not correct.
     else {
-      throw `$${this.pattern} is not a valid typed variable syntax.`;
+      return throwErrorWithTrace(`$${this.pattern} is not a valid typed variable syntax.`);
     }
   }
 
@@ -877,13 +881,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= 0 && value <= 255) {
           return TypeFactory.createValue(value, 'u8');
         } else {
-          throw `$${key} is not a valid u8. Valid u8 can only between 0 to 255.`
+          return throwErrorWithTrace(`$${key} is not a valid u8. Valid u8 can only between 0 to 255.`);
         }
       } else {
-        throw `$${key} is not a number.`
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve u8 value: $${key}`
+      return throwErrorWithTrace(`Cannot resolve u8 value: $${key}`);
     }
   }
 
@@ -902,13 +906,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= 0 && value <= 65535) { // 2^16 - 1
           return TypeFactory.createValue(value, 'u16');
         } else {
-          throw `$${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`;
+          return throwErrorWithTrace(`$${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`);
         }
       } else {
-        throw `$${key} is not a number.`;
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve u16 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve u16 $${key} value.`);
     }
   }
 
@@ -927,13 +931,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= 0 && value <= 4294967295) { // 2^32 - 1
           return TypeFactory.createValue(value, 'u32');
         } else {
-          throw `$${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`;
+          return throwErrorWithTrace(`$${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`);
         }
       } else {
-        throw `$${key} is not a number.`;
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve u32 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve u32 $${key} value.`);
     }
   }
 
@@ -957,13 +961,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value.gte(new BN(0)) && value.lte(new BN("18446744073709551615"))) { // 2^64 - 1
           return TypeFactory.createValue(value, 'u64');
         } else {
-          throw `$${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`;
+          return throwErrorWithTrace(`$${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`);
         }
       } else {
-        throw `$${key} is not a valid number or bigint.`;
+        return throwErrorWithTrace(`$${key} is not a valid number or bigint.`);
       }
     } else {
-      throw `Cannot resolve u64 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve u64 $${key} value.`);
     }
   }
 
@@ -987,13 +991,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value.gte(new BN(0)) && value.lte(new BN("18446744073709551615"))) { // 2^64 - 1
           return TypeFactory.createValue(value, 'u128');
         } else {
-          throw `$${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+          return throwErrorWithTrace(`$${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
         }
       } else {
-        throw `$${key} is not a valid number or bigint.`;
+        return throwErrorWithTrace(`$${key} is not a valid number or bigint.`);
       }
     } else {
-      throw `Cannot resolve usize $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve usize $${key} value.`);
     }
   }
 
@@ -1013,13 +1017,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= -128 && value <= 127) { // Range for i8
           return TypeFactory.createValue(value, 'i8');
         } else {
-          throw `$${key} is not a valid i8. Valid i8 can only be between -128 to 127.`;
+          return throwErrorWithTrace(`$${key} is not a valid i8. Valid i8 can only be between -128 to 127.`);
         }
       } else {
-        throw `$${key} is not a number.`;
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve i8 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve i8 $${key} value.`);
     }
   }
 
@@ -1038,13 +1042,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= -32768 && value <= 32767) { // Range for i16
           return TypeFactory.createValue(value, 'i16');
         } else {
-          throw `$${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`;
+          return throwErrorWithTrace(`$${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`);
         }
       } else {
-        throw `$${key} is not a number.`;
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve i16 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve i16 $${key} value.`);
     }
   }
 
@@ -1063,13 +1067,13 @@ class TypedVariableResolver extends SyntaxResolver {
         if (value >= -2147483648 && value <= 2147483647) { // Range for i32
           return TypeFactory.createValue(value, 'i32');
         } else {
-          throw `$${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`;
+          return throwErrorWithTrace(`$${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`);
         }
       } else {
-        throw `$${key} is not a number.`;
+        return throwErrorWithTrace(`$${key} is not a number.`);
       }
     } else {
-      throw `Cannot resolve i32 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve i32 $${key} value.`);
     }
   }
 
@@ -1096,13 +1100,13 @@ class TypedVariableResolver extends SyntaxResolver {
         ) {
           return TypeFactory.createValue(value, 'i64');
         } else {
-          throw `$${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`;
+          return throwErrorWithTrace(`$${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`);
         }
       } else {
-        throw `$${key} is not a valid number or bigint.`;
+        return throwErrorWithTrace(`$${key} is not a valid number or bigint.`);
       }
     } else {
-      throw `Cannot resolve u64 $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve u64 $${key} value.`);
     }
   }
 
@@ -1119,7 +1123,7 @@ class TypedVariableResolver extends SyntaxResolver {
       const value = resolver.value.value;
       return TypeFactory.createValue(value);
     } else {
-      throw `The value of $${key} is not a valid boolean.`;
+      return throwErrorWithTrace(`The value of $${key} is not a valid boolean.`);
     }
   }
 
@@ -1139,10 +1143,10 @@ class TypedVariableResolver extends SyntaxResolver {
       } else if (resolver.value.type === 'keypair') {
         return TypeFactory.createValue(resolver.value.value.publicKey);
       } else {
-        throw `$${key} is not a pubkey or keypair instance.`;
+        return throwErrorWithTrace(`$${key} is not a pubkey or keypair instance.`);
       }
     } else {
-      throw `Cannot resolve keypair or pubkey $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve keypair or pubkey $${key} value.`);
     }
   }
 
@@ -1160,10 +1164,10 @@ class TypedVariableResolver extends SyntaxResolver {
       if (resolver.value.type === 'string') {
         return TypeFactory.createValue(resolver.value.value);
       } else {
-        throw `$${key} is not a string.`;
+        return throwErrorWithTrace(`$${key} is not a string.`);
       }
     } else {
-      throw `Cannot resolve string $${key} value.`;
+      return throwErrorWithTrace(`Cannot resolve string $${key} value.`);
     }
   }
 }
@@ -1231,7 +1235,7 @@ class AccountDataResolver extends SyntaxResolver {
       } else if (typedVarResolver.value.type === 'pubkey') {
         this._value = typedVarResolver.value.value.toBuffer();
       } else {
-        throw `Unsupported type: ${typedVarResolver.value.type}`
+        return throwErrorWithTrace(`Unsupported type: ${typedVarResolver.value.type}`);
       }
     }
   }
@@ -1370,7 +1374,7 @@ class AccountDataSyntaxResolver extends SyntaxResolver {
     } else if (_string.test(this.pattern)) {
       return this.resolveString(this.pattern);
     } else {
-      throw `$${this.pattern} is not a valid typed variable or function syntax.`;
+      return throwErrorWithTrace(`$${this.pattern} is not a valid typed variable or function syntax.`);
     }
   }
 
@@ -1453,7 +1457,7 @@ class AccountDataSyntaxResolver extends SyntaxResolver {
         returns: new BN(value),
       }
     } else {
-      throw `Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+      return throwErrorWithTrace(`Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
     }
   }
 
@@ -1473,7 +1477,7 @@ class AccountDataSyntaxResolver extends SyntaxResolver {
         returns: number,
       }
     } else {
-      throw `Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`;
+      return throwErrorWithTrace(`Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`);
     }
   }
 
@@ -1740,7 +1744,7 @@ export abstract class TypeFactory {
     } else if (TypeFactory.isResolvedInstructionBundles(value)) {
       return { value: value as ResolvedInstructionBundles, type: "resolved_instruction_bundles" };
     } else {
-      throw `Unsupported value.`
+      return throwErrorWithTrace(`Unsupported value.`);
     }
   }
 
@@ -1766,16 +1770,16 @@ export abstract class TypeFactory {
     return typeof (value as BN).cmp === 'function' && (value as BN).mod(new BN(1)).eq(new BN(0));
   }
   private static isAccountMeta(value: any): boolean {
-    return typeof (value as AccountMetaSyntax).key.toBase58 === 'function';
+    return typeof (value as AccountMetaSyntax).key !== 'undefined' && typeof (value as AccountMetaSyntax).key.toBase58 === 'function';
   }
   private static isAccountSyntax(value: any): boolean {
-    return typeof (value as AccountSyntax).account?.toBase58 === 'function';
+    return typeof (value as AccountSyntax).account !== 'undefined' && typeof (value as AccountSyntax).account.toBase58 === 'function';
   }
   private static isAccountDecoderClassSyntax(value: any): boolean {
     return typeof (value as AccountDecoderClassSyntax).holder === 'string';
   }
   private static isAccountDecoderClass(value: any): boolean {
-    return typeof (value as AccountDecoderClass).data.toString === 'function';
+    return typeof (value as AccountDecoderClass).data !== 'undefined' && typeof (value as AccountDecoderClass).data.toString === 'function';
   }
   private static isDynamicInstructionClass(value: any): boolean {
     return typeof (value as DynamicInstructionClass).extend === 'function';
@@ -1784,7 +1788,7 @@ export abstract class TypeFactory {
     return typeof (value as Buffer).readUInt16BE === 'function';
   }
   private static isInstruction(value: any): boolean {
-    return typeof (value as web3.TransactionInstruction).programId.toBase58 === 'function';
+    return typeof (value as web3.TransactionInstruction).programId !== 'undefined' && typeof (value as web3.TransactionInstruction).programId.toBase58 === 'function';
   }
   private static isTypedVariableDeclarationSyntax(value: any): boolean {
     return (value as TypedVariableSyntax).type === 'variable';

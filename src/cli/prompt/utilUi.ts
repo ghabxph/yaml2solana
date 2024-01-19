@@ -5,6 +5,7 @@ import { keypairUi } from "./keypairUi";
 import * as util from "../../util";
 import { accountDecoderUi } from "./accountDecoderUi";
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
+import { throwErrorWithTrace } from "../../error";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
@@ -106,7 +107,8 @@ async function generatePda() {
             if (seedType === CHOICE_STRING) {
               const seed = Buffer.from(seedValue, 'utf-8');
               if (seed.length > 32) {
-                throw 'String seed cannot be greater than 32 bytes';
+                throwErrorWithTrace('String seed cannot be greater than 32 bytes');
+                return;
               }
               return seedValue;
             } else if (seedType === CHOICE_PUBLIC_KEY) {
@@ -115,7 +117,8 @@ async function generatePda() {
             } else {
               const seed = Buffer.from(seedValue, 'base64');
               if (seed.length > 32) {
-                throw 'String seed cannot be greater than 32 bytes';
+                throwErrorWithTrace('String seed cannot be greater than 32 bytes');
+                return;
               }
               return seedValue;
             }

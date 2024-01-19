@@ -1,6 +1,7 @@
 import { snakeCase } from 'lodash';
 import { sha256 } from "js-sha256";
 import * as web3 from '@solana/web3.js';
+import { throwErrorWithTrace } from '../error';
 
 const INVALID_KEY = new web3.PublicKey('123456789abcdefghijkLmnopqrstuvwxyz123456789');
 
@@ -234,7 +235,7 @@ export function extractVariableInfo(
 
   // Variables syntax is not correct.
   else {
-    throw `$${pattern} is not a valid variable syntax.`;
+    return throwErrorWithTrace(`$${pattern} is not a valid variable syntax.`);
   }
 }
 
@@ -352,7 +353,7 @@ export function resolveType2(
 
   // Variable syntax is not correct.
   else {
-    throw `$${data} is not a valid variable syntax.`;
+    return throwErrorWithTrace(`$${data} is not a valid variable syntax.`);
   }
 }
 
@@ -400,7 +401,7 @@ export function resolveAccountMeta(
         isWritable
       }
     } else {
-      throw `Cannot find $${key} on accounts in schema, or in parameter.`;
+      return throwErrorWithTrace(`Cannot find $${key} on accounts in schema, or in parameter.`);
     }
   } else {
     return {
@@ -447,13 +448,13 @@ export function resolveU8(data: string, params: Record<string, any>): Buffer {
       if (params[key] >= 0 && params[key] <= 255) {
         return Buffer.from([params[key]])
       } else {
-        throw `Parameter $${key} is not a valid u8. Valid u8 can only between 0 to 255.`
+        return throwErrorWithTrace(`Parameter $${key} is not a valid u8. Valid u8 can only between 0 to 255.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set`;
+    return throwErrorWithTrace(`Parameter $${key} is not set`);
   }
 }
 
@@ -472,13 +473,13 @@ export function resolveU16(data: string, params: Record<string, any>): Buffer {
         buffer.writeUInt16LE(params[key]); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -497,13 +498,13 @@ export function resolveU32(data: string, params: Record<string, any>): Buffer {
         buffer.writeUInt32LE(params[key]); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -522,13 +523,13 @@ export function resolveU64(data: string, params: Record<string, any>): Buffer {
         buffer.writeBigUInt64LE(BigInt(params[key])); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`);
       }
     } else {
-      throw `Parameter $${key} is not a valid number or bigint.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a valid number or bigint.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -547,13 +548,13 @@ export function resolveUsize(data: string, params: Record<string, any>): Buffer 
         buffer.writeBigUInt64LE(BigInt(params[key])); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
       }
     } else {
-      throw `Parameter $${key} is not a valid number or bigint.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a valid number or bigint.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -572,13 +573,13 @@ export function resolveI8(data: string, params: Record<string, any>): Buffer {
         buffer.writeInt8(params[key]);
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid i8. Valid i8 can only be between -128 to 127.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid i8. Valid i8 can only be between -128 to 127.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -597,13 +598,13 @@ export function resolveI16(data: string, params: Record<string, any>): Buffer {
         buffer.writeInt16LE(params[key]); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -622,13 +623,13 @@ export function resolveI32(data: string, params: Record<string, any>): Buffer {
         buffer.writeInt32LE(params[key]); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`);
       }
     } else {
-      throw `Parameter $${key} is not a number.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a number.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -650,13 +651,13 @@ export function resolveI64(data: string, params: Record<string, any>): Buffer {
         buffer.writeBigInt64LE(BigInt(params[key])); // Write as little-endian
         return buffer;
       } else {
-        throw `Parameter $${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`;
+        return throwErrorWithTrace(`Parameter $${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`);
       }
     } else {
-      throw `Parameter $${key} is not a valid number or bigint.`;
+      return throwErrorWithTrace(`Parameter $${key} is not a valid number or bigint.`);
     }
   } else {
-    throw `Parameter $${key} is not set.`;
+    return throwErrorWithTrace(`Parameter $${key} is not set.`);
   }
 }
 
@@ -673,9 +674,9 @@ export function resolveBool(data: string, params: Record<string, any>): Buffer {
   } else if (params[key] === false) {
     return Buffer.from([0]);
   } else if (params[key] === undefined) {
-    throw `Parameter $${key} is not set`;
+    return throwErrorWithTrace(`Parameter $${key} is not set`);
   } else {
-    throw `The value of $${key} is not a valid boolean. Value: ${params[key]}`;
+    return throwErrorWithTrace(`The value of $${key} is not a valid boolean. Value: ${params[key]}`);
   }
 }
 
@@ -691,7 +692,7 @@ function resolvePubkey3(data: string, params: Record<string, web3.PublicKey>): B
   if (params[key] !== undefined && params[key] instanceof web3.PublicKey) {
     return new web3.PublicKey(params[key]).toBuffer();
   } else {
-    throw `Cannot find $${key} variable`;
+    return throwErrorWithTrace(`Cannot find $${key} variable`);
   }
 }
 
@@ -740,7 +741,7 @@ function resolveUsizeFunc(data: string): Buffer {
     buffer.writeBigUInt64LE(number); // Write as little-endian
     return buffer;
   } else {
-    throw `Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+    return throwErrorWithTrace(`Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
   }
 }
 
@@ -757,6 +758,6 @@ function resolveU32Func(data: string): Buffer {
     buffer.writeUInt32LE(number); // Write as little-endian
     return buffer;
   } else {
-    throw `Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`;
+    return throwErrorWithTrace(`Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`);
   }
 }

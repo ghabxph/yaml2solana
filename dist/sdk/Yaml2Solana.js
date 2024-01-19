@@ -38,6 +38,7 @@ const child_process_2 = require("child_process");
 const DynamicInstruction_1 = require("./DynamicInstruction");
 const cli_1 = require("../cli");
 const SyntaxResolver_1 = require("./SyntaxResolver");
+const error_1 = require("../error");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
@@ -167,11 +168,11 @@ class Yaml2SolanaClass {
                 }
                 else {
                     console.log(`${ix}`, _ix);
-                    throw `Variable ${ix} is not a valid transaction instruction`;
+                    return (0, error_1.throwErrorWithTrace)(`Variable ${ix} is not a valid transaction instruction`);
                 }
             }
             else {
-                throw 'Invalid solana transaction instruction';
+                return (0, error_1.throwErrorWithTrace)('Invalid solana transaction instruction');
             }
         }
         let _payer;
@@ -184,7 +185,7 @@ class Yaml2SolanaClass {
                 _payer = __payer.value.publicKey;
             }
             else {
-                throw `Variable ${payer} is not a valid public key`;
+                return (0, error_1.throwErrorWithTrace)(`Variable ${payer} is not a valid public key`);
             }
         }
         else {
@@ -194,7 +195,7 @@ class Yaml2SolanaClass {
             if (typeof signer === 'string') {
                 const _signer = this.getVar(signer);
                 if (_signer.type !== 'keypair') {
-                    throw `Variable ${signer} is not a valid Signer instance`;
+                    return (0, error_1.throwErrorWithTrace)(`Variable ${signer} is not a valid Signer instance`);
                 }
                 return _signer.value;
             }
@@ -202,7 +203,7 @@ class Yaml2SolanaClass {
                 return signer;
             }
             else {
-                throw `Invalid solana signer instance`;
+                return (0, error_1.throwErrorWithTrace)(`Invalid solana signer instance`);
             }
         });
         return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
@@ -221,7 +222,7 @@ class Yaml2SolanaClass {
             payer = p.value;
         }
         else {
-            throw `Cannot resolve payer: ${ixDef.payer}`;
+            return (0, error_1.throwErrorWithTrace)(`Cannot resolve payer: ${ixDef.payer}`);
         }
         let isPayerSigner = false;
         for (const meta of ixDef.accounts) {
@@ -233,7 +234,7 @@ class Yaml2SolanaClass {
                     result.push(signer.value);
                 }
                 else {
-                    throw `Cannot resolve signer account: ${account}`;
+                    return (0, error_1.throwErrorWithTrace)(`Cannot resolve signer account: ${account}`);
                 }
                 if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
                     isPayerSigner = true;
@@ -280,7 +281,7 @@ class Yaml2SolanaClass {
                 kp = _kp.value;
             }
             else {
-                throw `${payer} is not a valid keypair.`;
+                return (0, error_1.throwErrorWithTrace)(`${payer} is not a valid keypair.`);
             }
         }
         else {
@@ -321,11 +322,11 @@ class Yaml2SolanaClass {
                         });
                     }
                     else {
-                        throw `Dynamic instruction: ${ixLabel} is not yet defined.`;
+                        return (0, error_1.throwErrorWithTrace)(`Dynamic instruction: ${ixLabel} is not yet defined.`);
                     }
                 }
                 else {
-                    throw `${dynIx.type} is not dynamic instruction`;
+                    return (0, error_1.throwErrorWithTrace)(`${dynIx.type} is not dynamic instruction`);
                 }
                 continue;
             }
@@ -428,7 +429,7 @@ class Yaml2SolanaClass {
                 return item.pid;
             }
         }
-        throw `Cannot find process named \'solana-test-validator\'`;
+        return (0, error_1.throwErrorWithTrace)(`Cannot find process named \'solana-test-validator\'`);
     }
     /**
      * Execute transactions locally
@@ -555,7 +556,7 @@ class Yaml2SolanaClass {
                     key = pubkeyOrKp.value.publicKey.toBase58();
                 }
                 else {
-                    throw `Cannot resolve ${testAccount.key}`;
+                    return (0, error_1.throwErrorWithTrace)(`Cannot resolve ${testAccount.key}`);
                 }
             }
             else {
@@ -620,7 +621,7 @@ class Yaml2SolanaClass {
             return v.value;
         }
         else {
-            throw `${name} is not a valid web3.TransactionInstruction instance`;
+            return (0, error_1.throwErrorWithTrace)(`${name} is not a valid web3.TransactionInstruction instance`);
         }
     }
     /**
@@ -660,7 +661,7 @@ class Yaml2SolanaClass {
             this.setVar(name.substring(1), value);
         }
         else {
-            throw 'Variable should begin with dollar symbol `$`';
+            return (0, error_1.throwErrorWithTrace)('Variable should begin with dollar symbol `$`');
         }
     }
     /**
@@ -682,7 +683,16 @@ class Yaml2SolanaClass {
         if ('programId' in ixDef && 'data' in ixDef && 'accounts' in ixDef && 'payer' in ixDef) {
             return ixDef;
         }
-        throw `${ixLabel} is not an InstructionDefinition`;
+        return (0, error_1.throwErrorWithTrace)(`${ixLabel} is not an InstructionDefinition`);
+    }
+    extendDynamicInstruction(params) {
+        const v = this.getVar(`$${params.ixName}`);
+        if (v.type === 'dynamic_instruction') {
+            v.value.extend(params.generateFn);
+        }
+        else {
+            return (0, error_1.throwErrorWithTrace)(`Cannot find dynamic instruction $${params.ixName}`);
+        }
     }
     /**
      * Get ix definition
@@ -695,7 +705,7 @@ class Yaml2SolanaClass {
         if ('dynamic' in ixDef && 'params' in ixDef) {
             return ixDef;
         }
-        throw `${ixLabel} is not an InstructionDefinition`;
+        return (0, error_1.throwErrorWithTrace)(`${ixLabel} is not an InstructionDefinition`);
     }
     /**
      * Store value to global variable
@@ -718,7 +728,7 @@ class Yaml2SolanaClass {
             return result;
         }
         else {
-            throw 'Variable should begin with dollar symbol `$`';
+            return (0, error_1.throwErrorWithTrace)('Variable should begin with dollar symbol `$`');
         }
     }
     /**
@@ -917,12 +927,12 @@ class Yaml2SolanaClass {
                         ixs.push(...multipleIx);
                     }
                     else {
-                        throw `Dynamic instruction ${ix.label} is not yet defined.`;
+                        return (0, error_1.throwErrorWithTrace)(`Dynamic instruction ${ix.label} is not yet defined.`);
                     }
                     alts.push(..._ix.value.alts);
                 }
                 else {
-                    throw `${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`;
+                    return (0, error_1.throwErrorWithTrace)(`${ix.label} is not a valid web3.TransactionInstruction or DynamicInstructionClass instance`);
                 }
             }
             // Lastly, store ix bundle in global
@@ -981,7 +991,7 @@ class Yaml2SolanaClass {
                 this.setVar(key, resolved);
             }
             else {
-                throw `Cannot resolve PDA: ${key}`;
+                return (0, error_1.throwErrorWithTrace)(`Cannot resolve PDA: ${key}`);
             }
         }
     }
@@ -992,7 +1002,7 @@ class Yaml2SolanaClass {
         if (this._parsedYaml.accountDecoder !== undefined) {
             for (const name in this._parsedYaml.accountDecoder) {
                 // Resolve accont decoders using context resolver
-                new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.ACCOUNT_DECODER_DECLARATION, this._parsedYaml.accountDecoder[name]).resolve();
+                new SyntaxResolver_1.ContextResolver(this, SyntaxResolver_1.SyntaxContext.ACCOUNT_DECODER_DECLARATION, this._parsedYaml.accountDecoder[name], name).resolve();
             }
         }
     }
@@ -1008,7 +1018,7 @@ class Yaml2SolanaClass {
                 return kp.value;
             }
             else {
-                throw `Cannot resolve keypair: ${idOrVal}`;
+                return (0, error_1.throwErrorWithTrace)(`Cannot resolve keypair: ${idOrVal}`);
             }
         }
         else {
@@ -1048,7 +1058,7 @@ class Yaml2SolanaClass {
                 signerPubkey = idOrValue.toBase58();
             }
             catch {
-                throw `${idOrValue} is not a valid public key instance.`;
+                return (0, error_1.throwErrorWithTrace)(`${idOrValue} is not a valid public key instance.`);
             }
         }
         else if (idOrValue.startsWith('$')) {
@@ -1060,7 +1070,7 @@ class Yaml2SolanaClass {
                 signerPubkey = pubkeyOrKp.value.toBase58();
             }
             else {
-                throw `Variable ${idOrValue} is not a valid public key or keypair instance`;
+                return (0, error_1.throwErrorWithTrace)(`Variable ${idOrValue} is not a valid public key or keypair instance`);
             }
         }
         else {
@@ -1069,7 +1079,7 @@ class Yaml2SolanaClass {
                 signerPubkey = idOrValue;
             }
             catch {
-                throw `${idOrValue} is not a valid base58 public key string.`;
+                return (0, error_1.throwErrorWithTrace)(`${idOrValue} is not a valid base58 public key string.`);
             }
         }
         for (const id in this._global) {
@@ -1078,7 +1088,7 @@ class Yaml2SolanaClass {
                 return keypair.value;
             }
         }
-        throw `Cannot find keypair ${idOrValue}`;
+        return (0, error_1.throwErrorWithTrace)(`Cannot find keypair ${idOrValue}`);
     }
     /**
      * Get account decoder instance from global
@@ -1092,7 +1102,7 @@ class Yaml2SolanaClass {
             return v.value;
         }
         else {
-            throw `${key} is not an AccountDecoder class instance`;
+            return (0, error_1.throwErrorWithTrace)(`${key} is not an AccountDecoder class instance`);
         }
     }
 }

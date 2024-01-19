@@ -7,6 +7,7 @@ import { Yaml2Solana } from "../..";
 import { AccountDecoder } from "../../sdk/AccountDecoder";
 import path from "path";
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
+import { throwErrorWithTrace } from "../../error";
 
 const CHOICE_MAINNET = 'Decode account from mainnet';
 const CHOICE_LOCAL = 'Decode account from local machine';
@@ -37,7 +38,8 @@ export async function accountDecoderUi(schemaFile: string, y2s?: Yaml2SolanaClas
   if (v.type === 'account_decoder') {
     decoder = v.value
   } else {
-    throw `Unexpected error`;
+    throwErrorWithTrace(`Unexpected error`)
+    return;
   }
 
   // 3. Choose whether to decode account from mainnet or local storage
@@ -61,7 +63,8 @@ export async function accountDecoderUi(schemaFile: string, y2s?: Yaml2SolanaClas
     const cacheFolder = path.resolve(yaml2solana.projectDir, yaml2solana.parsedYaml.localDevelopment.accountsFolder);
     accountData = decodeFromLocalStorage(cacheFolder, address);
   } else {
-    throw 'Invalid choice (unexpected error)';
+    throwErrorWithTrace('Invalid choice (unexpected error)');
+    return;
   }
 
   // 4. Decode and print result
@@ -77,7 +80,8 @@ async function readFromMainnet(address: string): Promise<Buffer> {
   const accountInfo = await connection.getAccountInfo(new web3.PublicKey(address));
   const data = accountInfo?.data;
   if (data === undefined) {
-    throw 'Target account does not exist.';
+    throwErrorWithTrace('Target account does not exist.');
+    return Promise.reject();
   }
   return data;
 }
@@ -88,7 +92,7 @@ async function readFromMainnet(address: string): Promise<Buffer> {
 function decodeFromLocalStorage(cacheFolder: string, address: string): Buffer {
   const account = util.fs.readAccount(cacheFolder, address);
   if (account[address] === undefined) {
-    throw 'Account does not exist in local storage';
+    throwErrorWithTrace('Account does not exist in local storage');
   }
   return account[address]!.data;
 }

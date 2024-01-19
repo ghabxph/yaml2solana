@@ -1,5 +1,6 @@
 import * as web3 from "@solana/web3.js";
 import BN from "bn.js";
+import { throwErrorWithTrace } from "../error";
 
 const typeSize = {
   bool: 1, // 1 byte as boolean
@@ -130,7 +131,7 @@ export class AccountDecoder {
 
   setValue(label: string, value: any) {
     const offset = this.offsets[label];
-    if (this.data.length === 0) throw 'Account data is empty';
+    if (this.data.length === 0) return throwErrorWithTrace('Account data is empty');
     switch(offset.type) {
       case 'pubkey':
         const publicKey = new web3.PublicKey(value);
@@ -231,10 +232,12 @@ export class AccountDecoder {
     const data = this.data;
     const size = typeSize.PublicKey;
     if (offset + size > data.length) {
-      throw Error(
-        `Offset exceeded account info data size: ${offset + size} > ${
-          data.length
-        }`,
+      return throwErrorWithTrace(
+        Error(
+          `Offset exceeded account info data size: ${offset + size} > ${
+            data.length
+          }`,
+        )
       );
     }
     return new web3.PublicKey(data.subarray(offset, offset + size));
@@ -249,10 +252,12 @@ export class AccountDecoder {
   private setPublicKey(offset: number, value: web3.PublicKey) {
     const size = typeSize.PublicKey;
     if (offset + size > this.data.length) {
-      throw Error(
-        `Offset exceeded account info data size: ${offset + size} > ${
-          this.data.length
-        }`,
+      return throwErrorWithTrace(
+        Error(
+          `Offset exceeded account info data size: ${offset + size} > ${
+            this.data.length
+          }`,
+        )
       );
     }
     this.data.write(value.toBuffer().toString('base64'), offset, 'base64');
@@ -266,7 +271,9 @@ export class AccountDecoder {
   private getBool(offset: number): boolean {
     const value = this.getU8(offset);
     if (value > 1) {
-      throw Error(`Value is not boolean: ${value}`);
+      return throwErrorWithTrace(
+        Error(`Value is not boolean: ${value}`)
+      );
     }
     return value === 1;
   }
@@ -396,10 +403,12 @@ export class AccountDecoder {
   private number(offset: number, size: number): BN {
     const data = this.data;
     if (offset + size >= data.length) {
-      throw Error(
-        `Offset exceeded account info data size: ${offset + size} > ${
-          data.length
-        }`,
+      return throwErrorWithTrace(
+        Error(
+          `Offset exceeded account info data size: ${offset + size} > ${
+            data.length
+          }`,
+        )
       );
     }
     return new BN(data.subarray(offset, offset + size), "le");
@@ -414,7 +423,7 @@ export class AccountDecoder {
    */
   private setSignedNumber(offset: number, size: number, value: number | BN) {
     if (!(typeof (value as BN).cmp === 'function' || typeof value === 'number')) {
-      throw Error('Value must be a number or a BN instance.');
+      return throwErrorWithTrace(Error('Value must be a number or a BN instance.'));
     }
     if (typeof value === 'number') {
       value = new BN(value);
@@ -432,7 +441,7 @@ export class AccountDecoder {
         this.setUnsignedNumber<BN>(offset, size, twoComplement);
       }
     } else {
-      throw Error('Unsupported size for signed number.');
+      return throwErrorWithTrace(Error('Unsupported size for signed number.'));
     }
   }
 
@@ -445,10 +454,12 @@ export class AccountDecoder {
    */
   private setUnsignedNumber<T>(offset: number, size: number, value: T) {
     if (offset + size > this.data.length) {
-      throw Error(
-        `Offset exceeded account info data size: ${offset + size} > ${
-          this.data.length
-        }`,
+      return throwErrorWithTrace(
+        Error(
+          `Offset exceeded account info data size: ${offset + size} > ${
+            this.data.length
+          }`,
+        )
       );
     }
     if (size === typeSize.u8) {

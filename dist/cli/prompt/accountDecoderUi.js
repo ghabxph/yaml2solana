@@ -33,6 +33,7 @@ const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const util = __importStar(require("../../util"));
 const __1 = require("../..");
 const path_1 = __importDefault(require("path"));
+const error_1 = require("../../error");
 const CHOICE_MAINNET = 'Decode account from mainnet';
 const CHOICE_LOCAL = 'Decode account from local machine';
 async function accountDecoderUi(schemaFile, y2s) {
@@ -61,7 +62,8 @@ async function accountDecoderUi(schemaFile, y2s) {
         decoder = v.value;
     }
     else {
-        throw `Unexpected error`;
+        (0, error_1.throwErrorWithTrace)(`Unexpected error`);
+        return;
     }
     // 3. Choose whether to decode account from mainnet or local storage
     const { where } = await inquirer_1.default
@@ -85,7 +87,8 @@ async function accountDecoderUi(schemaFile, y2s) {
         accountData = decodeFromLocalStorage(cacheFolder, address);
     }
     else {
-        throw 'Invalid choice (unexpected error)';
+        (0, error_1.throwErrorWithTrace)('Invalid choice (unexpected error)');
+        return;
     }
     // 4. Decode and print result
     decoder.data = accountData;
@@ -100,7 +103,8 @@ async function readFromMainnet(address) {
     const accountInfo = await connection.getAccountInfo(new web3.PublicKey(address));
     const data = accountInfo === null || accountInfo === void 0 ? void 0 : accountInfo.data;
     if (data === undefined) {
-        throw 'Target account does not exist.';
+        (0, error_1.throwErrorWithTrace)('Target account does not exist.');
+        return Promise.reject();
     }
     return data;
 }
@@ -110,7 +114,7 @@ async function readFromMainnet(address) {
 function decodeFromLocalStorage(cacheFolder, address) {
     const account = util.fs.readAccount(cacheFolder, address);
     if (account[address] === undefined) {
-        throw 'Account does not exist in local storage';
+        (0, error_1.throwErrorWithTrace)('Account does not exist in local storage');
     }
     return account[address].data;
 }

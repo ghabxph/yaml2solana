@@ -31,6 +31,7 @@ const web3 = __importStar(require("@solana/web3.js"));
 const util = __importStar(require("../../util"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const __1 = require("../..");
+const error_1 = require("../../error");
 const CHOICE_SINGLE = 'Run single instruction';
 const CHOICE_BUNDLE = 'Run bundled instructions';
 async function runInstructionUi(schemaFile, y2s) {
@@ -111,9 +112,9 @@ async function runSingleInstruction(schemaFile, y2s) {
                                 if (Math.round(Number(input)) === Number(input)) {
                                     return Number(input);
                                 }
-                                else {
-                                    throw `${varInfo.name} is not a valid integer value.`;
-                                }
+                                else
+                                    (0, error_1.throwErrorWithTrace)(`${varInfo.name} is not a valid integer value.`);
+                                return;
                             }
                             return input;
                         }
@@ -139,7 +140,8 @@ async function runSingleInstruction(schemaFile, y2s) {
                 defaultValue = v.value;
             }
             else {
-                throw `${account} is not a valid public key.`;
+                (0, error_1.throwErrorWithTrace)(`${account} is not a valid public key.`);
+                return;
             }
             const { value } = await inquirer_1.default.prompt({
                 type: 'input',

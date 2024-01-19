@@ -35,7 +35,7 @@ export declare class AccountDecoder {
      * @returns
      */
     getValue<T>(label: string): T | undefined;
-    setValue(label: string, value: any): void;
+    setValue(label: string, value: any): any;
     /**
      * Get public key starting from given offset
      *
