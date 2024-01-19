@@ -7,7 +7,13 @@ exports.throwErrorWithTrace = void 0;
  * @param message
  */
 function throwErrorWithTrace(message) {
-    console.trace();
-    throw message;
+    // console.trace();
+    throw Error(message);
+    ;
 }
 exports.throwErrorWithTrace = throwErrorWithTrace;
+process.on('unhandledRejection', (e) => {
+    console.error();
+    console.error(`${e.stack}`);
+    console.error();
+});

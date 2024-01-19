@@ -336,7 +336,8 @@ export declare enum SyntaxContext {
     IX_RESOLUTION = 9,
     IX_BUNDLE_RESOLUTION = 10,
     DECLARATION_SYNTAX = 11,
-    SET_VALUE_SYNTAX = 12
+    SET_VALUE_SYNTAX = 12,
+    LITERALS = 13
 }
 export {};
 //# sourceMappingURL=SyntaxResolver.d.ts.map

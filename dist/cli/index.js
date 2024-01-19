@@ -62,9 +62,3 @@ exports.cliEntrypoint = cliEntrypoint;
 if (require.main === module) {
     cliEntrypoint();
 }
-process.on('unhandledRejection', (e) => {
-    console.error();
-    console.error(`Error: ${e}`);
-    console.trace();
-    console.error();
-});

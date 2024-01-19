@@ -35,10 +35,3 @@ export async function cliEntrypoint(y2s?: Yaml2SolanaClass) {
 if (require.main === module) {
   cliEntrypoint();
 }
-
-process.on('unhandledRejection', (e) => {
-  console.error();
-  console.error(`Error: ${e}`);
-  console.trace();
-  console.error();
-});

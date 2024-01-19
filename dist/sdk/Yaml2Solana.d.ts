@@ -57,11 +57,6 @@ export declare class Yaml2SolanaClass {
      */
     private isObjectInstruction;
     /**
-     * @param ix
-     * @returns
-     */
-    private isObjectResolvedInstructionBundles;
-    /**
      * Create localnet transaction
      *
      * @param description
@@ -200,6 +195,12 @@ export declare class Yaml2SolanaClass {
         generateFn: GenerateIxsFn;
     }): void;
     /**
+     * Find PDAs involved from given instruction
+     *
+     * @param ixLabel
+     */
+    findPdasInvolvedInInstruction(ixLabel: string): string[];
+    /**
      * Get ix definition
      *
      * @param ixLabel
@@ -220,12 +221,6 @@ export declare class Yaml2SolanaClass {
      * @returns
      */
     private getVar;
-    /**
-     * Find PDAs involved from given instruction
-     *
-     * @param ixLabel
-     */
-    private findPdasInvolvedInInstruction;
     /**
      * @param extension File extension to check
      * @returns
@@ -374,6 +369,7 @@ export type InstructionBundleIxs = {
     params: Record<string, string>;
 };
 export type InstructionBundle = {
+    vars?: Record<string, string>;
     alts: string[];
     payer: string;
     instructions: InstructionBundleIxs[];
