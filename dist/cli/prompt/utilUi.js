@@ -33,6 +33,7 @@ const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const keypairUi_1 = require("./keypairUi");
 const util = __importStar(require("../../util"));
 const accountDecoderUi_1 = require("./accountDecoderUi");
+const error_1 = require("../../error");
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
@@ -123,7 +124,8 @@ async function generatePda() {
                     if (seedType === CHOICE_STRING) {
                         const seed = Buffer.from(seedValue, 'utf-8');
                         if (seed.length > 32) {
-                            throw 'String seed cannot be greater than 32 bytes';
+                            (0, error_1.throwErrorWithTrace)('String seed cannot be greater than 32 bytes');
+                            return;
                         }
                         return seedValue;
                     }
@@ -134,7 +136,8 @@ async function generatePda() {
                     else {
                         const seed = Buffer.from(seedValue, 'base64');
                         if (seed.length > 32) {
-                            throw 'String seed cannot be greater than 32 bytes';
+                            (0, error_1.throwErrorWithTrace)('String seed cannot be greater than 32 bytes');
+                            return;
                         }
                         return seedValue;
                     }

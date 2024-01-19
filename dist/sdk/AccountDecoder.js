@@ -29,6 +29,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AccountDecoder = void 0;
 const web3 = __importStar(require("@solana/web3.js"));
 const bn_js_1 = __importDefault(require("bn.js"));
+const error_1 = require("../error");
 const typeSize = {
     bool: 1, // 1 byte as boolean
     u8: 1, // 1 byte as unsigned integer
@@ -134,7 +135,7 @@ class AccountDecoder {
     setValue(label, value) {
         const offset = this.offsets[label];
         if (this.data.length === 0)
-            throw 'Account data is empty';
+            return (0, error_1.throwErrorWithTrace)('Account data is empty');
         switch (offset.type) {
             case 'pubkey':
                 const publicKey = new web3.PublicKey(value);
@@ -254,7 +255,7 @@ class AccountDecoder {
         const data = this.data;
         const size = typeSize.PublicKey;
         if (offset + size > data.length) {
-            throw Error(`Offset exceeded account info data size: ${offset + size} > ${data.length}`);
+            return (0, error_1.throwErrorWithTrace)(Error(`Offset exceeded account info data size: ${offset + size} > ${data.length}`));
         }
         return new web3.PublicKey(data.subarray(offset, offset + size));
     }
@@ -267,7 +268,7 @@ class AccountDecoder {
     setPublicKey(offset, value) {
         const size = typeSize.PublicKey;
         if (offset + size > this.data.length) {
-            throw Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`);
+            return (0, error_1.throwErrorWithTrace)(Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`));
         }
         this.data.write(value.toBuffer().toString('base64'), offset, 'base64');
     }
@@ -279,7 +280,7 @@ class AccountDecoder {
     getBool(offset) {
         const value = this.getU8(offset);
         if (value > 1) {
-            throw Error(`Value is not boolean: ${value}`);
+            return (0, error_1.throwErrorWithTrace)(Error(`Value is not boolean: ${value}`));
         }
         return value === 1;
     }
@@ -400,7 +401,7 @@ class AccountDecoder {
     number(offset, size) {
         const data = this.data;
         if (offset + size >= data.length) {
-            throw Error(`Offset exceeded account info data size: ${offset + size} > ${data.length}`);
+            return (0, error_1.throwErrorWithTrace)(Error(`Offset exceeded account info data size: ${offset + size} > ${data.length}`));
         }
         return new bn_js_1.default(data.subarray(offset, offset + size), "le");
     }
@@ -413,7 +414,7 @@ class AccountDecoder {
      */
     setSignedNumber(offset, size, value) {
         if (!(typeof value.cmp === 'function' || typeof value === 'number')) {
-            throw Error('Value must be a number or a BN instance.');
+            return (0, error_1.throwErrorWithTrace)(Error('Value must be a number or a BN instance.'));
         }
         if (typeof value === 'number') {
             value = new bn_js_1.default(value);
@@ -434,7 +435,7 @@ class AccountDecoder {
             }
         }
         else {
-            throw Error('Unsupported size for signed number.');
+            return (0, error_1.throwErrorWithTrace)(Error('Unsupported size for signed number.'));
         }
     }
     /**
@@ -446,7 +447,7 @@ class AccountDecoder {
      */
     setUnsignedNumber(offset, size, value) {
         if (offset + size > this.data.length) {
-            throw Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`);
+            return (0, error_1.throwErrorWithTrace)(Error(`Offset exceeded account info data size: ${offset + size} > ${this.data.length}`));
         }
         if (size === typeSize.u8) {
             this.data.writeUint8(value, offset);

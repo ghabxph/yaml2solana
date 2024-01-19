@@ -27,6 +27,7 @@ exports.resolveBool = exports.resolveI64 = exports.resolveI32 = exports.resolveI
 const lodash_1 = require("lodash");
 const js_sha256_1 = require("js-sha256");
 const web3 = __importStar(require("@solana/web3.js"));
+const error_1 = require("../error");
 const INVALID_KEY = new web3.PublicKey('123456789abcdefghijkLmnopqrstuvwxyz123456789');
 exports.variableTypes = [
     "u8",
@@ -198,7 +199,7 @@ function extractVariableInfo(pattern, params) {
     }
     // Variables syntax is not correct.
     else {
-        throw `$${pattern} is not a valid variable syntax.`;
+        return (0, error_1.throwErrorWithTrace)(`$${pattern} is not a valid variable syntax.`);
     }
 }
 exports.extractVariableInfo = extractVariableInfo;
@@ -295,7 +296,7 @@ function resolveType2(data, params) {
     }
     // Variable syntax is not correct.
     else {
-        throw `$${data} is not a valid variable syntax.`;
+        return (0, error_1.throwErrorWithTrace)(`$${data} is not a valid variable syntax.`);
     }
 }
 exports.resolveType2 = resolveType2;
@@ -341,7 +342,7 @@ function resolveAccountMeta(accountMeta, params, accounts, pda, testWallets) {
             };
         }
         else {
-            throw `Cannot find $${key} on accounts in schema, or in parameter.`;
+            return (0, error_1.throwErrorWithTrace)(`Cannot find $${key} on accounts in schema, or in parameter.`);
         }
     }
     else {
@@ -388,15 +389,15 @@ function resolveU8(data, params) {
                 return Buffer.from([params[key]]);
             }
             else {
-                throw `Parameter $${key} is not a valid u8. Valid u8 can only between 0 to 255.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid u8. Valid u8 can only between 0 to 255.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set`);
     }
 }
 exports.resolveU8 = resolveU8;
@@ -416,15 +417,15 @@ function resolveU16(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid u16. Valid u16 can only be between 0 to 65535.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveU16 = resolveU16;
@@ -444,15 +445,15 @@ function resolveU32(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid u32. Valid u32 can only be between 0 to 4294967295.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveU32 = resolveU32;
@@ -472,15 +473,15 @@ function resolveU64(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid u64. Valid u64 can only be between 0 to 18446744073709551615.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a valid number or bigint.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid number or bigint.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveU64 = resolveU64;
@@ -500,15 +501,15 @@ function resolveUsize(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a valid number or bigint.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid number or bigint.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveUsize = resolveUsize;
@@ -528,15 +529,15 @@ function resolveI8(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid i8. Valid i8 can only be between -128 to 127.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid i8. Valid i8 can only be between -128 to 127.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveI8 = resolveI8;
@@ -556,15 +557,15 @@ function resolveI16(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid i16. Valid i16 can only be between -32768 to 32767.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveI16 = resolveI16;
@@ -584,15 +585,15 @@ function resolveI32(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid i32. Valid i32 can only be between -2147483648 to 2147483647.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a number.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a number.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveI32 = resolveI32;
@@ -614,15 +615,15 @@ function resolveI64(data, params) {
                 return buffer;
             }
             else {
-                throw `Parameter $${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`;
+                return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid i64. Valid i64 can only be between -9223372036854775808 to 9223372036854775807.`);
             }
         }
         else {
-            throw `Parameter $${key} is not a valid number or bigint.`;
+            return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not a valid number or bigint.`);
         }
     }
     else {
-        throw `Parameter $${key} is not set.`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set.`);
     }
 }
 exports.resolveI64 = resolveI64;
@@ -641,10 +642,10 @@ function resolveBool(data, params) {
         return Buffer.from([0]);
     }
     else if (params[key] === undefined) {
-        throw `Parameter $${key} is not set`;
+        return (0, error_1.throwErrorWithTrace)(`Parameter $${key} is not set`);
     }
     else {
-        throw `The value of $${key} is not a valid boolean. Value: ${params[key]}`;
+        return (0, error_1.throwErrorWithTrace)(`The value of $${key} is not a valid boolean. Value: ${params[key]}`);
     }
 }
 exports.resolveBool = resolveBool;
@@ -661,7 +662,7 @@ function resolvePubkey3(data, params) {
         return new web3.PublicKey(params[key]).toBuffer();
     }
     else {
-        throw `Cannot find $${key} variable`;
+        return (0, error_1.throwErrorWithTrace)(`Cannot find $${key} variable`);
     }
 }
 /**
@@ -707,7 +708,7 @@ function resolveUsizeFunc(data) {
         return buffer;
     }
     else {
-        throw `Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`;
+        return (0, error_1.throwErrorWithTrace)(`Value ${value} is not a valid usize. Valid usize can only be between 0 to 18446744073709551615.`);
     }
 }
 /**
@@ -724,6 +725,6 @@ function resolveU32Func(data) {
         return buffer;
     }
     else {
-        throw `Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`;
+        return (0, error_1.throwErrorWithTrace)(`Value ${value} is not a valid u32. Valid usize can only be between 0 to 4294967295.`);
     }
 }

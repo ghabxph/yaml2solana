@@ -2,6 +2,7 @@ import * as util from "../util";
 import * as web3 from "@solana/web3.js";
 import { Yaml2SolanaClass } from "./Yaml2Solana";
 import BN from "bn.js";
+import { throwErrorWithTrace } from "../error";
 
 type DynamicInstructionVariableType = {
   id: string,
@@ -35,13 +36,13 @@ export class DynamicInstruction {
   ) {
     for (const param of params) {
       if (!param.startsWith('$')) {
-        throw `${param} must start with '$' dollar symbol.`;
+        return throwErrorWithTrace(`${param} must start with '$' dollar symbol.`);
       }
       const [id, type] = param.split(':');
       if (util.typeResolver.variableTypes.includes(type)) {
         this.varType[id] = { id, type: type as util.typeResolver.VariableType };
       } else {
-        throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
+        return throwErrorWithTrace(`Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`);
       }
     }
   }
@@ -138,20 +139,20 @@ export class DynamicInstruction {
       const v = this.y2s.getParam(id);
       if (INTEGERS.includes(v.type)) return v.value as number;
       else if (BIG_INTEGERS.includes(v.type)) return (v.value as BN).toNumber();
-      else throw `${id} is not a valid integer.`;
+      else return throwErrorWithTrace(`${id} is not a valid integer.`);
     } else if (["u64", "u128", "i64", "i128"].includes(type)) {
       const v = this.y2s.getParam(id);
       if (INTEGERS.includes(v.type)) return new BN(v.value as number);
       else if (BIG_INTEGERS.includes(v.type)) return v.value as BN;
-      else throw `${id} is not a valid integer.`;
+      else return throwErrorWithTrace(`${id} is not a valid integer.`);
     } else if (type === "pubkey") {
       const v = this.y2s.getParam(id);
       if (v.type === 'pubkey') return v.value;
-      else throw `${id} is not a valid pubkey.`
+      else return throwErrorWithTrace(`${id} is not a valid pubkey.`);
     } else if (type === "string") {
       const v = this.y2s.getParam(id);
       if (v.type === 'string') return v.value;
-      else throw `${id} is not a valid string.`
-    } else throw `Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`;
+      else return throwErrorWithTrace(`${id} is not a valid string.`);
+    } else return throwErrorWithTrace(`Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`);
   }
 }

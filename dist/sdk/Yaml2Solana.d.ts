@@ -1,5 +1,6 @@
 import * as web3 from '@solana/web3.js';
 import * as util from '../util';
+import { GenerateIxFn, GenerateIxsFn } from './DynamicInstruction';
 import { Type } from './SyntaxResolver';
 export declare class Yaml2SolanaClass {
     /**
@@ -145,7 +146,7 @@ export declare class Yaml2SolanaClass {
      * @param skipRedownload
      * @returns
      */
-    runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<void>;
+    runTestValidator(txns?: Transaction[], skipRedownload?: web3.PublicKey[]): Promise<any>;
     /**
      * Kill test validator
      */
@@ -176,7 +177,7 @@ export declare class Yaml2SolanaClass {
      * @param name
      * @param value
      */
-    setParam(name: string, value: any): void;
+    setParam(name: string, value: any): any;
     /**
      * Alias to getVar
      *
@@ -190,13 +191,21 @@ export declare class Yaml2SolanaClass {
      * @returns
      */
     getIxDefinition(ixLabel: string): InstructionDefinition;
+    extendDynamicInstruction(params: {
+        ixName: string;
+        generateFn: GenerateIxFn;
+    }): void;
+    extendDynamicInstruction(params: {
+        ixName: string;
+        generateFn: GenerateIxsFn;
+    }): void;
     /**
      * Get ix definition
      *
      * @param ixLabel
      * @returns
      */
-    getDynamicInstruction(ixLabel: string): DynamicInstruction;
+    private getDynamicInstruction;
     /**
      * Store value to global variable
      *
