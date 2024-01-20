@@ -9,8 +9,9 @@ import { spawn } from 'child_process';
 import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass, GenerateIxFn, GenerateIxsFn } from './DynamicInstruction';
 import { cliEntrypoint } from '../cli';
-import { ContextResolver, MainSyntaxResolver, SyntaxContext, Type, TypeFactory } from './SyntaxResolver';
+import { ContextResolver, MainSyntaxResolver, SyntaxContext, SyntaxResolver, Type, TypeFactory } from './SyntaxResolver';
 import { throwErrorWithTrace } from '../error';
+import tsClearScreen from 'ts-clear-screen';
 
 export class Yaml2SolanaClass {
 
@@ -313,12 +314,33 @@ export class Yaml2SolanaClass {
     const dynIxSigners: web3.PublicKey[] = [];
     label = label.startsWith('$') ? label.substring(1) : label;
     const ixLabels = this._parsedYaml.instructionBundle![label].instructions.map(v => v.label.startsWith('$') ? v.label.substring(1) : v.label);
+    const _payer = this._parsedYaml.instructionBundle![label].payer;
+    let payer: web3.Signer;
+    if (_payer.startsWith('$')) {
+      const p = this.getVar(_payer);
+      if (p.type === 'pubkey') {
+        payer = this.findSigner(p.value);
+      } else if (p.type === 'keypair') {
+        payer = p.value;
+      } else {
+        return throwErrorWithTrace(`${_payer} is not a valid signer instance.`);
+      }
+    } else {
+      const r = new MainSyntaxResolver(_payer, this).resolve(SyntaxContext.LITERALS);
+      if (r !== undefined && r.type === 'pubkey') {
+        payer = this.findSigner(r.value);
+      } else if (r !== undefined && r.type === 'keypair') {
+        payer = r.value;
+      } else {
+        return throwErrorWithTrace(`${_payer} is not a valid public key or keypair literal.`);
+      }
+    }
+    result.push(payer);
     for (const ixLabel of ixLabels) {
       let ixDef: InstructionDefinition;
       try {
         ixDef = this.getIxDefinition(ixLabel);
       } catch {
-        this.getDynamicInstruction(ixLabel);
         const dynIx = this.getVar(`$${ixLabel}`);
         if (dynIx.type === 'dynamic_instruction') {
           const singleIx = dynIx.value.ix;
@@ -490,6 +512,8 @@ export class Yaml2SolanaClass {
       // Step 1: Run test validator
       await this.runTestValidator(txns, skipRedownload);
       await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
+      tsClearScreen();
+      await (() => new Promise(resolve => setTimeout(() => resolve(0), 1000)))();
     }
 
     // Step 2: Execute transactions
@@ -498,11 +522,15 @@ export class Yaml2SolanaClass {
       // Compile tx to versioned transaction
       const connection = (cluster === 'http://127.0.0.1:8899') ? txns[key].connection : new web3.Connection(cluster);
       txns[key].connection = connection;
+      // TODO: Option in CLI to run transaction as legacy or versioned transaction
+      // const tx = await txns[key].compileToLegacyTx();
       const tx = await txns[key].compileToVersionedTransaction();
 
       // If we like to have test validator running, then we want to have skipPreflight enabled
       if (keepRunning) {
         try {
+          // TODO: Option in CLI to run transaction as legacy or versioned transaction
+          // const sig = await web3.sendAndConfirmTransaction(connection, tx, txns[key].signers, this._parsedYaml.executeTxSettings);
           const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
           const url = cluster === 'http://127.0.0.1:8899' ? 
             `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
@@ -524,6 +552,8 @@ export class Yaml2SolanaClass {
         }
       } else {
         try {
+          // TODO: Option in CLI to run transaction as legacy or versioned transaction
+          // const sig = await web3.sendAndConfirmTransaction(connection, tx, txns[key].signers, this._parsedYaml.executeTxSettings);
           const sig = await connection.sendTransaction(tx, this._parsedYaml.executeTxSettings);
           const url = cluster === 'http://127.0.0.1:8899' ? 
             `https://explorer.solana.com/tx/${sig}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899` :
@@ -1231,6 +1261,29 @@ export class Transaction {
         (await this.connection.getAddressLookupTable(new web3.PublicKey(alt))).value as web3.AddressLookupTableAccount
       )
     }
+    console.log();
+    console.log();
+    console.log();
+    console.log('Transaction signers info:');
+    console.log('-----------------------------------------------------------');
+    const signerInfo: string[] = [];
+    this.ixns.map((ix, i) => {
+      ix.keys.map((meta, j) => {
+        if (meta.isSigner) {
+          signerInfo.push(`ix #${i+1} - account #${j+1} - ${meta.pubkey}`);
+        }
+      });
+    });
+    signerInfo.map(s => console.log(s));
+    const actualSigners: string[] = [];
+    this.signers.map((signer, i) => {
+      actualSigners.push(`Signer #${i+1} ${signer.publicKey}`);
+    });
+    actualSigners.map(s => console.log(s));
+    console.log(`Payer: ${this.payer}`);
+    console.log('-----------------------------------------------------------');
+    console.log();
+    console.log();
     const tx = new web3.VersionedTransaction(
       new web3.TransactionMessage({
         payerKey: this.payer,
@@ -1239,6 +1292,38 @@ export class Transaction {
       }).compileToV0Message(alts)
     );
     tx.sign(this.signers);
+    return tx;
+  }
+
+  async compileToLegacyTx(): Promise<web3.Transaction> {
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+    console.log();
+    console.log();
+    console.log();
+    console.log('Transaction signers info:');
+    console.log('-----------------------------------------------------------');
+    const signerInfo: string[] = [];
+    this.ixns.map((ix, i) => {
+      ix.keys.map((meta, j) => {
+        if (meta.isSigner) {
+          signerInfo.push(`ix #${i+1} - account #${j+1} - ${meta.pubkey}`);
+        }
+      });
+    });
+    signerInfo.map(s => console.log(s));
+    const actualSigners: string[] = [];
+    this.signers.map((signer, i) => {
+      actualSigners.push(`Signer #${i+1} ${signer.publicKey}`);
+    });
+    actualSigners.map(s => console.log(s));
+    console.log(`Payer: ${this.payer}`);
+    console.log('-----------------------------------------------------------');
+    console.log();
+    console.log();
+
+    const tx = new web3.Transaction({ blockhash, lastValidBlockHeight });
+    tx.add(...this.ixns);
+    tx.sign(...this.signers);
     return tx;
   }
 

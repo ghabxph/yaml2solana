@@ -301,6 +301,7 @@ export declare class Transaction {
     readonly signers: web3.Signer[];
     constructor(description: string, connection: web3.Connection, ixns: web3.TransactionInstruction[], alts: string[], payer: web3.PublicKey, signers: web3.Signer[]);
     compileToVersionedTransaction(): Promise<web3.VersionedTransaction>;
+    compileToLegacyTx(): Promise<web3.Transaction>;
     /**
      * Get all accounts from instructions
      */

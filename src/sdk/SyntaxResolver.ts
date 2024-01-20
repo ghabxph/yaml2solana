@@ -131,6 +131,7 @@ export class ContextResolver {
         if (resolver.type === 'function_declaration_syntax') continue;
         else if (resolver.type === 'typed_variable_declaration_syntax') {
           let value: any = ix.params[resolver.value.name];
+          let resolver2: Type | undefined;
           if (typeof value === 'string' && value.startsWith('$') && this.y2s.parsedYaml.pda[value.substring(1)]) {
             this.y2s.resolve({
               onlyResolve: {
@@ -144,6 +145,7 @@ export class ContextResolver {
           try {
             const result = new MainSyntaxResolver(value, this.y2s).resolve(SyntaxContext.VARIABLE_RESOLUTION);
             value = result.value;
+            resolver2 = result;
           } catch {
             if (value.startsWith('$')) {
               throwErrorWithTrace(`Cannot resolve variable: ${value}`);
@@ -151,7 +153,11 @@ export class ContextResolver {
           }
           if (value !== undefined) {
             if (resolver.value.dataType === 'pubkey') {
-              this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(new web3.PublicKey(value)));
+              if (resolver2 !== undefined && resolver2.type === 'keypair') {
+                this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(value.publicKey));
+              } else {
+                this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(new web3.PublicKey(value)));
+              }
             } else if (resolver.value.dataType === 'string') {
               this.y2s.setParam(`$${resolver.value.name}`, TypeFactory.createValue(value));
             } else if (resolver.value.dataType === 'u8') {

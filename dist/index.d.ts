@@ -1,5 +1,6 @@
 export { DynamicInstruction } from "./sdk/DynamicInstruction";
 import { Yaml2SolanaClass } from "./sdk/Yaml2Solana";
+export { sighash } from "./util/type-resolver";
 /**
  * Creates an instance of Yaml2Solana class
  *
