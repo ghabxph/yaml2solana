@@ -714,11 +714,13 @@ class Yaml2SolanaClass {
     }
     extendDynamicInstruction(params) {
         const v = this.getVar(`$${params.ixName}`);
-        if (v.type === 'dynamic_instruction') {
-            v.value.extend(params.generateFn);
-        }
-        else {
-            return (0, error_1.throwErrorWithTrace)(`Cannot find dynamic instruction $${params.ixName}`);
+        if (v !== undefined) {
+            if (v.type === 'dynamic_instruction') {
+                v.value.extend(params.generateFn);
+            }
+            else {
+                return (0, error_1.throwErrorWithTrace)(`Cannot find dynamic instruction $${params.ixName}`);
+            }
         }
     }
     /**
