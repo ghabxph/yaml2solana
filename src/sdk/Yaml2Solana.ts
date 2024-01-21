@@ -784,10 +784,12 @@ export class Yaml2SolanaClass {
   public extendDynamicInstruction(params: {ixName: string, generateFn: GenerateIxsFn}): void;
   public extendDynamicInstruction(params: {ixName: string, generateFn: GenerateIxFn | GenerateIxsFn}) {
     const v = this.getVar(`$${params.ixName}`);
-    if (v.type === 'dynamic_instruction') {
-      v.value.extend(params.generateFn as any);
-    } else {
-      return throwErrorWithTrace(`Cannot find dynamic instruction $${params.ixName}`);
+    if (v !== undefined) {
+      if (v.type === 'dynamic_instruction') {
+        v.value.extend(params.generateFn as any);
+      } else {
+        return throwErrorWithTrace(`Cannot find dynamic instruction $${params.ixName}`);
+      }
     }
   }
 
