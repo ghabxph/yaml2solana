@@ -53,7 +53,7 @@ export async function mainUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
     }
   
     if (choice === CHOICE_WALLET_OPTIONS) {
-      await walletOptionsUi();
+      await walletOptionsUi(schemaFile, y2s);
     }
   
     if (choice === DOWNLOAD_SOLANA_ACCOUNTS) {

@@ -66,6 +66,13 @@ export class Yaml2SolanaClass {
   }
 
   /**
+   * Reloads test wallet
+   */
+  reloadTestWallets() {
+    this.resolveTestWallets();
+  }
+
+  /**
    * Get all global variables
    */
   get global(): Record<string, any> {
