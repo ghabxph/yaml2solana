@@ -76,7 +76,7 @@ async function mainUi(schemaFile, y2s) {
             await (0, setupUserWalletUi_1.setupUserWalletUi)();
         }
         if (choice === CHOICE_WALLET_OPTIONS) {
-            await (0, setupUserWalletUi_1.walletOptionsUi)();
+            await (0, setupUserWalletUi_1.walletOptionsUi)(schemaFile, y2s);
         }
         if (choice === DOWNLOAD_SOLANA_ACCOUNTS) {
             return await downloadSolanaAccounts(schemaFile, y2s);

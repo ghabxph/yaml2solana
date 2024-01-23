@@ -25,6 +25,10 @@ export declare class Yaml2SolanaClass {
     private testValidatorPid?;
     constructor(config: string);
     /**
+     * Reloads test wallet
+     */
+    reloadTestWallets(): void;
+    /**
      * Get all global variables
      */
     get global(): Record<string, any>;

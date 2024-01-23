@@ -64,6 +64,12 @@ class Yaml2SolanaClass {
         this.generateDynamicAccounts();
     }
     /**
+     * Reloads test wallet
+     */
+    reloadTestWallets() {
+        this.resolveTestWallets();
+    }
+    /**
      * Get all global variables
      */
     get global() {

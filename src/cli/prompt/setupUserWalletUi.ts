@@ -6,6 +6,8 @@ import * as web3 from '@solana/web3.js';
 import * as bip39 from 'bip39';
 import { AES, enc } from "crypto-ts";
 import { derivePath } from 'ed25519-hd-key';
+import { Yaml2Solana } from "../..";
+import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 
 const CHOICE_GENERATE_RANDOM = 'Generate a random wallet';
 const CHOICE_GENERATE_FROM_BIP39 = 'Generate from bip39 passphrase';
@@ -90,7 +92,8 @@ export function hasWallet(): boolean {
 const CHOICE_REMOVE_WALLET = 'Remove user wallet';
 const CHOICE_UNLOCK_WALLET = 'Unlock wallet so that you can use it';
 
-export async function walletOptionsUi() {
+export async function walletOptionsUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
   const { choice } = await inquirer.prompt({
     type: 'list',
     name: 'choice',
@@ -120,6 +123,8 @@ export async function walletOptionsUi() {
     } catch {
       console.log('Invalid password!');
       process.exit(-1);
+    } finally {
+      yaml2solana.reloadTestWallets();
     }
   }
 }

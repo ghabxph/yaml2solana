@@ -35,6 +35,7 @@ const web3 = __importStar(require("@solana/web3.js"));
 const bip39 = __importStar(require("bip39"));
 const crypto_ts_1 = require("crypto-ts");
 const ed25519_hd_key_1 = require("ed25519-hd-key");
+const __1 = require("../..");
 const CHOICE_GENERATE_RANDOM = 'Generate a random wallet';
 const CHOICE_GENERATE_FROM_BIP39 = 'Generate from bip39 passphrase';
 const keyPath = path_1.default.resolve(os_1.default.homedir(), '.wallet-yaml2solana.dat');
@@ -112,7 +113,8 @@ function hasWallet() {
 exports.hasWallet = hasWallet;
 const CHOICE_REMOVE_WALLET = 'Remove user wallet';
 const CHOICE_UNLOCK_WALLET = 'Unlock wallet so that you can use it';
-async function walletOptionsUi() {
+async function walletOptionsUi(schemaFile, y2s) {
+    const yaml2solana = y2s !== undefined ? y2s : (0, __1.Yaml2Solana)(schemaFile);
     const { choice } = await inquirer_1.default.prompt({
         type: 'list',
         name: 'choice',
@@ -143,6 +145,9 @@ async function walletOptionsUi() {
         catch {
             console.log('Invalid password!');
             process.exit(-1);
+        }
+        finally {
+            yaml2solana.reloadTestWallets();
         }
     }
 }
