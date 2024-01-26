@@ -4,6 +4,7 @@ import { AccountDecoder, Accounts, DynamicInstruction, InstructionBundle, Instru
 import BN from 'bn.js';
 import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
+import { TxGeneratorClass } from './TxGenerators';
 export declare class ContextResolver {
     private readonly y2s;
     private readonly context;
@@ -85,6 +86,7 @@ export declare abstract class TypeFactory {
     static createValue(value: AccountDecoderClassSyntax): TypeAccountDecoderClassSyntax;
     static createValue(value: AccountDecoderClass): TypeAccountDecoderClass;
     static createValue(value: DynamicInstructionClass): TypeDynamicInstructionClass;
+    static createValue(value: TxGeneratorClass): TypeDynamicInstructionClass;
     static createValue(value: Buffer): TypeBuffer;
     static createValue(value: web3.TransactionInstruction): TypeInstruction;
     static createValue(value: TypedVariableSyntax): TypeTypedVariableDeclarationSyntax;
@@ -102,13 +104,14 @@ export declare abstract class TypeFactory {
     private static isAccountDecoderClassSyntax;
     private static isAccountDecoderClass;
     private static isDynamicInstructionClass;
+    private static isTxGeneratorClass;
     private static isBuffer;
     private static isInstruction;
     private static isTypedVariableDeclarationSyntax;
     private static isFunctionDeclarationSyntax;
     private static isResolvedInstructionBundles;
 }
-export type Type = TypePubkey | TypeKeypair | TypeString | TypeBoolean | TypeU8 | TypeU16 | TypeU32 | TypeU64 | TypeUsize | TypeU128 | TypeI8 | TypeI16 | TypeI32 | TypeI64 | TypeI128 | TypeAccountMeta | TypeAccountSyntax | TypeAccountDecoderClassSyntax | TypeAccountDecoderClass | TypeDynamicInstructionClass | TypeBuffer | TypeInstruction | TypeTypedVariableDeclarationSyntax | TypeFunctionDeclarationSyntax | TypeResolvedInstructionBundles;
+export type Type = TypePubkey | TypeKeypair | TypeString | TypeBoolean | TypeU8 | TypeU16 | TypeU32 | TypeU64 | TypeUsize | TypeU128 | TypeI8 | TypeI16 | TypeI32 | TypeI64 | TypeI128 | TypeAccountMeta | TypeAccountSyntax | TypeAccountDecoderClassSyntax | TypeAccountDecoderClass | TypeDynamicInstructionClass | TypeTxGeneratorClass | TypeBuffer | TypeInstruction | TypeTypedVariableDeclarationSyntax | TypeFunctionDeclarationSyntax | TypeResolvedInstructionBundles;
 export type TypePubkey = {
     value: web3.PublicKey;
     type: "pubkey";
@@ -188,6 +191,10 @@ export type TypeAccountDecoderClass = {
 export type TypeDynamicInstructionClass = {
     value: DynamicInstructionClass;
     type: "dynamic_instruction";
+};
+export type TypeTxGeneratorClass = {
+    value: TxGeneratorClass;
+    type: "tx_generator";
 };
 export type TypeBuffer = {
     value: Buffer;

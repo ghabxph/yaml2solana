@@ -33,8 +33,10 @@ const p = __importStar(require("path"));
 const util = __importStar(require("../util"));
 const bn_js_1 = __importDefault(require("bn.js"));
 const AccountDecoder_1 = require("./AccountDecoder");
+const DynamicInstruction_1 = require("./DynamicInstruction");
 const setupUserWalletUi_1 = require("../cli/prompt/setupUserWalletUi");
 const error_1 = require("../error");
+const TxGenerators_1 = require("./TxGenerators");
 class ContextResolver {
     constructor(y2s, context, toResolve, extra) {
         this.y2s = y2s;
@@ -1804,6 +1806,9 @@ class TypeFactory {
         else if (TypeFactory.isDynamicInstructionClass(value)) {
             return { value: value, type: "dynamic_instruction" };
         }
+        else if (TypeFactory.isTxGeneratorClass(value)) {
+            return { value: value, type: "tx_generator" };
+        }
         else if (TypeFactory.isBuffer(value)) {
             return { value: value, type: "buffer" };
         }
@@ -1857,7 +1862,11 @@ class TypeFactory {
         return typeof value.data !== 'undefined' && typeof value.data.toString === 'function';
     }
     static isDynamicInstructionClass(value) {
-        return typeof value.extend === 'function';
+        return value instanceof DynamicInstruction_1.DynamicInstruction;
+        // return typeof (value as DynamicInstructionClass).extend === 'function';
+    }
+    static isTxGeneratorClass(value) {
+        return value instanceof TxGenerators_1.TxGeneratorClass;
     }
     static isBuffer(value) {
         return typeof value.readUInt16BE === 'function';

@@ -12,6 +12,7 @@ import { cliEntrypoint } from '../cli';
 import { ContextResolver, MainSyntaxResolver, SyntaxContext, SyntaxResolver, Type, TypeFactory } from './SyntaxResolver';
 import { throwErrorWithTrace } from '../error';
 import tsClearScreen from 'ts-clear-screen';
+import { TxGeneratorClass } from './TxGenerators';
 
 export class Yaml2SolanaClass {
 
@@ -63,6 +64,9 @@ export class Yaml2SolanaClass {
 
     // Generate dynamic accoutns
     this.generateDynamicAccounts();
+
+    // Generate transaction generators
+    this.generateTxGenerators();
   }
 
   /**
@@ -1197,6 +1201,17 @@ export class Yaml2SolanaClass {
   }
 
   /**
+   * Generate Tx Generators
+   */
+  private generateTxGenerators() {
+    const txGenerators = this._parsedYaml.txGenerator;
+    for (const id in txGenerators) {
+      const params = txGenerators[id].params;
+      this.setVar(id, TypeFactory.createValue(new TxGeneratorClass(this, params)))
+    }
+  }
+
+  /**
    * Find signer from global variable
    *
    * @param idOrValue
@@ -1447,6 +1462,10 @@ export type ExecuteTxSettings = {
 export type Accounts = Record<string, string>;
 export type AccountDecoder = string[];
 
+export type TxGenerator = {
+  params: string[];
+}
+
 export type ParsedYaml = {
   mainnetRpc?: string[],
   executeTxSettings: ExecuteTxSettings,
@@ -1458,6 +1477,7 @@ export type ParsedYaml = {
   instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>,
   accountDecoder?: Record<string, AccountDecoder>
   instructionBundle?: Record<string, InstructionBundle>,
+  txGenerator?: Record<string, TxGenerator>,
   localDevelopment: {
     accountsFolder: string,
     skipCache: string[],
