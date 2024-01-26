@@ -1,18 +1,19 @@
 import inquirer from "inquirer";
 import * as util from "../../util";
-import * as web3 from '@solana/web3.js';
 import { utilUi } from "./utilUi";
 import { Yaml2Solana } from "../..";
 import { runInstructionUi } from "./runInstructionUi";
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 import { USER_WALLET, hasWallet, setupUserWalletUi, walletOptionsUi } from "./setupUserWalletUi";
 import clear from "ts-clear-screen";
+import { runTxGeneratorUi } from "./runTransactionUi";
 
 const CHOICE_SETUP_USER_WALLET = 'Setup a password-protected wallet in yaml2solana';
 const CHOICE_WALLET_OPTIONS = 'Wallet options';
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
+const CHOICE_RUN_TXGEN = 'Run Tx Generator';
 const CHOICE_RUN_TEST = 'Run a test';
 const CHOICE_UTILS = 'Utility / Debugging Tools';
 
@@ -41,6 +42,7 @@ export async function mainUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
             DOWNLOAD_SOLANA_ACCOUNTS,
             CHOICE_RUN_TEST_VALIDATOR,
             CHOICE_RUN_INSTRUCTION,
+            CHOICE_RUN_TXGEN,
             CHOICE_RUN_TEST,
             CHOICE_UTILS,
           ],
@@ -67,6 +69,11 @@ export async function mainUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
     // Assuming here that test validator is already running.
     if (choice === CHOICE_RUN_INSTRUCTION) {
       return await runInstructionUi(schemaFile, y2s);
+    }
+
+    // Assuming here that test validator is already running.
+    if (choice === CHOICE_RUN_TXGEN) {
+      return await runTxGeneratorUi(schemaFile, y2s);
     }
   
     // Assuming here that test validator is already running.

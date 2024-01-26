@@ -8,6 +8,7 @@ import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass } from './DynamicInstruction';
 import { USER_WALLET } from '../cli/prompt/setupUserWalletUi';
 import { throwErrorWithTrace } from '../error';
+import { TxGeneratorClass } from './TxGenerators';
 
 export class ContextResolver {
   constructor (
@@ -1813,13 +1814,14 @@ export abstract class TypeFactory {
   static createValue(value: AccountDecoderClassSyntax): TypeAccountDecoderClassSyntax;
   static createValue(value: AccountDecoderClass): TypeAccountDecoderClass;
   static createValue(value: DynamicInstructionClass): TypeDynamicInstructionClass;
+  static createValue(value: TxGeneratorClass): TypeDynamicInstructionClass;
   static createValue(value: Buffer): TypeBuffer;
   static createValue(value: web3.TransactionInstruction): TypeInstruction;
   static createValue(value: TypedVariableSyntax): TypeTypedVariableDeclarationSyntax;
   static createValue(value: FunctionSyntax): TypeFunctionDeclarationSyntax;
   static createValue(value: ResolvedInstructionBundles): TypeResolvedInstructionBundles;
   static createValue(
-    value: Type | web3.PublicKey | web3.Keypair | string | boolean | number | BN | AccountMetaSyntax | AccountSyntax | AccountDecoderClassSyntax | DynamicInstructionClass | AccountDecoderClass | Buffer | web3.TransactionInstruction | TypedVariableSyntax | FunctionSyntax | ResolvedInstructionBundles,
+    value: Type | web3.PublicKey | web3.Keypair | string | boolean | number | BN | AccountMetaSyntax | AccountSyntax | AccountDecoderClassSyntax | DynamicInstructionClass | TxGeneratorClass | AccountDecoderClass | Buffer | web3.TransactionInstruction | TypedVariableSyntax | FunctionSyntax | ResolvedInstructionBundles,
     type?: "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
   ): Type {
     if (TypeFactory.isPubkey(value)) {
@@ -1846,6 +1848,8 @@ export abstract class TypeFactory {
       return { value: value as AccountDecoderClass, type: "account_decoder" };
     } else if (TypeFactory.isDynamicInstructionClass(value)) {
       return { value: value as DynamicInstructionClass, type: "dynamic_instruction" };
+    } else if (TypeFactory.isTxGeneratorClass(value)) {
+      return { value: value as TxGeneratorClass, type: "tx_generator" };
     } else if (TypeFactory.isBuffer(value)) {
       return { value: value as Buffer, type: "buffer" };
     } else if (TypeFactory.isTypedVariableDeclarationSyntax(value)) {
@@ -1895,7 +1899,11 @@ export abstract class TypeFactory {
     return typeof (value as AccountDecoderClass).data !== 'undefined' && typeof (value as AccountDecoderClass).data.toString === 'function';
   }
   private static isDynamicInstructionClass(value: any): boolean {
-    return typeof (value as DynamicInstructionClass).extend === 'function';
+    return value instanceof DynamicInstructionClass;
+    // return typeof (value as DynamicInstructionClass).extend === 'function';
+  }
+  private static isTxGeneratorClass(value: any): boolean {
+    return value instanceof TxGeneratorClass;
   }
   private static isBuffer(value: any): boolean {
     return typeof (value as Buffer).readUInt16BE === 'function';
@@ -1935,6 +1943,7 @@ export type Type =
   TypeAccountDecoderClassSyntax |
   TypeAccountDecoderClass |
   TypeDynamicInstructionClass |
+  TypeTxGeneratorClass |
   TypeBuffer |
   TypeInstruction |
   TypeTypedVariableDeclarationSyntax |
@@ -1961,6 +1970,7 @@ export type TypeI128 = { value: BN, type: "i128" };
 export type TypeAccountDecoderClassSyntax = { value: AccountDecoderClassSyntax, type: "account_decoder_syntax" };
 export type TypeAccountDecoderClass = { value: AccountDecoderClass, type: "account_decoder" };
 export type TypeDynamicInstructionClass = { value: DynamicInstructionClass, type: "dynamic_instruction" };
+export type TypeTxGeneratorClass = { value: TxGeneratorClass, type: "tx_generator" };
 export type TypeBuffer = { value: Buffer, type: "buffer" };
 export type TypeInstruction = { value: web3.TransactionInstruction, type: "instruction" };
 export type TypeTypedVariableDeclarationSyntax = { value: TypedVariableSyntax , type: "typed_variable_declaration_syntax" };

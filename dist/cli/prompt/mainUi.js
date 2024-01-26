@@ -34,11 +34,13 @@ const __1 = require("../..");
 const runInstructionUi_1 = require("./runInstructionUi");
 const setupUserWalletUi_1 = require("./setupUserWalletUi");
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
+const runTransactionUi_1 = require("./runTransactionUi");
 const CHOICE_SETUP_USER_WALLET = 'Setup a password-protected wallet in yaml2solana';
 const CHOICE_WALLET_OPTIONS = 'Wallet options';
 const DOWNLOAD_SOLANA_ACCOUNTS = 'Download solana accounts defined in schema';
 const CHOICE_RUN_TEST_VALIDATOR = 'Run test validator';
 const CHOICE_RUN_INSTRUCTION = 'Run an instruction';
+const CHOICE_RUN_TXGEN = 'Run Tx Generator';
 const CHOICE_RUN_TEST = 'Run a test';
 const CHOICE_UTILS = 'Utility / Debugging Tools';
 async function mainUi(schemaFile, y2s) {
@@ -67,6 +69,7 @@ async function mainUi(schemaFile, y2s) {
                     DOWNLOAD_SOLANA_ACCOUNTS,
                     CHOICE_RUN_TEST_VALIDATOR,
                     CHOICE_RUN_INSTRUCTION,
+                    CHOICE_RUN_TXGEN,
                     CHOICE_RUN_TEST,
                     CHOICE_UTILS,
                 ],
@@ -87,6 +90,10 @@ async function mainUi(schemaFile, y2s) {
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_INSTRUCTION) {
             return await (0, runInstructionUi_1.runInstructionUi)(schemaFile, y2s);
+        }
+        // Assuming here that test validator is already running.
+        if (choice === CHOICE_RUN_TXGEN) {
+            return await (0, runTransactionUi_1.runTxGeneratorUi)(schemaFile, y2s);
         }
         // Assuming here that test validator is already running.
         if (choice === CHOICE_RUN_TEST) {
