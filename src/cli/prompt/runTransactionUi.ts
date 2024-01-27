@@ -10,13 +10,13 @@ export async function runTxGeneratorUi(schemaFile: string, y2s?: Yaml2SolanaClas
   const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
 
   // 2. Get choices
-  const choices = yaml2solana.getInstructionBundles();
+  const choices = yaml2solana.getTxGenerators();
 
-  // 3. Choose bundle to execute
+  // 3. Choose tx generator to execute
   const { choice } = await inquirer.prompt({
     type: 'list',
     name: 'choice',
-    message: 'Choose bundle to execute:',
+    message: 'Choose tx generator to execute:',
     choices,
   });
 
@@ -29,14 +29,14 @@ export async function runTxGeneratorUi(schemaFile: string, y2s?: Yaml2SolanaClas
     }
   });
 
+
   // 5. Create localnet transaction
-  const signers = yaml2solana.resolveInstructionBundleSigners(`$${choice}`);
   const tx = yaml2solana.createTransaction(
     choice,
     [`$${choice}`],
     yaml2solana.parsedYaml.instructionBundle![choice].alts,
     yaml2solana.parsedYaml.instructionBundle![choice].payer,
-    signers,
+    [], // Signers should be automatically resolved by createTransaction
   );
 
   // 6. Choose whether to execute transaction in localnet or mainnet

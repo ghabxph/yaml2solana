@@ -31,7 +31,7 @@ export declare class Yaml2SolanaClass {
     /**
      * Get all global variables
      */
-    get global(): Record<string, any>;
+    get global(): Record<string, Type>;
     /**
      * Start CLI
      */
@@ -49,6 +49,12 @@ export declare class Yaml2SolanaClass {
      * @param params
      */
     resolve(params: ResolveParams): Promise<void>;
+    /**
+     * Get transactions from tx generator
+     *
+     * @param name
+     */
+    resolveTxGenerators(onlyResolve?: string[]): Promise<any>;
     /**
      * Get accounts from solana instructions
      *
@@ -85,6 +91,10 @@ export declare class Yaml2SolanaClass {
      * @returns instruction bundle labels defined in yaml
      */
     getInstructionBundles(): string[];
+    /**
+     * @returns transaction generators defined in yaml
+     */
+    getTxGenerators(): string[];
     /**
      * Resolve instruction bundle payer
      *
@@ -283,6 +293,10 @@ export declare class Yaml2SolanaClass {
      */
     private generateDynamicAccounts;
     /**
+     * Generate Tx Generators
+     */
+    private generateTxGenerators;
+    /**
      * Find signer from global variable
      *
      * @param idOrValue
@@ -323,6 +337,7 @@ export type ResolveParams = {
         theseInstructions?: string[];
         theseInstructionBundles?: string[];
         theseDynamicInstructions?: string[];
+        theseTxGenerators?: string[];
     };
 };
 export type Account = {
@@ -388,6 +403,9 @@ export type ExecuteTxSettings = {
 };
 export type Accounts = Record<string, string>;
 export type AccountDecoder = string[];
+export type TxGenerator = {
+    params: string[];
+};
 export type ParsedYaml = {
     mainnetRpc?: string[];
     executeTxSettings: ExecuteTxSettings;
@@ -399,6 +417,7 @@ export type ParsedYaml = {
     instructionDefinition: Record<string, InstructionDefinition | DynamicInstruction>;
     accountDecoder?: Record<string, AccountDecoder>;
     instructionBundle?: Record<string, InstructionBundle>;
+    txGenerator?: Record<string, TxGenerator>;
     localDevelopment: {
         accountsFolder: string;
         skipCache: string[];

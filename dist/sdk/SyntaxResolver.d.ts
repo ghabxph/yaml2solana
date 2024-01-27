@@ -86,7 +86,7 @@ export declare abstract class TypeFactory {
     static createValue(value: AccountDecoderClassSyntax): TypeAccountDecoderClassSyntax;
     static createValue(value: AccountDecoderClass): TypeAccountDecoderClass;
     static createValue(value: DynamicInstructionClass): TypeDynamicInstructionClass;
-    static createValue(value: TxGeneratorClass): TypeDynamicInstructionClass;
+    static createValue(value: TxGeneratorClass): TypeTxGeneratorClass;
     static createValue(value: Buffer): TypeBuffer;
     static createValue(value: web3.TransactionInstruction): TypeInstruction;
     static createValue(value: TypedVariableSyntax): TypeTypedVariableDeclarationSyntax;
