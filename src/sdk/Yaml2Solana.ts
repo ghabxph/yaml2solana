@@ -9,7 +9,7 @@ import { spawn } from 'child_process';
 import { AccountDecoder as AccountDecoderClass } from './AccountDecoder';
 import { DynamicInstruction as DynamicInstructionClass, GenerateIxFn, GenerateIxsFn } from './DynamicInstruction';
 import { cliEntrypoint } from '../cli';
-import { ContextResolver, MainSyntaxResolver, SyntaxContext, SyntaxResolver, Type, TypeFactory } from './SyntaxResolver';
+import { ContextResolver, MainSyntaxResolver, SyntaxContext, SyntaxResolver, Type, TypeFactory, TypeTxGeneratorClass } from './SyntaxResolver';
 import { throwErrorWithTrace } from '../error';
 import tsClearScreen from 'ts-clear-screen';
 import { TxGeneratorClass } from './TxGenerators';
@@ -79,7 +79,7 @@ export class Yaml2SolanaClass {
   /**
    * Get all global variables
    */
-  get global(): Record<string, any> {
+  get global(): Record<string, Type> {
     return this._global;
   }
 
@@ -126,6 +126,54 @@ export class Yaml2SolanaClass {
     // Resolve instruction bundles
     onlyResolve = params.onlyResolve.theseInstructionBundles?.map(v => this.sanitizeDollar(v));
     await this.resolveInstructionBundles(onlyResolve);
+
+    // Resolve instruction bundles
+    onlyResolve = params.onlyResolve.theseTxGenerators?.map(v => this.sanitizeDollar(v));
+    await this.resolveTxGenerators(onlyResolve);
+  }
+
+  /**
+   * Get transactions from tx generator
+   *
+   * @param name
+   */
+  async resolveTxGenerators(onlyResolve?: string[]) {
+    for (const id in this._parsedYaml.txGenerator) {
+
+      // Skip if not included
+      if (onlyResolve !== undefined && !onlyResolve.includes(id)) continue;
+
+      // Get txGenerator instance
+      const txGenerator = this.getVar(`$${id}`);
+
+      // Type guard (should not happen, otherwise, there's a bug)
+      if (txGenerator.type !== 'tx_generator') return throwErrorWithTrace(`Unexpected error: Resolved value is not TX Generator.`);
+
+      // Find PDA that are referenced by tx generator
+      const thesePdas: string[] = [];
+      for (const varId in txGenerator.value.varType) {
+        const varInfo = txGenerator.value.varType[varId];
+        if (varInfo.type === 'pubkey') {
+          const id2 = varId.substring(1);
+          if (this._parsedYaml.pda[id2]) {
+            thesePdas.push(id2);
+          }
+        }
+      }
+
+      // Then resolve involved PDAs.
+      this.resolve({
+        onlyResolve: {
+          thesePdas,
+          theseInstructions: [],
+          theseInstructionBundles: [],
+          theseTxGenerators: [],
+        }
+      });
+
+      // And lastly, generate and store txs through resolve method
+      await txGenerator.value.resolve();
+    }
   }
 
   /**
@@ -283,6 +331,17 @@ export class Yaml2SolanaClass {
   getInstructionBundles(): string[] {
     const result: string[] = [];
     for (const label in this._parsedYaml.instructionBundle) {
+      result.push(label);
+    }
+    return result;
+  }
+
+  /**
+   * @returns transaction generators defined in yaml
+   */
+  getTxGenerators(): string[] {
+    const result: string[] = [];
+    for (const label in this._parsedYaml.txGenerator) {
       result.push(label);
     }
     return result;
@@ -1207,7 +1266,7 @@ export class Yaml2SolanaClass {
     const txGenerators = this._parsedYaml.txGenerator;
     for (const id in txGenerators) {
       const params = txGenerators[id].params;
-      this.setVar(id, TypeFactory.createValue(new TxGeneratorClass(this, params)))
+      this.setVar(id, TypeFactory.createValue(new TxGeneratorClass(this, params, id)));
     }
   }
 
@@ -1383,6 +1442,7 @@ export type ResolveParams = {
     theseInstructions?: string[]
     theseInstructionBundles?: string[],
     theseDynamicInstructions?: string[],
+    theseTxGenerators?: string[],
   }
 }
 
