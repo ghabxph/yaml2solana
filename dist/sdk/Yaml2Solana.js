@@ -32,6 +32,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const yaml = __importStar(require("yaml"));
 const util = __importStar(require("../util"));
+const bn_js_1 = __importDefault(require("bn.js"));
 const find_process_1 = __importDefault(require("find-process"));
 const child_process_1 = require("child_process");
 const child_process_2 = require("child_process");
@@ -126,37 +127,121 @@ class Yaml2SolanaClass {
      * @param name
      */
     async resolveTxGenerators(onlyResolve) {
-        for (const id in this._parsedYaml.txGenerator) {
+        for (const label in this._parsedYaml.txGeneratorExecute) {
             // Skip if not included
-            if (onlyResolve !== undefined && !onlyResolve.includes(id))
+            if (onlyResolve !== undefined && !onlyResolve.includes(label))
                 continue;
-            // Get txGenerator instance
-            const txGenerator = this.getVar(`$${id}`);
-            // Type guard (should not happen, otherwise, there's a bug)
-            if (txGenerator.type !== 'tx_generator')
-                return (0, error_1.throwErrorWithTrace)(`Unexpected error: Resolved value is not TX Generator.`);
-            // Find PDA that are referenced by tx generator
-            const thesePdas = [];
-            for (const varId in txGenerator.value.varType) {
-                const varInfo = txGenerator.value.varType[varId];
-                if (varInfo.type === 'pubkey') {
-                    const id2 = varId.substring(1);
-                    if (this._parsedYaml.pda[id2]) {
-                        thesePdas.push(id2);
+            const txGeneratorExecuteSchema = this._parsedYaml.txGeneratorExecute[label];
+            for (const generatorSchema of txGeneratorExecuteSchema.generators) {
+                // Get txGenerator instance
+                const txGenerator = this.getVar(`$${generatorSchema.label}`);
+                // Type guard (should not happen, otherwise, there's a bug)
+                if (txGenerator.type !== 'tx_generator')
+                    return (0, error_1.throwErrorWithTrace)(`Unexpected error: Resolved value is not TX Generator.`);
+                for (const varName in txGeneratorExecuteSchema.vars) {
+                    const _var = new SyntaxResolver_1.MainSyntaxResolver(txGeneratorExecuteSchema.vars[varName], this).resolve(SyntaxResolver_1.SyntaxContext.VARIABLE_RESOLUTION);
+                    this.setVar(varName, _var.value);
+                }
+                // Find PDA that are referenced by tx generator
+                const thesePdas = [];
+                for (const varId in txGenerator.value.varType) {
+                    const varInfo = txGenerator.value.varType[varId];
+                    if (varInfo.type === 'pubkey') {
+                        const id2 = varId.substring(1);
+                        if (this._parsedYaml.pda[id2]) {
+                            thesePdas.push(id2);
+                        }
                     }
                 }
-            }
-            // Then resolve involved PDAs.
-            this.resolve({
-                onlyResolve: {
-                    thesePdas,
-                    theseInstructions: [],
-                    theseInstructionBundles: [],
-                    theseTxGenerators: [],
+                for (const varName in generatorSchema.params) {
+                    const varValue = generatorSchema.params[varName];
+                    if (typeof varValue === 'string' && varValue.startsWith('$')) {
+                        const id2 = varValue.substring(1);
+                        if (this._parsedYaml.pda[id2]) {
+                            thesePdas.push(id2);
+                        }
+                    }
                 }
-            });
-            // And lastly, generate and store txs through resolve method
-            await txGenerator.value.resolve();
+                // Then resolve involved PDAs.
+                this.resolve({
+                    onlyResolve: {
+                        thesePdas,
+                        theseInstructions: [],
+                        theseInstructionBundles: [],
+                        theseTxGenerators: [],
+                    }
+                });
+                // Then resolve values / variables set
+                for (const varName in generatorSchema.params) {
+                    let resolver2;
+                    let value = generatorSchema.params[varName];
+                    try {
+                        const result = new SyntaxResolver_1.MainSyntaxResolver(value, this).resolve(SyntaxResolver_1.SyntaxContext.VARIABLE_RESOLUTION);
+                        value = result.value;
+                        resolver2 = result;
+                    }
+                    catch {
+                        if (value.startsWith('$')) {
+                            (0, error_1.throwErrorWithTrace)(`Cannot resolve variable: ${value}`);
+                        }
+                    }
+                    if (value !== undefined) {
+                        if (txGenerator.value.varType[`$${varName}`].type === 'pubkey') {
+                            if (resolver2 !== undefined && resolver2.type === 'keypair') {
+                                this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(value.publicKey));
+                            }
+                            else {
+                                this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(new web3.PublicKey(value)));
+                            }
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'string') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(value));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'u8') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "u8"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'u16') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "u16"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'u32') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "u32"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'u64') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(new bn_js_1.default(value), "u64"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'usize') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(new bn_js_1.default(value), "usize"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'i8') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "i8"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'i16') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "i16"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'i32') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(Number(value), "i32"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'i64') {
+                            this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(new bn_js_1.default(value), "i64"));
+                        }
+                        else if (txGenerator.value.varType[`$${varName}`].type === 'bool') {
+                            if (typeof value === 'boolean') {
+                                this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(value));
+                            }
+                            else {
+                                if (['true', 'false'].includes(value)) {
+                                    this.setParam(`$${varName}`, SyntaxResolver_1.TypeFactory.createValue(value === 'true'));
+                                }
+                                else {
+                                    return (0, error_1.throwErrorWithTrace)(`${varName} supports only boolean value.`);
+                                }
+                            }
+                        }
+                    }
+                }
+                // And lastly, generate and store txs through resolve method
+                await txGenerator.value.resolve();
+            }
         }
     }
     /**
@@ -315,7 +400,7 @@ class Yaml2SolanaClass {
      */
     getTxGenerators() {
         const result = [];
-        for (const label in this._parsedYaml.txGenerator) {
+        for (const label in this._parsedYaml.txGeneratorExecute) {
             result.push(label);
         }
         return result;
@@ -781,6 +866,17 @@ class Yaml2SolanaClass {
             }
             else {
                 return (0, error_1.throwErrorWithTrace)(`Cannot find dynamic instruction $${params.ixName}`);
+            }
+        }
+    }
+    extendTxGenerator(params) {
+        const v = this.getVar(`$${params.name}`);
+        if (v !== undefined) {
+            if (v.type === 'tx_generator') {
+                v.value.extend(params.generateTxFn);
+            }
+            else {
+                return (0, error_1.throwErrorWithTrace)(`$${params.name} is not a transaction generator instance`);
             }
         }
     }
@@ -1255,14 +1351,17 @@ class Transaction {
         console.log('Transaction signers info:');
         console.log('-----------------------------------------------------------');
         const signerInfo = [];
+        let signersFromTx = [];
         this.ixns.map((ix, i) => {
             ix.keys.map((meta, j) => {
                 if (meta.isSigner) {
                     signerInfo.push(`ix #${i + 1} - account #${j + 1} - ${meta.pubkey}`);
+                    signersFromTx.push(meta.pubkey.toBase58());
                 }
             });
         });
         signerInfo.map(s => console.log(s));
+        signersFromTx = signersFromTx.filter((v, i, s) => s.indexOf(v) === i);
         const actualSigners = [];
         this.signers.map((signer, i) => {
             actualSigners.push(`Signer #${i + 1} ${signer.publicKey}`);
@@ -1277,7 +1376,9 @@ class Transaction {
             instructions: this.ixns,
             recentBlockhash,
         }).compileToV0Message(alts));
-        tx.sign(this.signers);
+        // Make sure that transaction is signed by signers defined in the transaction only
+        const signers = this.signers.filter(signer => signersFromTx.includes(signer.publicKey.toBase58()));
+        tx.sign(signers);
         return tx;
     }
     async compileToLegacyTx() {

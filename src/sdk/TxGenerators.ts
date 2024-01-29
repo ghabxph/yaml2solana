@@ -97,6 +97,7 @@ export class TxGeneratorClass {
         params[id.substring(1)] = this.getValue(_var.id, _var.type as any);
       }
       this._txs = await this._generateTxs(params, this.y2s);
+      return this._txs;
     }
     return throwErrorWithTrace(`Tx Generator ${this.name} is not yet implemented.`);
   }
