@@ -536,6 +536,9 @@ class ValueSyntaxResolver extends SyntaxResolver {
     if (isString && this.pattern.startsWith('$')) {
       const resolver = new VariableSyntaxResolver(this.pattern, this.y2s);
       this._value = resolver.value;
+    } else if (isString) {
+      const resolver = new LiteralSyntaxResolver(this.pattern, this.y2s);
+      this._value = resolver.value;
     } else {
       this._value = this.pattern;
       if (isNumber && this._value > 0) {

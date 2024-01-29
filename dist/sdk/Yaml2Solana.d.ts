@@ -2,6 +2,7 @@ import * as web3 from '@solana/web3.js';
 import * as util from '../util';
 import { GenerateIxFn, GenerateIxsFn } from './DynamicInstruction';
 import { Type } from './SyntaxResolver';
+import { GenerateTxs } from './TxGenerators';
 export declare class Yaml2SolanaClass {
     /**
      * Localnet connection instance
@@ -208,6 +209,10 @@ export declare class Yaml2SolanaClass {
         ixName: string;
         generateFn: GenerateIxsFn;
     }): void;
+    extendTxGenerator(params: {
+        name: string;
+        generateTxFn: GenerateTxs;
+    }): any;
     /**
      * Find PDAs involved from given instruction
      *
@@ -406,6 +411,16 @@ export type AccountDecoder = string[];
 export type TxGenerator = {
     params: string[];
 };
+export type TxGeneratorExecute = {
+    vars: Record<string, string>;
+    alts: string[];
+    payer: string;
+    generators: TxGeneratorExecutor[];
+};
+export type TxGeneratorExecutor = {
+    label: string;
+    params: Record<string, any>;
+};
 export type ParsedYaml = {
     mainnetRpc?: string[];
     executeTxSettings: ExecuteTxSettings;
@@ -418,6 +433,7 @@ export type ParsedYaml = {
     accountDecoder?: Record<string, AccountDecoder>;
     instructionBundle?: Record<string, InstructionBundle>;
     txGenerator?: Record<string, TxGenerator>;
+    txGeneratorExecute?: Record<string, TxGeneratorExecute>;
     localDevelopment: {
         accountsFolder: string;
         skipCache: string[];
