@@ -117,7 +117,8 @@ export class TxGeneratorClass {
   getValue(id: string, type: "i128"): BN;
   getValue(id: string, type: "pubkey"): web3.PublicKey;
   getValue(id: string, type: "string"): string;
-  getValue(id: string, type: util.typeResolver.VariableType): number | BN | web3.PublicKey | string {
+  getValue(id: string, type: "bool"): string;
+  getValue(id: string, type: util.typeResolver.VariableType): number | BN | web3.PublicKey | boolean | string {
     const INTEGERS = ["u8", "u16", "u32", "usize", "i8", "i16", "i32"];
     const BIG_INTEGERS = ["u64", "u128", "i64", "i128"];
     if (INTEGERS.includes(type)) {
@@ -138,6 +139,10 @@ export class TxGeneratorClass {
       const v = this.y2s.getParam(id);
       if (v.type === 'string') return v.value;
       else return throwErrorWithTrace(`${id} is not a valid string.`);
+    } else if (type === "bool") {
+      const v = this.y2s.getParam(id);
+      if (v.type === 'boolean') return v.value;
+      else return throwErrorWithTrace(`${id} is not a valid bool value.`);
     } else return throwErrorWithTrace(`Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`);
   }
 }

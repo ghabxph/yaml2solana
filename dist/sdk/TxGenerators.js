@@ -148,6 +148,13 @@ class TxGeneratorClass {
             else
                 return (0, error_1.throwErrorWithTrace)(`${id} is not a valid string.`);
         }
+        else if (type === "bool") {
+            const v = this.y2s.getParam(id);
+            if (v.type === 'boolean')
+                return v.value;
+            else
+                return (0, error_1.throwErrorWithTrace)(`${id} is not a valid bool value.`);
+        }
         else
             return (0, error_1.throwErrorWithTrace)(`Invalid type ${type}. Valid types: ${util.typeResolver.variableTypes.join(',')}`);
     }

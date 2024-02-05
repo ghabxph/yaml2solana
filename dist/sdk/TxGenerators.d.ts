@@ -46,6 +46,7 @@ export declare class TxGeneratorClass {
     getValue(id: string, type: "i128"): BN;
     getValue(id: string, type: "pubkey"): web3.PublicKey;
     getValue(id: string, type: "string"): string;
+    getValue(id: string, type: "bool"): string;
 }
 export {};
 //# sourceMappingURL=TxGenerators.d.ts.map
