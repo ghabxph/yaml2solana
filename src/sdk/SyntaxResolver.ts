@@ -428,12 +428,12 @@ class AccountMetaSyntaxResolver extends SyntaxResolver {
   /**
    * Account is signer
    */
-  private isSigner: boolean = false;
+  private isSigner?: boolean;
 
   /**
    * Account is mutable
    */
-  private isMutable: boolean = false;
+  private isMutable?: boolean;
 
   /**
    * Resolved value
@@ -441,8 +441,8 @@ class AccountMetaSyntaxResolver extends SyntaxResolver {
   get value(): TypeAccountMeta {
     return TypeFactory.createValue({
       key: this.account as web3.PublicKey,
-      isSigner: this.isSigner,
-      isWritable: this.isMutable,
+      isSigner: this.isSigner as boolean,
+      isWritable: this.isMutable as boolean,
     })
   }
 

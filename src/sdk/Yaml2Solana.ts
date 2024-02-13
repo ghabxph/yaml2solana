@@ -370,14 +370,26 @@ export class Yaml2SolanaClass {
       const _meta = meta.split(',');
       const [account] = _meta;
       if (_meta.includes('signer')) {
-        const signer = this.getVar(account);
-        if (signer.type === 'keypair') {
-          result.push(signer.value);
+        if (account.startsWith('$')) {
+          const signer = this.getVar(account);
+          if (signer.type === 'keypair') {
+            result.push(signer.value);
+          } else {
+            return throwErrorWithTrace(`Cannot resolve signer account: ${account}`);
+          }
+          if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
+            isPayerSigner = true;
+          }
         } else {
-          return throwErrorWithTrace(`Cannot resolve signer account: ${account}`);
-        }
-        if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
-          isPayerSigner = true;
+          for (const id in this.global) {
+            const signer = this.global[id];
+            if (signer.type === 'keypair' && signer.value.publicKey.toBase58() === account) {
+              result.push(signer.value);
+              if (Buffer.from(signer.value.secretKey).equals(Buffer.from(payer.secretKey))) {
+                isPayerSigner = true;
+              }
+            }
+          }
         }
       }
     }
@@ -872,6 +884,8 @@ export class Yaml2SolanaClass {
           thesePdas: pdas,
           theseInstructions: [ixLabel],
           theseInstructionBundles: [],
+          theseDynamicInstructions: [],
+          theseTxGenerators: [],
         }
       }
     );
@@ -1163,6 +1177,7 @@ export class Yaml2SolanaClass {
           theseInstructions: [],
           theseInstructionBundles: [],
           theseDynamicInstructions: [],
+          theseTxGenerators: [],
         }
       });
 

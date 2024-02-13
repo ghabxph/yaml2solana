@@ -154,7 +154,7 @@ export function writeAccountsToCacheFolder(cacheFolder: string, accountInfos: Fu
           ],
           owner: accountInfo.owner,
           executable: accountInfo.executable,
-          rentEpoch: accountInfo.rentEpoch,
+          rentEpoch: 0,
         }
       }, null, 2))
     }

@@ -104,14 +104,18 @@ async function runSingleInstruction(schemaFile: string, y2s?: Yaml2SolanaClass) 
     } catch {} finally {
       const [account] = param.split(',');
       let defaultValue: web3.PublicKey;
-      let v = yaml2solana.getParam(account);
-      if (v.type === 'keypair') {
-        defaultValue = v.value.publicKey
-      } else if (v.type === 'pubkey') {
-        defaultValue = v.value
+      if (account.startsWith('$')) {
+        let v = yaml2solana.getParam(account);
+        if (v.type === 'keypair') {
+          defaultValue = v.value.publicKey
+        } else if (v.type === 'pubkey') {
+          defaultValue = v.value
+        } else {
+          throwErrorWithTrace(`${account} is not a valid public key.`);
+          return;
+        }
       } else {
-        throwErrorWithTrace(`${account} is not a valid public key.`);
-        return;
+        continue;
       }
       const { value } = await inquirer.prompt({
         type: 'input',
