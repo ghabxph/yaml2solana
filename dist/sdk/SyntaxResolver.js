@@ -453,17 +453,6 @@ class VariableSyntaxResolver extends SyntaxResolver {
     }
 }
 class AccountMetaSyntaxResolver extends SyntaxResolver {
-    constructor() {
-        super(...arguments);
-        /**
-         * Account is signer
-         */
-        this.isSigner = false;
-        /**
-         * Account is mutable
-         */
-        this.isMutable = false;
-    }
     /**
      * Resolved value
      */
