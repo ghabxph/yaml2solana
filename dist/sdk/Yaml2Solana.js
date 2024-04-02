@@ -42,6 +42,8 @@ const SyntaxResolver_1 = require("./SyntaxResolver");
 const error_1 = require("../error");
 const ts_clear_screen_1 = __importDefault(require("ts-clear-screen"));
 const TxGenerators_1 = require("./TxGenerators");
+const bs58_1 = __importDefault(require("bs58"));
+const url_1 = require("url");
 class Yaml2SolanaClass {
     constructor(config) {
         /**
@@ -280,7 +282,7 @@ class Yaml2SolanaClass {
      * @param signers
      * @returns
      */
-    createTransaction(description, ixns, alts, payer, signers) {
+    createTransaction(description, ixns, alts, payer, signers, priority = "default") {
         const _ixns = [];
         for (const ix of ixns) {
             if (this.isObjectInstruction(ix)) {
@@ -335,7 +337,7 @@ class Yaml2SolanaClass {
                 return (0, error_1.throwErrorWithTrace)(`Invalid solana signer instance`);
             }
         });
-        return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers);
+        return new Transaction(description, this.localnetConnection, _ixns, alts, _payer, _signers, priority);
     }
     /**
      * Get signers from given instruction
@@ -1347,13 +1349,14 @@ class Yaml2SolanaClass {
 }
 exports.Yaml2SolanaClass = Yaml2SolanaClass;
 class Transaction {
-    constructor(description, connection, ixns, alts, payer, signers) {
+    constructor(description, connection, ixns, alts, payer, signers, priority) {
         this.description = description;
         this.connection = connection;
         this.ixns = ixns;
         this.alts = alts;
         this.payer = payer;
         this.signers = signers;
+        this.priority = priority;
     }
     async compileToVersionedTransaction() {
         const { blockhash: recentBlockhash } = await this.connection.getLatestBlockhash();
@@ -1387,16 +1390,61 @@ class Transaction {
         console.log('-----------------------------------------------------------');
         console.log();
         console.log();
-        const tx = new web3.VersionedTransaction(new web3.TransactionMessage({
+        console.log(`TX Priority: ${this.priority}`);
+        const { blockhash } = await this.connection.getLatestBlockhash();
+        const txMessage = (await this.addPriorityFees(this.priority, new web3.TransactionMessage({
             payerKey: this.payer,
             instructions: this.ixns,
             recentBlockhash,
-        }).compileToV0Message(alts));
+        }), alts, this.payer, blockhash));
+        const tx = new web3.VersionedTransaction(txMessage.compileToV0Message(alts));
         // Make sure that transaction is signed by signers defined in the transaction only
         const signers = this.signers.filter(signer => signersFromTx.includes(signer.publicKey.toBase58()));
         tx.sign(signers);
         return tx;
     }
+    async getPriorityFeeEstimate(priorityLevel, transaction) {
+        if (isMainnetHeliusRPC(this.connection.rpcEndpoint)) {
+            const response = await fetch(this.connection.rpcEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "1",
+                    method: "getPriorityFeeEstimate",
+                    params: [
+                        {
+                            transaction: bs58_1.default.encode(transaction.serialize()), // Pass the serialized transaction in Base58
+                            options: { priorityLevel: priorityLevel },
+                        },
+                    ],
+                }),
+            });
+            const data = await response.json();
+            console.log("Fee in function for", priorityLevel, " :", data.result.priorityFeeEstimate);
+            return { priorityFeeEstimate: Math.round(data.result.priorityFeeEstimate) };
+        }
+        return { priorityFeeEstimate: 200000 };
+    }
+    async addPriorityFees(priorityLevel, txMessage, lookupTables, feePayer, blockhash) {
+        const estVt = new web3.VersionedTransaction(txMessage.compileToV0Message(lookupTables));
+        // call helius api by sending serialized txn'
+        const feeEstimate = await this.getPriorityFeeEstimate(priorityLevel, estVt);
+        // priority fee for transactions
+        const priorityFeeIxs = [
+            web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }),
+            web3.ComputeBudgetProgram.setComputeUnitPrice({
+                microLamports: feeEstimate.priorityFeeEstimate,
+            }),
+        ];
+        const newTxMessage = new web3.TransactionMessage({
+            payerKey: feePayer,
+            recentBlockhash: blockhash,
+            instructions: [...priorityFeeIxs, ...txMessage.instructions],
+        });
+        return newTxMessage;
+    }
+    ;
     async compileToLegacyTx() {
         const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
         console.log();
@@ -1446,3 +1494,18 @@ class Transaction {
     }
 }
 exports.Transaction = Transaction;
+// Function to check if a URL belongs to a specific domain
+function isMainnetHeliusRPC(url) {
+    try {
+        // Parse the URL
+        const parsedUrl = new url_1.URL(url);
+        // Extract the hostname (domain)
+        const hostname = parsedUrl.hostname;
+        // Perform a string match to check if the hostname matches the expected domain
+        return hostname === 'mainnet.helius-rpc.com';
+    }
+    catch (error) {
+        // URL parsing error, return false
+        return false;
+    }
+}

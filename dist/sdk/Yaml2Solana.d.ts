@@ -77,7 +77,7 @@ export declare class Yaml2SolanaClass {
      * @param signers
      * @returns
      */
-    createTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[]): Transaction;
+    createTransaction(description: string, ixns: (string | web3.TransactionInstruction)[], alts: string[], payer: string | web3.PublicKey, signers: (string | web3.Signer)[], priority?: string): Transaction;
     /**
      * Get signers from given instruction
      *
@@ -322,8 +322,13 @@ export declare class Transaction {
     readonly alts: string[];
     readonly payer: web3.PublicKey;
     readonly signers: web3.Signer[];
-    constructor(description: string, connection: web3.Connection, ixns: web3.TransactionInstruction[], alts: string[], payer: web3.PublicKey, signers: web3.Signer[]);
+    readonly priority: string;
+    constructor(description: string, connection: web3.Connection, ixns: web3.TransactionInstruction[], alts: string[], payer: web3.PublicKey, signers: web3.Signer[], priority: string);
     compileToVersionedTransaction(): Promise<web3.VersionedTransaction>;
+    getPriorityFeeEstimate(priorityLevel: string, transaction: web3.VersionedTransaction): Promise<{
+        priorityFeeEstimate: number;
+    }>;
+    addPriorityFees(priorityLevel: string, txMessage: web3.TransactionMessage, lookupTables: web3.AddressLookupTableAccount[], feePayer: web3.PublicKey, blockhash: string): Promise<web3.TransactionMessage>;
     compileToLegacyTx(): Promise<web3.Transaction>;
     /**
      * Get all accounts from instructions

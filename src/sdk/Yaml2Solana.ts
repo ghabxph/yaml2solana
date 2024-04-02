@@ -14,6 +14,8 @@ import { ContextResolver, MainSyntaxResolver, SyntaxContext, SyntaxResolver, Typ
 import { throwErrorWithTrace } from '../error';
 import tsClearScreen from 'ts-clear-screen';
 import { GenerateTxs, TxGeneratorClass } from './TxGenerators';
+import bs58 from "bs58";
+import { URL } from 'url';
 
 export class Yaml2SolanaClass {
 
@@ -293,7 +295,8 @@ export class Yaml2SolanaClass {
     ixns: (string | web3.TransactionInstruction)[],
     alts: string[],
     payer: string | web3.PublicKey,
-    signers: (string | web3.Signer)[]
+    signers: (string | web3.Signer)[],
+    priority: string = "default",
   ): Transaction {
     const _ixns: web3.TransactionInstruction[] = [];
     for (const ix of ixns) {
@@ -346,7 +349,8 @@ export class Yaml2SolanaClass {
       _ixns,
       alts,
       _payer,
-      _signers
+      _signers,
+      priority,
     );
   }
 
@@ -1434,6 +1438,7 @@ export class Transaction {
     public readonly alts: string[],
     public readonly payer: web3.PublicKey,
     public readonly signers: web3.Signer[],
+    public readonly priority: string,
   ) {}
 
   async compileToVersionedTransaction(): Promise<web3.VersionedTransaction> {
@@ -1470,19 +1475,88 @@ export class Transaction {
     console.log('-----------------------------------------------------------');
     console.log();
     console.log();
-    const tx = new web3.VersionedTransaction(
+
+    console.log(`TX Priority: ${this.priority}`);
+
+    const { blockhash } = await this.connection.getLatestBlockhash();
+    const txMessage = (await this.addPriorityFees(
+      this.priority,
       new web3.TransactionMessage({
         payerKey: this.payer,
         instructions: this.ixns,
         recentBlockhash,
-      }).compileToV0Message(alts)
-    );
+      }),
+      alts,
+      this.payer,
+      blockhash
+    ));
+    const tx = new web3.VersionedTransaction(txMessage.compileToV0Message(alts));
 
     // Make sure that transaction is signed by signers defined in the transaction only
     const signers = this.signers.filter(signer => signersFromTx.includes(signer.publicKey.toBase58()));
     tx.sign(signers);
     return tx;
   }
+
+  async getPriorityFeeEstimate(
+    priorityLevel: string,
+    transaction: web3.VersionedTransaction,
+  ) {
+    if (isMainnetHeliusRPC(this.connection.rpcEndpoint)) {
+      const response = await fetch(this.connection.rpcEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "1",
+          method: "getPriorityFeeEstimate",
+          params: [
+            {
+              transaction: bs58.encode(transaction.serialize()), // Pass the serialized transaction in Base58
+              options: { priorityLevel: priorityLevel },
+            },
+          ],
+        }),
+      });
+      const data = await response.json();
+      console.log(
+        "Fee in function for",
+        priorityLevel,
+        " :",
+        data.result.priorityFeeEstimate,
+      );
+      return { priorityFeeEstimate: Math.round(data.result.priorityFeeEstimate) };
+    }
+    return { priorityFeeEstimate: 200000 };
+  }
+
+  async addPriorityFees (
+    priorityLevel: string,
+    txMessage: web3.TransactionMessage,
+    lookupTables: web3.AddressLookupTableAccount[],
+    feePayer: web3.PublicKey,
+    blockhash: string,
+  ): Promise<web3.TransactionMessage> {
+    const estVt = new web3.VersionedTransaction(
+      txMessage.compileToV0Message(lookupTables),
+    );
+    // call helius api by sending serialized txn'
+    const feeEstimate = await this.getPriorityFeeEstimate(priorityLevel, estVt);
+    // priority fee for transactions
+    const priorityFeeIxs = [
+      web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }),
+      web3.ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: feeEstimate.priorityFeeEstimate,
+      }),
+    ];
+    const newTxMessage = new web3.TransactionMessage({
+      payerKey: feePayer,
+      recentBlockhash: blockhash,
+      instructions: [...priorityFeeIxs, ...txMessage.instructions],
+    });
+  
+    return newTxMessage;
+  };
 
   async compileToLegacyTx(): Promise<web3.Transaction> {
     const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
@@ -1669,4 +1743,21 @@ export type ParsedYaml = {
 export type AccountFile = {
   key: web3.PublicKey,
   path: string,
+}
+
+// Function to check if a URL belongs to a specific domain
+function isMainnetHeliusRPC(url: string): boolean {
+  try {
+      // Parse the URL
+      const parsedUrl = new URL(url);
+      
+      // Extract the hostname (domain)
+      const hostname = parsedUrl.hostname;
+
+      // Perform a string match to check if the hostname matches the expected domain
+      return hostname === 'mainnet.helius-rpc.com';
+  } catch (error) {
+      // URL parsing error, return false
+      return false;
+  }
 }
