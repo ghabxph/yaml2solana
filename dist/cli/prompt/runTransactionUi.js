@@ -45,7 +45,22 @@ async function runTxGeneratorUi(schemaFile, y2s) {
     });
     // 4. Choose whether to execute transaction in localnet or mainnet
     const cluster = await getCluster(yaml2solana);
-    // 5. Resolve
+    // 5. Choose transaction priority
+    const { priority } = await inquirer_1.default.prompt({
+        type: 'list',
+        name: 'priority',
+        message: 'Choose execution priority:',
+        choices: [
+            "Default",
+            "None",
+            "Low",
+            "Medium",
+            "High",
+            "VeryHigh",
+            "UnsafeMax",
+        ],
+    });
+    // 6. Resolve
     await yaml2solana.resolve({
         onlyResolve: {
             thesePdas: [],
@@ -54,7 +69,7 @@ async function runTxGeneratorUi(schemaFile, y2s) {
             theseTxGenerators: [choice]
         }
     });
-    // 6. Create localnet transaction(s)
+    // 7. Create localnet transaction(s)
     const txns = [];
     for (const generator of yaml2solana.parsedYaml.txGeneratorExecute[choice].generators) {
         const txGenerator = yaml2solana.getParam(`$${generator.label}`);
@@ -62,10 +77,10 @@ async function runTxGeneratorUi(schemaFile, y2s) {
             return (0, error_1.throwErrorWithTrace)(`Unexpected error: ${generator.label} is not a TxGenerator instance`);
         }
         for (const tx of txGenerator.value.txs) {
-            txns.push(yaml2solana.createTransaction(choice, tx, yaml2solana.parsedYaml.txGeneratorExecute[choice].alts, yaml2solana.parsedYaml.txGeneratorExecute[choice].payer, txGenerator.value.signers));
+            txns.push(yaml2solana.createTransaction(choice, tx, yaml2solana.parsedYaml.txGeneratorExecute[choice].alts, yaml2solana.parsedYaml.txGeneratorExecute[choice].payer, txGenerator.value.signers, priority));
         }
     }
-    // 7. Execute instruction in localnet
+    // 8. Execute instruction in localnet
     console.log();
     await yaml2solana.executeTransactionsLocally({
         txns,
