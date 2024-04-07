@@ -6,12 +6,15 @@ import * as util from "../../util";
 import { accountDecoderUi } from "./accountDecoderUi";
 import { Yaml2SolanaClass } from "../../sdk/Yaml2Solana";
 import { throwErrorWithTrace } from "../../error";
+import { Yaml2Solana } from "../..";
+import base58 from "bs58";
 
 const CHOICE_GENERATE_PDA = 'Generate PDA';
 const CHOICE_ANALYZE_TRANSACTION = 'Analyze Transaction';
 const CHOICE_KEYPAIR_GENERATION = 'Generate Keypair';
 const CHOICE_SIGHASH = 'Generate sighash';
-const CHOICE_ACCOUNT_DECODER = 'Account Decoder'; 
+const CHOICE_ACCOUNT_DECODER = 'Account Decoder';
+const CHOICE_OFFSET_EXTRACTOR = 'Offset Extractor'; 
 
 export async function utilUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
   clear();
@@ -27,6 +30,7 @@ export async function utilUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
           CHOICE_KEYPAIR_GENERATION,
           CHOICE_SIGHASH,
           CHOICE_ACCOUNT_DECODER,
+          CHOICE_OFFSET_EXTRACTOR,
         ],
       },
     ]
@@ -50,6 +54,10 @@ export async function utilUi(schemaFile: string, y2s?: Yaml2SolanaClass) {
 
   if (choice === CHOICE_ACCOUNT_DECODER) {
     return await accountDecoderUi(schemaFile, y2s);
+  }
+
+  if (choice === CHOICE_OFFSET_EXTRACTOR) {
+    return await offsetExtractor(schemaFile, y2s);
   }
 }
 
@@ -153,4 +161,58 @@ async function generateSighash() {
   
   const hexValue = util.typeResolver.sighash(value).toString('hex');
   console.log(`Hex value: ${hexValue}`);
+}
+
+/**
+ * Extract offsets of matching arbitrary data from target account
+ */
+async function offsetExtractor(schemaFile: string, y2s?: Yaml2SolanaClass) {
+  // 1. Choose decoder
+  const yaml2solana = y2s !== undefined ? y2s : Yaml2Solana(schemaFile);
+
+  // 2. Enter the target address
+  const { address } = await inquirer.prompt({
+    type: 'input',
+    name: 'address',
+    message: 'Enter target solana address (account to study)',
+    filter: input => {
+      new web3.PublicKey(input);
+      return input;
+    }
+  });
+
+  // 3. Enter data to search (encoded in base58)
+  const { needle } = await inquirer.prompt({
+    type: 'input',
+    name: 'needle',
+    message: 'Enter data to search, encoded in base58',
+  });
+
+  // 4. Get account info from blockchain
+  const connection = new web3.Connection("https://api.mainnet-beta.solana.com");
+  const info = await connection.getAccountInfo(new web3.PublicKey(address), { commitment: "confirmed" });
+  if (info === null) {
+    throw Error(`Account: ${address} does not exist on blockchain`);
+  }
+
+  // 5. Search target needle from haystack (info)
+  const needle2 = base58.decode(needle);
+  const haystack = info.data;
+  const matches: number[] = [];
+  for (let i = 0; i < haystack.length; i++) {
+    if (i + needle2.length - 1 > haystack.length) {
+      break;
+    }
+    const sample = base58.encode(haystack.subarray(i, i + needle2.length));
+    if (sample === needle) {
+      matches.push(i);
+    }
+  }
+
+  // 6. Show results
+  console.log(`Matches: ${matches.length}`);
+  for (const match of matches) {
+    const matchValue = base58.encode(haystack.subarray(match, match + needle2.length));
+    console.log(`Offset #${match}: ${matchValue}`);
+  }
 }
